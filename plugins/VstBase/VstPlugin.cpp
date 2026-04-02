@@ -314,11 +314,11 @@ void VstPlugin::saveSettings( QDomDocument & _doc, QDomElement & _this )
 
 void VstPlugin::toggleUI()
 {
-	if ( m_embedMethod == "none" )
+	if ( m_embedMethod == "none" || !pluginWidget() )
 	{
 		RemotePlugin::toggleUI();
 	}
-	else if (pluginWidget())
+	else
 	{
 		toggleEditorVisibility();
 	}
@@ -681,26 +681,23 @@ void VstPlugin::idleUpdate()
 
 void VstPlugin::showUI()
 {
-	if ( m_embedMethod == "none" )
+	if ( m_embedMethod == "none" || !pluginWidget() )
 	{
 		RemotePlugin::showUI();
 	}
 	else if ( m_embedMethod != "headless" )
 	{
-		if (! editor()) {
-			qWarning() << "VstPlugin::showUI called before VstPlugin::createUI";
-		}
 		toggleEditorVisibility( true );
 	}
 }
 
 void VstPlugin::hideUI()
 {
-	if ( m_embedMethod == "none" )
+	if ( m_embedMethod == "none" || !pluginWidget() )
 	{
 		RemotePlugin::hideUI();
 	}
-	else if ( pluginWidget() != nullptr )
+	else
 	{
 		toggleEditorVisibility( false );
 	}
