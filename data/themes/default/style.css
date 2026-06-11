@@ -869,6 +869,12 @@ lmms--gui--MidiClipView {
 	qproperty-noteBorderColor: rgb(33, 161, 79);
 	qproperty-mutedNoteFillColor: rgba(100, 100, 100, 220);
 	qproperty-mutedNoteBorderColor: rgb(55, 61, 72);
+
+	/* beat clip step cells */
+	qproperty-stepOnColor: #a0fff8;
+	qproperty-stepOffColor: #0b0d0e;
+	qproperty-stepOffLightColor: #24272b;
+	qproperty-stepHighlightColor: rgba(167, 227, 223, 200);
 }
 
 /* sample track clip */
