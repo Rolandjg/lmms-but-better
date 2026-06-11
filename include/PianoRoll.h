@@ -246,6 +246,9 @@ protected slots:
 	void fitNoteLengths(bool fill);
 	void reverseNotes();
 	void constrainNoteLengths(bool constrainMax);
+	void duplicateSelectedNotes();
+	void humanizeVelocities();
+	void humanizeTiming();
 
 	void changeSnapMode();
 
