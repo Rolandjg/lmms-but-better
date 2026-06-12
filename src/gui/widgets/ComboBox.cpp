@@ -28,7 +28,6 @@
 
 #include <QMouseEvent>
 #include <QPainter>
-#include <QStyleOptionFrame>
 #include <QScreen>
 
 #include "CaptionMenu.h"
@@ -155,52 +154,42 @@ void ComboBox::mousePressEvent( QMouseEvent* event )
 void ComboBox::paintEvent( QPaintEvent * _pe )
 {
 	QPainter p( this );
+	p.setRenderHint(QPainter::Antialiasing);
 
-	p.fillRect(2, 2, width() - 2, height() - 4, m_background);
+	// flat rounded body with a subtle hairline border
+	const QRectF body = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+	p.setPen(QPen(m_borderColor, 1));
+	p.setBrush(m_pressed ? m_backgroundColor.lighter(140) : m_backgroundColor);
+	p.drawRoundedRect(body, 4, 4);
 
-	QColor shadow = palette().shadow().color();
-	QColor highlight = palette().highlight().color();
+	// separator in front of the arrow button
+	QColor separator = m_borderColor;
+	separator.setAlpha(160);
+	p.setPen(separator);
+	p.drawLine(QPointF(width() - CB_ARROW_BTN_WIDTH - 0.5, 4), QPointF(width() - CB_ARROW_BTN_WIDTH - 0.5, height() - 4));
 
-	shadow.setAlpha( 124 );
-	highlight.setAlpha( 124 );
-
-	// button-separator
-	p.setPen( shadow );
-	p.drawLine( width() - CB_ARROW_BTN_WIDTH - 1, 1, width() - CB_ARROW_BTN_WIDTH - 1, height() - 3 );
-
-	p.setPen( highlight );
-	p.drawLine( width() - CB_ARROW_BTN_WIDTH, 1, width() - CB_ARROW_BTN_WIDTH, height() - 3 );
-
-	// Border
-	QStyleOptionFrame opt;
-	opt.initFrom( this );
-	opt.state = QStyle::StateFlag::State_None;
-
-	style()->drawPrimitive( QStyle::PE_Frame, &opt, &p, this );
+	p.setRenderHint(QPainter::Antialiasing, false);
 
 	auto arrow = m_pressed ? m_arrowSelected : m_arrow;
-
-	p.drawPixmap(width() - CB_ARROW_BTN_WIDTH + 3, 4, arrow);
+	p.drawPixmap(width() - CB_ARROW_BTN_WIDTH + 3, (height() - arrow.height()) / 2 + 1, arrow);
 
 	if( model() && model()->size() > 0 )
 	{
 		p.setFont( font() );
 		p.setClipRect( QRect( 4, 2, width() - CB_ARROW_BTN_WIDTH - 8, height() - 2 ) );
 		QPixmap pm = model()->currentData() ?  model()->currentData()->pixmap() : QPixmap();
-		int tx = 5;
+		int tx = 6;
 		if( !pm.isNull() )
 		{
 			if( pm.height() > 16 )
 			{
 				pm = pm.scaledToHeight( 16, Qt::SmoothTransformation );
 			}
-			p.drawPixmap( tx, 3, pm );
-			tx += pm.width() + 3;
+			p.drawPixmap( tx, ( height() - pm.height() ) / 2, pm );
+			tx += pm.width() + 4;
 		}
 		const int y = ( height()+p.fontMetrics().height() ) /2;
-		p.setPen( QColor( 64, 64, 64 ) );
-		p.drawText( tx+1, y-3, model()->currentText() );
-		p.setPen( QColor( 224, 224, 224 ) );
+		p.setPen(m_textColor);
 		p.drawText( tx, y-4, model()->currentText() );
 	}
 }

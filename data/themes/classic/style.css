@@ -38,6 +38,13 @@ lmms--gui--AutomationEditor {
 	qproperty-ghostSampleColor: rgba(125, 125, 125, 125);
 }
 
+/* combo boxes - colors matching the old combobox_bg artwork */
+lmms--gui--ComboBox {
+	qproperty-backgroundColor: #4f4f4f;
+	qproperty-borderColor: #2f2f2f;
+	qproperty-textColor: #e0e0e0;
+}
+
 /* text box */
 
 QLineEdit {

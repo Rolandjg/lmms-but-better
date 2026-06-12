@@ -37,6 +37,9 @@ namespace lmms::gui
 class LMMS_EXPORT ComboBox : public QWidget, public IntModelView
 {
 	Q_OBJECT
+	Q_PROPERTY(QColor backgroundColor READ backgroundColor WRITE setBackgroundColor)
+	Q_PROPERTY(QColor borderColor READ borderColor WRITE setBorderColor)
+	Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor)
 public:
 	ComboBox( QWidget* parent = nullptr, const QString& name = QString() );
 	~ComboBox() override = default;
@@ -50,6 +53,15 @@ public:
 	{
 		return castModel<ComboBoxModel>();
 	}
+
+	QColor const & backgroundColor() const { return m_backgroundColor; }
+	void setBackgroundColor(QColor const & color) { m_backgroundColor = color; }
+
+	QColor const & borderColor() const { return m_borderColor; }
+	void setBorderColor(QColor const & color) { m_borderColor = color; }
+
+	QColor const & textColor() const { return m_textColor; }
+	void setTextColor(QColor const & color) { m_textColor = color; }
 
 	static constexpr int DEFAULT_HEIGHT = 22;
 
@@ -66,9 +78,12 @@ protected:
 
 
 private:
-	QPixmap m_background = embed::getIconPixmap("combobox_bg");
 	QPixmap m_arrow = embed::getIconPixmap("combobox_arrow");
 	QPixmap m_arrowSelected = embed::getIconPixmap("combobox_arrow_selected");
+
+	QColor m_backgroundColor = QColor(16, 18, 19);
+	QColor m_borderColor = QColor(58, 64, 71);
+	QColor m_textColor = QColor(209, 216, 228);
 
 	QMenu m_menu;
 
