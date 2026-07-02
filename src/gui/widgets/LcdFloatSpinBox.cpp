@@ -26,20 +26,18 @@
 
 #include "LcdFloatSpinBox.h"
 
+#include <algorithm>
 #include <cmath>
 
 #include <QHBoxLayout>
 #include <QInputDialog>
-#include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QPixmap>
 #include <QStyleOptionFrame>
 #include <QVBoxLayout>
 
 #include "CaptionMenu.h"
 #include "DeprecationHelper.h"
-#include "embed.h"
 #include "GuiApplication.h"
 #include "FontHelper.h"
 #include "KeyboardShortcuts.h"
@@ -48,6 +46,43 @@
 
 namespace lmms::gui
 {
+
+namespace
+{
+
+//! The decimal point between the whole and fraction displays, drawn
+//! procedurally in the same style as the LcdWidget segments
+class LcdDotWidget : public QWidget
+{
+public:
+	LcdDotWidget(const QString& style, QWidget* parent) :
+		QWidget(parent),
+		m_palette(LcdWidget::paletteForStyle(style))
+	{
+		// same footprint as the old lcd_<style>_dot pixmaps
+		const QSize cellSize = LcdWidget::cellSizeForStyle(style);
+		setFixedSize(cellSize.height() >= 19 ? 4 : 6, cellSize.height());
+	}
+
+protected:
+	void paintEvent(QPaintEvent*) override
+	{
+		QPainter p(this);
+		p.fillRect(rect(), m_palette.background);
+
+		p.setRenderHint(QPainter::Antialiasing);
+		p.setPen(Qt::NoPen);
+		p.setBrush(m_palette.on);
+
+		const float radius = std::min(width() * 0.35f, height() * 0.1f);
+		p.drawEllipse(QPointF(width() / 2.f, height() * 0.85f), radius, radius);
+	}
+
+private:
+	LcdWidget::SegmentPalette m_palette;
+};
+
+} // namespace
 
 
 LcdFloatSpinBox::LcdFloatSpinBox(int numWhole, int numFrac, const QString& name, QWidget* parent) :
@@ -88,10 +123,7 @@ void LcdFloatSpinBox::layoutSetup(const QString &style)
 
 	lcdLayout->addWidget(&m_wholeDisplay);
 
-	auto dotLabel = new QLabel("", this);
-	QPixmap dotPixmap(embed::getIconPixmap(QString("lcd_" + style + "_dot").toUtf8().constData()));
-	dotLabel->setPixmap(dotPixmap.copy(0, 0, dotPixmap.size().width(), dotPixmap.size().height() / 2));
-	lcdLayout->addWidget(dotLabel);
+	lcdLayout->addWidget(new LcdDotWidget(style, this));
 
 	lcdLayout->addWidget(&m_fractionDisplay);
 

@@ -24,30 +24,22 @@
 
 #include "LedCheckBox.h"
 
+#include <algorithm>
 #include <QFontMetrics>
 #include <QPainter>
-#include <array>
 
 #include "DeprecationHelper.h"
-#include "embed.h"
 #include "FontHelper.h"
 
 namespace lmms::gui
 {
 
 
-static const auto names = std::array<QString, 3>
-{
-	"led_yellow", "led_green", "led_red"
-} ;
-
-
-
-
 LedCheckBox::LedCheckBox( const QString & _text, QWidget * _parent,
 				const QString & _name, LedColor _color, bool legacyMode ) :
 	AutomatableButton( _parent, _name ),
 	m_text( _text ),
+	m_ledColor( _color ),
 	m_legacyMode(legacyMode)
 {
 	setLedColor(_color);
@@ -90,8 +82,7 @@ void LedCheckBox::setLedColor(LedColor color)
 {
 	setCheckable( true );
 
-	m_ledOnPixmap = embed::getIconPixmap(names[static_cast<std::size_t>(color)].toUtf8().constData());
-	m_ledOffPixmap = embed::getIconPixmap("led_off");
+	m_ledColor = color;
 
 	if (m_legacyMode){ setFont(adjustedToPixelSize(font(), DEFAULT_FONT_SIZE)); }
 
@@ -101,12 +92,77 @@ void LedCheckBox::setLedColor(LedColor color)
 
 
 
+QColor const & LedCheckBox::onColor() const
+{
+	switch (m_ledColor)
+	{
+		case LedColor::Green: return m_greenColor;
+		case LedColor::Red: return m_redColor;
+		case LedColor::Yellow:
+		default: return m_yellowColor;
+	}
+}
+
+
+
+
+//! Draws a LED into the given rect, either lit in the given color or off
+void LedCheckBox::paintLed(QPainter& p, const QRectF& rect, const QColor& onColor, const QColor& offColor, bool on)
+{
+	const QPointF center = rect.center();
+	// The core of the LED and the glow around it scale with the given rect so
+	// the LED stays crisp and proportionate at any size.
+	const float coreRadius = std::min(rect.width(), rect.height()) * 0.28f;
+	const float glowRadius = std::min(rect.width(), rect.height()) * 0.5f;
+
+	p.save();
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setPen(Qt::NoPen);
+
+	if (on)
+	{
+		// Halo fading out around the lit core
+		QColor halo = onColor;
+		QRadialGradient glow(center, glowRadius);
+		halo.setAlpha(110);
+		glow.setColorAt(coreRadius / glowRadius, halo);
+		halo.setAlpha(0);
+		glow.setColorAt(1, halo);
+		p.setBrush(glow);
+		p.drawEllipse(center, glowRadius, glowRadius);
+
+		// Lit core with a white-hot center
+		QRadialGradient core(center, coreRadius);
+		core.setColorAt(0, QColor(255, 255, 255));
+		core.setColorAt(0.4, onColor.lighter(140));
+		core.setColorAt(1, onColor);
+		p.setBrush(core);
+		p.drawEllipse(center, coreRadius, coreRadius);
+	}
+	else
+	{
+		// Faint dark rim so the LED reads as a socket even when unlit
+		QColor rim = offColor.darker(220);
+		rim.setAlpha(90);
+		p.setBrush(rim);
+		p.drawEllipse(center, coreRadius + 1.f, coreRadius + 1.f);
+
+		p.setBrush(offColor);
+		p.drawEllipse(center, coreRadius, coreRadius);
+	}
+
+	p.restore();
+}
+
+
+
+
 void LedCheckBox::onTextUpdated()
 {
 	QFontMetrics const fm = fontMetrics();
 
-	int const width = m_ledOffPixmap.width() + 5 + fm.horizontalAdvance(text());
-	int const height = m_legacyMode ? m_ledOffPixmap.height() : qMax(m_ledOffPixmap.height(), fm.height());
+	int const width = LedWidth + 5 + fm.horizontalAdvance(text());
+	int const height = m_legacyMode ? LedHeight : qMax(LedHeight, fm.height());
 
 	setFixedSize(width, height);
 }
@@ -116,24 +172,23 @@ void LedCheckBox::paintLegacy(QPaintEvent * pe)
 	QPainter p( this );
 	p.setFont(adjustedToPixelSize(font(), DEFAULT_FONT_SIZE));
 
-	p.drawPixmap(0, 0, model()->value() ? m_ledOnPixmap : m_ledOffPixmap);
+	paintLed(p, QRectF(0, 0, LedWidth, LedHeight), onColor(), m_offColor, model()->value());
 
 	p.setPen( QColor( 64, 64, 64 ) );
-	p.drawText(m_ledOffPixmap.width() + 4, 11, text());
+	p.drawText(LedWidth + 4, 11, text());
 	p.setPen( QColor( 255, 255, 255 ) );
-	p.drawText(m_ledOffPixmap.width() + 3, 10, text());
+	p.drawText(LedWidth + 3, 10, text());
 }
 
 void LedCheckBox::paintNonLegacy(QPaintEvent * pe)
 {
 	QPainter p(this);
 
-	auto drawnPixmap = model()->value() ? m_ledOnPixmap : m_ledOffPixmap;
-
-	p.drawPixmap(0, rect().height() / 2 - drawnPixmap.height() / 2, drawnPixmap);
+	paintLed(p, QRectF(0, rect().height() / 2.f - LedHeight / 2.f, LedWidth, LedHeight),
+		onColor(), m_offColor, model()->value());
 
 	QRect r = rect();
-	r -= QMargins(m_ledOffPixmap.width() + 5, 0, 0, 0);
+	r -= QMargins(LedWidth + 5, 0, 0, 0);
 	p.drawText(r, text());
 }
 

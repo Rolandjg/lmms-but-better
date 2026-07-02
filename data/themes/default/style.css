@@ -247,14 +247,19 @@ lmms--gui--Oscilloscope {
 	qproperty-rightChannelColor: rgb(238, 253, 71);
 	qproperty-otherChannelsColor: rgb(71, 235, 253);
 	qproperty-clippingColor: rgb(255, 64, 64);
+	qproperty-backgroundColor: rgba(0, 0, 0, 210);
 }
 
 /* main toolbar cpu load widget - this can have transparent bg now */
 
 lmms--gui--CPULoadWidget {
 	border: none;
-	background: url("resources:cpuload_bg.png");
 	qproperty-stepSize: 1;
+	qproperty-textColor: rgba(255, 255, 255, 200);
+	qproperty-troughColor: rgba(0, 0, 0, 120);
+	qproperty-loadOkColor: rgb(10, 206, 170);
+	qproperty-loadWarnColor: rgb(174, 240, 64);
+	qproperty-loadClipColor: rgb(140, 3, 30);
 }
 
 /* scrollbar: trough */
@@ -776,6 +781,17 @@ lmms--gui--Fader {
 	qproperty-peakOk: #0ad45c;
 	qproperty-peakWarn: #d6ec52;
 	qproperty-peakClip: #c12038;
+	qproperty-knobColor: #26292e;
+	qproperty-knobBorderColor: #000000;
+	qproperty-knobMarkerColor: #0bd556;
+}
+
+/* procedural LED checkboxes */
+lmms--gui--LedCheckBox {
+	qproperty-yellowColor: rgb(0, 206, 186);
+	qproperty-greenColor: rgb(10, 220, 96);
+	qproperty-redColor: rgb(255, 36, 36);
+	qproperty-offColor: rgb(80, 97, 112);
 }
 
 lmms--gui--TimeLineWidget {

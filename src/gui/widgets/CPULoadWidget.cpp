@@ -3,7 +3,7 @@
  *                      Hydrogen's CPU-load-widget)
  *
  * Copyright (c) 2005-2014 Tobias Doerffel <tobydox/at/users.sourceforge.net>
- * 
+ *
  * This file is part of LMMS - https://lmms.io
  *
  * This program is free software; you can redistribute it and/or
@@ -25,31 +25,36 @@
 
 
 #include <algorithm>
+#include <cmath>
 #include <QPainter>
 
 #include "AudioEngine.h"
 #include "CPULoadWidget.h"
-#include "embed.h"
+#include "DeprecationHelper.h"
 #include "Engine.h"
+#include "FontHelper.h"
 
 
 namespace lmms::gui
 {
 
+namespace
+{
+	// Footprint of the old cpuload_bg.png artwork so surrounding toolbar
+	// layouts are unaffected
+	constexpr int WidgetWidth = 112;
+	constexpr int WidgetHeight = 11;
+	//! Where the meter trough starts; the "CPU" label lives left of it
+	constexpr int TroughX = 21;
+}
+
 
 CPULoadWidget::CPULoadWidget( QWidget * _parent ) :
 	QWidget( _parent ),
 	m_currentLoad( 0 ),
-	m_temp(),
-	m_background( embed::getIconPixmap( "cpuload_bg" ) ),
-	m_leds( embed::getIconPixmap( "cpuload_leds" ) ),
-	m_changed( true ),
 	m_updateTimer()
 {
-	setFixedSize( m_background.width(), m_background.height() );
-
-	m_temp = QPixmap( width(), height() );
-	
+	setFixedSize(WidgetWidth, WidgetHeight);
 
 	connect( &m_updateTimer, SIGNAL(timeout()),
 					this, SLOT(updateCpuLoad()));
@@ -59,30 +64,49 @@ CPULoadWidget::CPULoadWidget( QWidget * _parent ) :
 
 
 
-
-
-
 void CPULoadWidget::paintEvent( QPaintEvent *  )
 {
-	if( m_changed == true )
-	{
-		m_changed = false;
-		
-		m_temp.fill( QColor(0,0,0,0) );
-		QPainter p( &m_temp );
-		p.drawPixmap( 0, 0, m_background );
+	QPainter p(this);
+	p.setRenderHint(QPainter::Antialiasing);
 
-		// Normally the CPU load indicator moves smoothly, with 1 pixel resolution. However, some themes may want to
-		// draw discrete elements (like LEDs), so the stepSize property can be used to specify a larger step size.
-		int w = (m_leds.width() * std::min(m_currentLoad, 100) / (stepSize() * 100)) * stepSize();
-		if( w > 0 )
+	// Label
+	p.setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
+	p.setPen(m_textColor);
+	p.drawText(QRect(0, 0, TroughX - 2, height()), Qt::AlignLeft | Qt::AlignVCenter, "CPU");
+
+	// Meter trough
+	const QRectF trough(TroughX, 1.5f, width() - TroughX - 1.f, height() - 3.f);
+	p.setPen(Qt::NoPen);
+	p.setBrush(m_troughColor);
+	p.drawRoundedRect(trough, 2, 2);
+
+	// Fill amount, quantized to full steps. Normally the load indicator moves
+	// smoothly with 1 pixel steps but themes can request discrete blocks (like
+	// LEDs) via the stepSize property.
+	const QRectF fillArea = trough.adjusted(1, 1, -1, -1);
+	const float w = std::floor(fillArea.width() * std::min(m_currentLoad, 100) / (stepSize() * 100.f)) * stepSize();
+	if (w <= 0) { return; }
+
+	// The load gradient always spans the whole meter so the fill's leading
+	// edge takes the color matching the current load.
+	QLinearGradient grad(fillArea.left(), 0, fillArea.right(), 0);
+	grad.setColorAt(0, m_loadOkColor);
+	grad.setColorAt(0.5, m_loadWarnColor);
+	grad.setColorAt(1, m_loadClipColor);
+	p.setBrush(grad);
+
+	if (stepSize() > 1)
+	{
+		// Discrete blocks with hairline gaps
+		for (float x = 0; x < w; x += stepSize())
 		{
-			p.drawPixmap( 23, 3, m_leds, 0, 0, w,
-							m_leds.height() );
+			p.drawRect(QRectF(fillArea.left() + x, fillArea.top(), stepSize() - 1.f, fillArea.height()));
 		}
 	}
-	QPainter p( this );
-	p.drawPixmap( 0, 0, m_temp );
+	else
+	{
+		p.drawRoundedRect(QRectF(fillArea.left(), fillArea.top(), w, fillArea.height()), 1, 1);
+	}
 }
 
 
@@ -106,7 +130,6 @@ void CPULoadWidget::updateCpuLoad()
 			+ tr(" - Mixing: %1%").arg(engine->detailLoad(AudioEngineProfiler::DetailType::Mixing))
 		);
 		m_currentLoad = new_load;
-		m_changed = true;
 		update();
 	}
 }

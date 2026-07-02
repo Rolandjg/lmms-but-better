@@ -33,7 +33,6 @@
 #include "AudioEngine.h"
 #include "Engine.h"
 #include "Song.h"
-#include "embed.h"
 
 namespace lmms::gui
 {
@@ -41,15 +40,16 @@ namespace lmms::gui
 
 Oscilloscope::Oscilloscope( QWidget * _p ) :
 	QWidget( _p ),
-	m_background( embed::getIconPixmap( "output_graph" ) ),
 	m_points( new QPointF[Engine::audioEngine()->framesPerPeriod()] ),
 	m_active( false ),
 	m_leftChannelColor(71, 253, 133),
 	m_rightChannelColor(71, 253, 133),
 	m_otherChannelsColor(71, 253, 133),
-	m_clippingColor(255, 64, 64)
+	m_clippingColor(255, 64, 64),
+	m_backgroundColor(0, 0, 0, 210)
 {
-	setFixedSize( m_background.width(), m_background.height() );
+	// Footprint of the old output_graph.png artwork so the toolbar layout is unaffected
+	setFixedSize(110, 46);
 	setActive( ConfigManager::inst()->value( "ui", "displaywaveform").toInt() );
 
 	const f_cnt_t frames = Engine::audioEngine()->framesPerPeriod();
@@ -157,7 +157,12 @@ void Oscilloscope::paintEvent( QPaintEvent * )
 {
 	QPainter p( this );
 
-	p.drawPixmap( 0, 0, m_background );
+	// Display panel behind the waveform
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setPen(Qt::NoPen);
+	p.setBrush(m_backgroundColor);
+	p.drawRoundedRect(QRectF(0.5f, 0.5f, width() - 1.f, height() - 1.f), 3, 3);
+	p.setRenderHint(QPainter::Antialiasing, false);
 
 	if( m_active && !Engine::getSong()->isExporting() )
 	{

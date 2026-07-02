@@ -49,6 +49,7 @@ public:
 	Q_PROPERTY( QColor rightChannelColor READ rightChannelColor WRITE setRightChannelColor )
 	Q_PROPERTY( QColor otherChannelsColor READ otherChannelsColor WRITE setOtherChannelsColor )
 	Q_PROPERTY( QColor clippingColor READ clippingColor WRITE setClippingColor )
+	Q_PROPERTY( QColor backgroundColor MEMBER m_backgroundColor )
 
 	Oscilloscope( QWidget * _parent );
 	~Oscilloscope() override;
@@ -80,7 +81,6 @@ private:
 	bool clips(float level) const;
 
 private:
-	QPixmap m_background;
 	QPointF * m_points;
 
 	SampleFrame* m_buffer;
@@ -90,6 +90,7 @@ private:
 	QColor m_rightChannelColor;
 	QColor m_otherChannelsColor;
 	QColor m_clippingColor;
+	QColor m_backgroundColor;
 } ;
 
 

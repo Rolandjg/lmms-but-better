@@ -48,12 +48,10 @@
 #define LMMS_GUI_FADER_H
 
 #include <QElapsedTimer>
-#include <QPixmap>
 #include <QWidget>
 
 
 #include "AutomatableModelView.h"
-#include "embed.h"
 #include "lmms_math.h"
 
 
@@ -73,9 +71,11 @@ public:
 	Q_PROPERTY(bool levelsDisplayedInDBFS MEMBER m_levelsDisplayedInDBFS)
 	Q_PROPERTY(bool renderUnityLine READ getRenderUnityLine WRITE setRenderUnityLine)
 	Q_PROPERTY(QColor unityMarker MEMBER m_unityMarker)
+	Q_PROPERTY(QColor knobColor MEMBER m_knobColor)
+	Q_PROPERTY(QColor knobBorderColor MEMBER m_knobBorderColor)
+	Q_PROPERTY(QColor knobMarkerColor MEMBER m_knobMarkerColor)
 
 	Fader(FloatModel* model, const QString& name, QWidget* parent, bool modelIsLinear = true);
-	Fader(FloatModel* model, const QString& name, QWidget* parent, const QPixmap& knob, bool modelIsLinear = true);
 	~Fader() override = default;
 
 	void setPeak_L(float fPeak);
@@ -129,7 +129,11 @@ private:
 	void paintEvent(QPaintEvent* ev) override;
 
 	void paintLevels(QPaintEvent* ev, QPainter& painter, bool linear = false);
+	void paintKnob(QPainter& painter);
 	void paintFaderTicks(QPainter& painter);
+
+	//! The height of the procedurally drawn fader knob, scaled with the widget height
+	int knobHeight() const;
 
 	float determineAdjustmentDelta(const Qt::KeyboardModifiers & modifiers) const;
 	void adjustModelByDBDelta(float value);
@@ -170,9 +174,6 @@ private:
 	QElapsedTimer m_lastPeakTimer_L;
 	QElapsedTimer m_lastPeakTimer_R;
 
-	QPixmap m_knob {embed::getIconPixmap("fader_knob")};
-	QSize m_knobSize;
-
 	/**
 	 * @brief Stores the offset to the knob center when the user drags the fader knob
 	 * 
@@ -190,6 +191,9 @@ private:
 	QColor m_peakClip {193, 32, 56};
 	QColor m_peakWarn {214, 236, 82};
 	QColor m_unityMarker {63, 63, 63, 255};
+	QColor m_knobColor {38, 41, 46};
+	QColor m_knobBorderColor {0, 0, 0};
+	QColor m_knobMarkerColor {11, 213, 86};
 
 	bool m_renderUnityLine {true};
 } ;

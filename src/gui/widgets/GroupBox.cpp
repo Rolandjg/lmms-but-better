@@ -22,16 +22,33 @@
  *
  */
 
+#include <cmath>
+
 #include <QMouseEvent>
 #include <QPainter>
 
 #include "GroupBox.h"
 #include "DeprecationHelper.h"
-#include "embed.h"
 #include "FontHelper.h"
+#include "LedCheckBox.h"
 
 namespace lmms::gui
 {
+
+//! Renders a LED into a pixmap so it can be used with a PixmapButton
+static QPixmap renderLedPixmap(QWidget* widget, bool on)
+{
+	const auto dpr = widget->devicePixelRatioF();
+	QPixmap pm(std::ceil(LedCheckBox::LedWidth * dpr), std::ceil(LedCheckBox::LedHeight * dpr));
+	pm.setDevicePixelRatio(dpr);
+	pm.fill(Qt::transparent);
+
+	QPainter p(&pm);
+	LedCheckBox::paintLed(p, QRectF(0, 0, LedCheckBox::LedWidth, LedCheckBox::LedHeight),
+		QColor(10, 220, 96), QColor(80, 97, 112), on);
+
+	return pm;
+}
 
 
 GroupBox::GroupBox( const QString & _caption, QWidget * _parent ) :
@@ -43,8 +60,8 @@ GroupBox::GroupBox( const QString & _caption, QWidget * _parent ) :
 	m_led = new PixmapButton( this, _caption );
 	m_led->setCheckable( true );
 	m_led->move( 3, 0 );
-	m_led->setActiveGraphic( embed::getIconPixmap( "led_green" ) );
-	m_led->setInactiveGraphic( embed::getIconPixmap( "led_off" ) );
+	m_led->setActiveGraphic(renderLedPixmap(this, true));
+	m_led->setInactiveGraphic(renderLedPixmap(this, false));
 
 	setModel( new BoolModel( false, nullptr, _caption, true ) );
 	setAutoFillBackground( true );

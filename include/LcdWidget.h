@@ -25,6 +25,7 @@
 #ifndef LMMS_GUI_LCD_WIDGET_H
 #define LMMS_GUI_LCD_WIDGET_H
 
+#include <QColor>
 #include <QMap>
 #include <QWidget>
 
@@ -36,12 +37,26 @@ namespace lmms::gui
 class LMMS_EXPORT LcdWidget : public QWidget
 {
 	Q_OBJECT
-	
+
 	// theming qproperties
 	Q_PROPERTY( QColor textColor READ textColor WRITE setTextColor )
 	Q_PROPERTY( QColor textShadowColor READ textShadowColor WRITE setTextShadowColor )
-	
+
 public:
+	//! Colors used to procedurally draw a seven-segment display of a named style
+	struct SegmentPalette
+	{
+		QColor background;
+		QColor on;  //!< lit segment color
+		QColor off; //!< unlit "ghost" segment color
+	};
+
+	//! Segment colors for a named style ("19green", "21pink", ...)
+	static SegmentPalette paletteForStyle(const QString& style);
+
+	//! Digit cell size in pixels for a named style
+	static QSize cellSizeForStyle(const QString& style);
+
 	explicit LcdWidget(QWidget* parent, const QString& name = QString(), bool leadingZero = false);
 	LcdWidget(int numDigits, QWidget* parent, const QString& name = QString(), bool leadingZero = false);
 	LcdWidget(int numDigits, const QString& style, QWidget* parent, const QString& name = QString(),
@@ -61,10 +76,10 @@ public:
 
 	inline int numDigits() const { return m_numDigits; }
 	inline void setNumDigits( int n ) { m_numDigits = n; updateSize(); }
-	
+
 	QColor textColor() const;
 	void setTextColor( const QColor & c );
-	
+
 	QColor textShadowColor() const;
 	void setTextShadowColor( const QColor & c );
 
@@ -89,14 +104,13 @@ protected:
 
 private:
 
-	static const int charsPerPixmap = 12;
-
 	QMap<int, QString> m_textForValue;
 
 	QString m_display;
 
 	QString m_label;
-	QPixmap m_lcdPixmap;
+
+	SegmentPalette m_palette;
 
 	QColor m_textColor;
 	QColor m_textShadowColor;
@@ -110,6 +124,9 @@ private:
 	bool m_leadingZero;
 
 	void initUi( const QString& name, const QString &style ); //!< to be called by ctors
+
+	//! Draws the segments given by the bitmask lit into the given digit cell
+	void drawSegments(QPainter& p, const QRectF& cell, int mask, const QColor& on, const QColor& off) const;
 
 };
 
