@@ -30,7 +30,6 @@
 
 #include <algorithm>
 
-#include <QGraphicsDropShadowEffect>
 #include <QGuiApplication>
 #include <QLabel>
 #include <QLayout>
@@ -88,16 +87,11 @@ SubWindow::SubWindow(QWidget* parent, Qt::WindowFlags windowFlags)
 	m_detachBtn = createButton("detach", tr("Detach"));
 	connect(m_detachBtn, &QPushButton::clicked, this, &SubWindow::detach);
 
-	// QLabel for the window title and the shadow effect
-	m_shadow = new QGraphicsDropShadowEffect();
-	m_shadow->setColor( m_textShadowColor );
-	m_shadow->setXOffset( 1 );
-	m_shadow->setYOffset( 1 );
-
+	// QLabel for the window title. No drop shadow effect anymore - flat,
+	// clean text reads better at small sizes.
 	m_windowTitle = new QLabel( this );
 	m_windowTitle->setFocusPolicy( Qt::NoFocus );
 	m_windowTitle->setAttribute( Qt::WA_TransparentForMouseEvents, true );
-	m_windowTitle->setGraphicsEffect( m_shadow );
 
 	layout()->setSizeConstraint(QLayout::SetMinAndMaxSize);
 
@@ -128,6 +122,12 @@ void SubWindow::paintEvent( QPaintEvent * )
 	const bool isActive = windowState() & Qt::WindowActive;
 
 	p.fillRect( rect, isActive ? activeColor() : p.pen().brush() );
+
+	// hairline under the title bar separates it from the content
+	QColor separator = borderColor();
+	separator.setAlpha(180);
+	p.setPen(separator);
+	p.drawLine(0, m_titleBarHeight - 1, width(), m_titleBarHeight - 1);
 
 	// window border
 	p.setPen( borderColor() );

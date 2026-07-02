@@ -45,6 +45,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <random>
 #include <utility>
 
 #include "AutomationEditor.h"
@@ -802,6 +803,101 @@ void PianoRoll::reverseNotes()
 	const auto& notes = selectedNotes.empty() ? m_midiClip->notes() : selectedNotes;
 
 	m_midiClip->reverseNotes(notes);
+
+	update();
+	getGUI()->songEditor()->update();
+	Engine::getSong()->setModified();
+}
+
+
+static std::mt19937& humanizeRng()
+{
+	static std::mt19937 rng(std::random_device{}());
+	return rng;
+}
+
+void PianoRoll::duplicateSelectedNotes()
+{
+	if (!hasValidMidiClip()) { return; }
+
+	const NoteVector selectedNotes = getSelectedNotes();
+	if (selectedNotes.empty()) { return; }
+
+	m_midiClip->addJournalCheckPoint();
+
+	// Compute the span of the selection, rounded up to the quantization
+	// grid so the copy lands on a musical position even when the last
+	// note ends off-grid
+	TimePos start = selectedNotes.front()->pos();
+	TimePos end = selectedNotes.front()->endPos();
+	for (const Note* note : selectedNotes)
+	{
+		start = std::min(start, note->pos());
+		end = std::max(end, note->endPos());
+	}
+
+	const tick_t q = quantization();
+	tick_t shift = (end - start + q - 1) / q * q;
+	if (shift <= 0) { shift = q; }
+
+	// The copies become the new selection, so repeated duplication chains
+	for (Note* note : selectedNotes)
+	{
+		Note newNote(*note);
+		newNote.setPos(note->pos() + shift);
+		newNote.setSelected(true);
+		note->setSelected(false);
+		m_midiClip->addNote(newNote, false);
+	}
+
+	update();
+	getGUI()->songEditor()->update();
+	Engine::getSong()->setModified();
+}
+
+
+void PianoRoll::humanizeVelocities()
+{
+	if (!hasValidMidiClip()) { return; }
+
+	const NoteVector selectedNotes = getSelectedNotes();
+	const auto& notes = selectedNotes.empty() ? m_midiClip->notes() : selectedNotes;
+	if (notes.empty()) { return; }
+
+	m_midiClip->addJournalCheckPoint();
+
+	// Subtle jitter of up to +/-10% of the default velocity
+	std::uniform_int_distribution<int> dist(-DefaultVolume / 10, DefaultVolume / 10);
+	for (Note* note : notes)
+	{
+		note->setVolume(std::clamp<int>(note->getVolume() + dist(humanizeRng()), MinVolume, MaxVolume));
+	}
+
+	update();
+	getGUI()->songEditor()->update();
+	Engine::getSong()->setModified();
+}
+
+
+void PianoRoll::humanizeTiming()
+{
+	if (!hasValidMidiClip()) { return; }
+
+	const NoteVector selectedNotes = getSelectedNotes();
+	const auto& notes = selectedNotes.empty() ? m_midiClip->notes() : selectedNotes;
+	if (notes.empty()) { return; }
+
+	m_midiClip->addJournalCheckPoint();
+
+	// Roughly +/-20 ms at 120 BPM, like the subtle humanization other DAWs apply
+	const int maxOffset = std::max(1, TimePos::ticksPerBar() / 96);
+	std::uniform_int_distribution<int> dist(-maxOffset, maxOffset);
+	for (Note* note : notes)
+	{
+		note->setPos(std::max(TimePos(0), TimePos(note->pos() + dist(humanizeRng()))));
+	}
+	m_midiClip->rearrangeAllNotes();
+	m_midiClip->updateLength();
 
 	update();
 	getGUI()->songEditor()->update();
@@ -5257,17 +5353,23 @@ PianoRollWindow::PianoRollWindow() :
 
 	auto pasteAction = new QAction(embed::getIconPixmap("edit_paste"), tr("Paste (%1+V)").arg(UI_CTRL_KEY), this);
 
+	auto duplicateAction
+		= new QAction(embed::getIconPixmap("step_btn_duplicate"), tr("Duplicate (%1+D)").arg(UI_CTRL_KEY), this);
+
 	cutAction->setShortcut(keySequence(Qt::CTRL, Qt::Key_X));
 	copyAction->setShortcut(keySequence(Qt::CTRL, Qt::Key_C));
 	pasteAction->setShortcut(keySequence(Qt::CTRL, Qt::Key_V));
+	duplicateAction->setShortcut(keySequence(Qt::CTRL, Qt::Key_D));
 
 	connect( cutAction, SIGNAL(triggered()), m_editor, SLOT(cutSelectedNotes()));
 	connect( copyAction, SIGNAL(triggered()), m_editor, SLOT(copySelectedNotes()));
 	connect( pasteAction, SIGNAL(triggered()), m_editor, SLOT(pasteNotes()));
+	connect(duplicateAction, &QAction::triggered, [this]() { m_editor->duplicateSelectedNotes(); });
 
 	copyPasteActionsToolBar->addAction( cutAction );
 	copyPasteActionsToolBar->addAction( copyAction );
 	copyPasteActionsToolBar->addAction( pasteAction );
+	copyPasteActionsToolBar->addAction(duplicateAction);
 
 
 	DropToolBar *timeLineToolBar = addDropToolBarToTop( tr( "Timeline controls" ) );
@@ -5308,6 +5410,15 @@ PianoRollWindow::PianoRollWindow() :
 	connect(reverseAction, &QAction::triggered, [this](){ m_editor->reverseNotes(); });
 	reverseAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_R));
 
+	auto humanizeVelocityAction
+		= new QAction(embed::getIconPixmap("random_wave_active"), tr("Humanize velocities"), noteToolsButton);
+	connect(humanizeVelocityAction, &QAction::triggered, [this]() { m_editor->humanizeVelocities(); });
+	humanizeVelocityAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_H));
+
+	auto humanizeTimingAction
+		= new QAction(embed::getIconPixmap("random_wave_inactive"), tr("Humanize timing"), noteToolsButton);
+	connect(humanizeTimingAction, &QAction::triggered, [this]() { m_editor->humanizeTiming(); });
+
 	noteToolsButton->addAction(glueAction);
 	noteToolsButton->addAction(knifeAction);
 	noteToolsButton->addAction(strumAction);
@@ -5316,6 +5427,8 @@ PianoRollWindow::PianoRollWindow() :
 	noteToolsButton->addAction(minLengthAction);
 	noteToolsButton->addAction(maxLengthAction);
 	noteToolsButton->addAction(reverseAction);
+	noteToolsButton->addAction(humanizeVelocityAction);
+	noteToolsButton->addAction(humanizeTimingAction);
 
 	notesActionsToolBar->addWidget(noteToolsButton);
 
