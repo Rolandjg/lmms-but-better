@@ -59,8 +59,10 @@ bool iidEqual(const TUID a, const TUID b)
 	return std::memcmp(a, b, sizeof(TUID)) == 0;
 }
 
-//! Maximum number of parameters we create automatable models for
-constexpr std::size_t MaxParamModels = 4096;
+//! Sanity cap on the number of parameters we create automatable models
+//! for - generous enough for heavyweight synths (Vital exposes ~3000),
+//! it only guards against pathological plugins
+constexpr std::size_t MaxParamModels = 32768;
 
 } // namespace
 

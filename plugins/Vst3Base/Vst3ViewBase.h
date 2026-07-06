@@ -33,7 +33,10 @@
 
 #include "vst3base_export.h"
 
+class QLabel;
+class QLineEdit;
 class QPushButton;
+class QScrollArea;
 class QSocketNotifier;
 class QTimer;
 
@@ -117,27 +120,39 @@ private:
 };
 
 
-//! Generic controls for a VST3 plugin: a "show GUI" button plus a grid of
-//! knobs for the plugin parameters. Used by the instrument view and the
-//! effect controls dialog.
+//! Generic controls for a VST3 plugin: a "show GUI" button plus a
+//! searchable, paged knob browser over all plugin parameters. Every
+//! parameter is reachable (and thus automatable via the knob context
+//! menu) without creating thousands of widgets at once. Used by the
+//! instrument view and the effect controls dialog.
 class VST3BASE_EXPORT Vst3PluginWidget : public QWidget
 {
 	Q_OBJECT
 
 public:
-	Vst3PluginWidget(vst3::Vst3Plugin* plugin, QWidget* parent,
-		std::size_t maxKnobs = 128);
+	Vst3PluginWidget(vst3::Vst3Plugin* plugin, QWidget* parent);
 	~Vst3PluginWidget() override;
 
 	void toggleEditor(bool show);
 
 private:
 	void buildUi();
+	//! Recompute the filter matches and show the current page of knobs
+	void rebuildParamPage();
 
 	vst3::Vst3Plugin* m_plugin;
-	std::size_t m_maxKnobs;
 	Vst3EditorWindow* m_editorWindow = nullptr;
 	QPushButton* m_toggleUiButton = nullptr;
+
+	QLineEdit* m_filterEdit = nullptr;
+	QLabel* m_pageLabel = nullptr;
+	QPushButton* m_prevPageButton = nullptr;
+	QPushButton* m_nextPageButton = nullptr;
+	QScrollArea* m_scrollArea = nullptr;
+
+	QString m_filter;
+	int m_page = 0;
+	std::vector<std::size_t> m_matches;
 };
 
 

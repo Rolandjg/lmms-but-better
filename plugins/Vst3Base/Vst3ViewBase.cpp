@@ -31,8 +31,10 @@
 #include <QCloseEvent>
 #include <QGridLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QSocketNotifier>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -373,11 +375,9 @@ tresult PLUGIN_API Vst3EditorWindow::unregisterTimer(Linux::ITimerHandler* handl
 	Vst3PluginWidget
 */
 
-Vst3PluginWidget::Vst3PluginWidget(vst3::Vst3Plugin* plugin, QWidget* parent,
-	std::size_t maxKnobs) :
+Vst3PluginWidget::Vst3PluginWidget(vst3::Vst3Plugin* plugin, QWidget* parent) :
 	QWidget(parent),
-	m_plugin(plugin),
-	m_maxKnobs(maxKnobs)
+	m_plugin(plugin)
 {
 	buildUi();
 }
@@ -415,46 +415,125 @@ void Vst3PluginWidget::buildUi()
 	headerLayout->addWidget(m_toggleUiButton);
 	layout->addWidget(header);
 
-	const std::size_t count = std::min(m_plugin->paramCount(), m_maxKnobs);
-	if (count > 0)
+	if (m_plugin->paramCount() == 0)
 	{
-		auto scrollArea = new QScrollArea(this);
-		scrollArea->setWidgetResizable(true);
-		scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+		layout->addStretch(1);
+		return;
+	}
 
-		auto grid = new QWidget(scrollArea);
-		auto gridLayout = new QGridLayout(grid);
-		gridLayout->setContentsMargins(2, 2, 2, 2);
-		gridLayout->setSpacing(4);
+	// search box + pager over all parameters
+	auto filterRow = new QWidget(this);
+	auto filterLayout = new QHBoxLayout(filterRow);
+	filterLayout->setContentsMargins(0, 0, 0, 0);
+	filterLayout->setSpacing(4);
 
-		constexpr int columns = 6;
-		for (std::size_t i = 0; i < count; ++i)
+	m_filterEdit = new QLineEdit(filterRow);
+	m_filterEdit->setPlaceholderText(tr("Search %n parameters...", nullptr,
+		static_cast<int>(m_plugin->paramCount())));
+	m_filterEdit->setClearButtonEnabled(true);
+	connect(m_filterEdit, &QLineEdit::textChanged, this, [this](const QString& text)
+	{
+		m_filter = text;
+		m_page = 0;
+		rebuildParamPage();
+	});
+	filterLayout->addWidget(m_filterEdit, 1);
+
+	m_prevPageButton = new QPushButton(QStringLiteral("<"), filterRow);
+	m_prevPageButton->setFixedWidth(24);
+	connect(m_prevPageButton, &QPushButton::clicked, this, [this]()
+	{
+		--m_page;
+		rebuildParamPage();
+	});
+	filterLayout->addWidget(m_prevPageButton);
+
+	m_pageLabel = new QLabel(filterRow);
+	filterLayout->addWidget(m_pageLabel);
+
+	m_nextPageButton = new QPushButton(QStringLiteral(">"), filterRow);
+	m_nextPageButton->setFixedWidth(24);
+	connect(m_nextPageButton, &QPushButton::clicked, this, [this]()
+	{
+		++m_page;
+		rebuildParamPage();
+	});
+	filterLayout->addWidget(m_nextPageButton);
+
+	layout->addWidget(filterRow);
+
+	m_scrollArea = new QScrollArea(this);
+	m_scrollArea->setWidgetResizable(true);
+	m_scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+	m_scrollArea->setMinimumHeight(120);
+	layout->addWidget(m_scrollArea, 1);
+
+	rebuildParamPage();
+}
+
+
+
+
+void Vst3PluginWidget::rebuildParamPage()
+{
+	//! Knobs shown at once; a page stays fast to create even for plugins
+	//! with thousands of parameters
+	constexpr std::size_t PageSize = 96;
+	constexpr int Columns = 6;
+
+	m_matches.clear();
+	const QString needle = m_filter.trimmed();
+	for (std::size_t i = 0; i < m_plugin->paramCount(); ++i)
+	{
+		const auto param = m_plugin->param(i);
+		if (needle.isEmpty()
+			|| param->title.contains(needle, Qt::CaseInsensitive)
+			|| param->shortTitle.contains(needle, Qt::CaseInsensitive))
 		{
-			auto param = m_plugin->param(i);
-			auto knob = new Knob(KnobType::Bright26, grid);
-			knob->setModel(param->model);
-			knob->setLabel(param->shortTitle.left(12));
-			knob->setHintText(param->title + ": ", " " + param->unit);
-			gridLayout->addWidget(knob,
-				static_cast<int>(i) / columns, static_cast<int>(i) % columns,
-				Qt::AlignCenter);
+			m_matches.push_back(i);
 		}
+	}
 
-		scrollArea->setWidget(grid);
-		scrollArea->setMinimumHeight(120);
-		layout->addWidget(scrollArea, 1);
+	const int pages = std::max<int>(1,
+		static_cast<int>((m_matches.size() + PageSize - 1) / PageSize));
+	m_page = std::clamp(m_page, 0, pages - 1);
 
-		if (m_plugin->paramCount() > m_maxKnobs)
-		{
-			layout->addWidget(new QLabel(
-				tr("(%1 of %2 parameters shown; use the plugin GUI for the rest)")
-					.arg(m_maxKnobs).arg(m_plugin->paramCount()), this));
-		}
+	auto grid = new QWidget(m_scrollArea);
+	auto gridLayout = new QGridLayout(grid);
+	gridLayout->setContentsMargins(2, 2, 2, 2);
+	gridLayout->setSpacing(4);
+
+	const std::size_t begin = static_cast<std::size_t>(m_page) * PageSize;
+	const std::size_t end = std::min(begin + PageSize, m_matches.size());
+	for (std::size_t i = begin; i < end; ++i)
+	{
+		const auto param = m_plugin->param(m_matches[i]);
+		auto knob = new Knob(KnobType::Bright26, grid);
+		knob->setModel(param->model);
+		knob->setLabel(param->shortTitle.left(12));
+		knob->setHintText(param->title + ": ", " " + param->unit);
+		const int cell = static_cast<int>(i - begin);
+		gridLayout->addWidget(knob, cell / Columns, cell % Columns, Qt::AlignCenter);
+	}
+	// keep knobs packed to the top left
+	gridLayout->setRowStretch(gridLayout->rowCount(), 1);
+	gridLayout->setColumnStretch(Columns, 1);
+
+	// setWidget() deletes the previous grid and its knobs
+	m_scrollArea->setWidget(grid);
+	m_scrollArea->verticalScrollBar()->setValue(0);
+
+	if (m_matches.empty())
+	{
+		m_pageLabel->setText(tr("no match"));
 	}
 	else
 	{
-		layout->addStretch(1);
+		m_pageLabel->setText(tr("%1–%2 of %3")
+			.arg(begin + 1).arg(end).arg(m_matches.size()));
 	}
+	m_prevPageButton->setEnabled(m_page > 0);
+	m_nextPageButton->setEnabled(m_page < pages - 1);
 }
 
 
