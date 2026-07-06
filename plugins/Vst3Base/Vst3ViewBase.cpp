@@ -62,10 +62,13 @@ bool iidEqual(const TUID a, const TUID b)
 */
 
 Vst3EditorWindow::Vst3EditorWindow(vst3::Vst3Plugin* plugin) :
-	QWidget(nullptr),
+	QWidget(nullptr, Qt::Dialog),
 	m_plugin(plugin)
 {
 	setWindowTitle(plugin->name());
+	// the dialog window type (_NET_WM_WINDOW_TYPE_DIALOG) keeps tiling
+	// window managers like i3 from tiling the editor to the full screen
+	setWindowRole("vst3-editor");
 	setAttribute(Qt::WA_NativeWindow);
 	// the plugin draws the whole window
 	setAttribute(Qt::WA_OpaquePaintEvent);
