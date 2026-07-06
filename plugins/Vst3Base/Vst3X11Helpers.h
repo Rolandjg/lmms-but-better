@@ -31,7 +31,7 @@ namespace lmms::gui
 {
 
 //! Send a synthetic ConfigureNotify event (with root coordinates, as the
-//! XEmbed convention requires) to every direct X11 child of @p window.
+//! XEmbed convention requires) to every descendant X11 child of @p window.
 //! Embedded plugin GUIs - Wine/yabridge in particular, but also toolkits
 //! that place popups or track drags in screen coordinates - cache their
 //! screen position and only update it from these events; without them,

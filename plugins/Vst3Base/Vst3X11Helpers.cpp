@@ -45,22 +45,14 @@ xcb_connection_t* connection()
 } // namespace
 
 
-void vst3NotifyChildWindowsOfPosition(std::uint32_t window)
+namespace
 {
-	const auto conn = connection();
-	if (!conn) { return; }
 
+void notifyDescendantsOfPosition(xcb_connection_t* conn, xcb_window_t window, xcb_window_t root)
+{
 	const auto treeCookie = xcb_query_tree(conn, window);
 	const auto tree = xcb_query_tree_reply(conn, treeCookie, nullptr);
 	if (!tree) { return; }
-
-	const auto translateCookie = xcb_translate_coordinates(conn, window, tree->root, 0, 0);
-	const auto translated = xcb_translate_coordinates_reply(conn, translateCookie, nullptr);
-	if (!translated)
-	{
-		std::free(tree);
-		return;
-	}
 
 	const xcb_window_t* children = xcb_query_tree_children(tree);
 	const int count = xcb_query_tree_children_length(tree);
@@ -70,25 +62,48 @@ void vst3NotifyChildWindowsOfPosition(std::uint32_t window)
 		const auto geometry = xcb_get_geometry_reply(conn, geometryCookie, nullptr);
 		if (!geometry) { continue; }
 
-		xcb_configure_notify_event_t event = {};
-		event.response_type = XCB_CONFIGURE_NOTIFY;
-		event.event = children[i];
-		event.window = children[i];
-		event.x = static_cast<int16_t>(translated->dst_x + geometry->x);
-		event.y = static_cast<int16_t>(translated->dst_y + geometry->y);
-		event.width = geometry->width;
-		event.height = geometry->height;
-		event.border_width = 0;
-		event.above_sibling = XCB_NONE;
-		event.override_redirect = 0;
-		xcb_send_event(conn, 0, children[i], XCB_EVENT_MASK_STRUCTURE_NOTIFY,
-			reinterpret_cast<const char*>(&event));
+		const auto translateCookie = xcb_translate_coordinates(conn, children[i], root, 0, 0);
+		const auto translated = xcb_translate_coordinates_reply(conn, translateCookie, nullptr);
+		if (translated)
+		{
+			xcb_configure_notify_event_t event = {};
+			event.response_type = XCB_CONFIGURE_NOTIFY;
+			event.event = children[i];
+			event.window = children[i];
+			event.x = translated->dst_x;
+			event.y = translated->dst_y;
+			event.width = geometry->width;
+			event.height = geometry->height;
+			event.border_width = geometry->border_width;
+			event.above_sibling = XCB_NONE;
+			event.override_redirect = 0;
+			xcb_send_event(conn, 0, children[i], XCB_EVENT_MASK_STRUCTURE_NOTIFY,
+				reinterpret_cast<const char*>(&event));
+			std::free(translated);
+		}
 
+		notifyDescendantsOfPosition(conn, children[i], root);
 		std::free(geometry);
 	}
 
-	std::free(translated);
 	std::free(tree);
+}
+
+
+} // namespace
+
+void vst3NotifyChildWindowsOfPosition(std::uint32_t window)
+{
+	const auto conn = connection();
+	if (!conn) { return; }
+
+	const auto treeCookie = xcb_query_tree(conn, window);
+	const auto tree = xcb_query_tree_reply(conn, treeCookie, nullptr);
+	if (!tree) { return; }
+
+	const auto root = tree->root;
+	std::free(tree);
+	notifyDescendantsOfPosition(conn, window, root);
 	xcb_flush(conn);
 }
 
