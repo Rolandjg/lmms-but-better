@@ -92,6 +92,8 @@ signals:
 protected:
 	void closeEvent(QCloseEvent* event) override;
 	void resizeEvent(QResizeEvent* event) override;
+	void moveEvent(QMoveEvent* event) override;
+	void showEvent(QShowEvent* event) override;
 
 private:
 	//! VST3 view coordinates on X11 are physical pixels, Qt widget geometry

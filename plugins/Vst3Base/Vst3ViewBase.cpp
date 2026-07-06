@@ -44,6 +44,7 @@
 #include "Knob.h"
 
 #include "Vst3Plugin.h"
+#include "Vst3X11Helpers.h"
 
 namespace lmms::gui
 {
@@ -202,6 +203,10 @@ bool Vst3EditorWindow::attachView()
 		setFixedSize(physicalToLogical(QSize(size.getWidth(), size.getHeight())));
 	}
 
+	// the plugin caches its screen position when it attaches; tell it where
+	// it really ended up (and again on every later move/resize/show)
+	vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
+
 	return true;
 }
 
@@ -255,9 +260,40 @@ tresult PLUGIN_API Vst3EditorWindow::resizeView(IPlugView* view, ViewRect* newSi
 
 
 
+void Vst3EditorWindow::moveEvent(QMoveEvent* event)
+{
+	QWidget::moveEvent(event);
+	if (m_view)
+	{
+		// embedded GUIs (Wine/yabridge especially) track their screen
+		// position through these synthetic events; without them mouse
+		// coordinates go stale whenever the window moves
+		vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
+	}
+}
+
+
+
+
+void Vst3EditorWindow::showEvent(QShowEvent* event)
+{
+	QWidget::showEvent(event);
+	if (m_view)
+	{
+		vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
+	}
+}
+
+
+
+
 void Vst3EditorWindow::resizeEvent(QResizeEvent* event)
 {
 	QWidget::resizeEvent(event);
+	if (m_view)
+	{
+		vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
+	}
 	if (!m_view || m_resizingFromPlugin) { return; }
 
 	// only forward real size changes; echoing WM configure events (or

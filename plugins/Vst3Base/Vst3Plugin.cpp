@@ -400,8 +400,12 @@ Vst3Plugin::Vst3Plugin(Model* model, const QString& uid, const QString& fileHint
 	m_pendingEvents.reserve(64);
 	m_pendingCc.reserve(64);
 
-	m_sampleRate = Engine::audioEngine()->outputSampleRate();
-	m_blockSize = Engine::audioEngine()->framesPerPeriod();
+	// no engine when running in standalone tools (e.g. GUI test harnesses)
+	if (const auto engine = Engine::audioEngine())
+	{
+		m_sampleRate = engine->outputSampleRate();
+		m_blockSize = engine->framesPerPeriod();
+	}
 
 	setupBuses();
 	setupProcessing();
