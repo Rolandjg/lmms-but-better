@@ -112,6 +112,23 @@ const Vst3ClassInfo* Vst3Manager::findByUid(const QString& uid, const QString& f
 
 
 
+std::vector<Vst3ClassInfo> Vst3Manager::classesInFile(const QString& path)
+{
+	std::lock_guard<std::recursive_mutex> lock{m_mutex};
+	scanModule(path);
+
+	const QString canonical = QFileInfo{path}.canonicalFilePath();
+	std::vector<Vst3ClassInfo> result;
+	for (const auto& info : m_classes)
+	{
+		if (info.modulePath == canonical) { result.push_back(info); }
+	}
+	return result;
+}
+
+
+
+
 void Vst3Manager::rescan()
 {
 	std::lock_guard<std::recursive_mutex> lock{m_mutex};

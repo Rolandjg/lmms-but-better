@@ -452,6 +452,10 @@ Vst3Plugin::~Vst3Plugin()
 	if (m_component && m_componentInitialized) { m_component->terminate(); }
 	m_component = nullptr;
 	m_module = nullptr;
+
+	// the models are parented to the LMMS model, not to us - delete them so
+	// replacing the plugin at runtime does not leave ghost models behind
+	for (const auto& param : m_params) { delete param->model; }
 }
 
 

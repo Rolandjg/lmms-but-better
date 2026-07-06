@@ -84,6 +84,10 @@ QString Vst3SubPluginFeatures::displayName(const Key& k) const
 
 QString Vst3SubPluginFeatures::description(const Key& k) const
 {
+	if (k.attributes["uid"].isEmpty())
+	{
+		return QObject::tr("Empty VST3 host - load any VST3 plugin from a file of your choice");
+	}
 	const auto* info = findClass(k);
 	if (!info) { return QObject::tr("VST3 plugin not found"); }
 	QString result = info->name;
@@ -99,6 +103,16 @@ QString Vst3SubPluginFeatures::description(const Key& k) const
 void Vst3SubPluginFeatures::listSubPluginKeys(const Plugin::Descriptor* desc,
 	KeyList& kl) const
 {
+	if (m_type == Plugin::Type::Instrument)
+	{
+		// an "empty" entry: drag it into the song editor and pick the
+		// .vst3 file manually in the instrument view
+		Key::AttributeMap attributes;
+		attributes["uid"] = QString();
+		attributes["file"] = QString();
+		kl.push_back(Key(desc, QObject::tr("VST3 (load file)"), attributes));
+	}
+
 	for (const auto& info : Vst3Manager::instance()->classes())
 	{
 		const bool matches = m_type == Plugin::Type::Instrument

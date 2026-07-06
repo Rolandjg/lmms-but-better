@@ -68,6 +68,10 @@ public:
 	//! uid is not in the registry (e.g. plugin dir changed). May return nullptr.
 	const Vst3ClassInfo* findByUid(const QString& uid, const QString& fileHint = QString());
 
+	//! All audio effect classes inside the module at @p path (scans the
+	//! module and adds it to the registry if needed)
+	std::vector<Vst3ClassInfo> classesInFile(const QString& path);
+
 	void rescan();
 
 private:

@@ -31,6 +31,9 @@
 #include "InstrumentView.h"
 #include "Vst3Plugin.h"
 
+class QPushButton;
+class QVBoxLayout;
+
 namespace lmms
 {
 
@@ -46,13 +49,18 @@ class Vst3Instrument : public Instrument
 	Q_OBJECT
 
 public:
+	//! The key may have an empty "uid" attribute: the instrument then
+	//! starts empty and a plugin can be loaded via loadFile()
 	Vst3Instrument(InstrumentTrack* track, Descriptor::SubPluginFeatures::Key* key);
 	~Vst3Instrument() override;
 
 	void saveSettings(QDomDocument& doc, QDomElement& elem) override;
 	void loadSettings(const QDomElement& elem) override;
 
-	bool hasNoteInput() const override { return m_plugin->hasNoteInput(); }
+	//! Load (or replace) the hosted plugin from a .vst3 bundle / module file
+	void loadFile(const QString& file) override;
+
+	bool hasNoteInput() const override { return m_plugin && m_plugin->hasNoteInput(); }
 	bool handleMidiEvent(const MidiEvent& event, const TimePos& time = TimePos(),
 		f_cnt_t offset = 0) override;
 	void play(SampleFrame* buf) override;
@@ -61,10 +69,19 @@ public:
 
 	QString nodeName() const override { return "vst3instrument"; }
 
+	vst3::Vst3Plugin* plugin() { return m_plugin.get(); }
+
+signals:
+	//! Emitted after the hosted plugin was loaded or replaced
+	void pluginChanged();
+
 private slots:
 	void onSampleRateChanged();
 
 private:
+	//! Swap in a new plugin instance, safe against the running audio thread
+	void setPlugin(const QString& uid, const QString& file);
+
 	std::unique_ptr<vst3::Vst3Plugin> m_plugin;
 
 	friend class gui::Vst3InsView;
@@ -81,10 +98,16 @@ class Vst3InsView : public InstrumentView
 public:
 	Vst3InsView(Vst3Instrument* instrument, QWidget* parent);
 
+private slots:
+	void openFileDialog();
+	void rebuild();
+
 private:
 	void modelChanged() override;
 
-	Vst3PluginWidget* m_widget = nullptr;
+	QVBoxLayout* m_layout = nullptr;
+	QPushButton* m_openFileButton = nullptr;
+	QWidget* m_content = nullptr;
 };
 
 } // namespace gui
