@@ -23,6 +23,15 @@ plugins:
   base64 encoded in the project file, automated parameters additionally
   as LMMS models)
 
+## Display scaling
+
+Plugin editors detect the system scale themselves (JUCE and DPF do this,
+and yabridge has its own scaling configuration), so the host does not
+report a content scale factor by default - reporting one is a common
+source of misplaced mouse hit testing. To force a factor for plugins
+that only scale when the host asks for it, set `LMMS_VST3_SCALE=1.5`
+(any factor) or `LMMS_VST3_SCALE=auto` (use the Qt device pixel ratio).
+
 Windows VST3 plugins can be used through
 [yabridge](https://github.com/robbert-vdh/yabridge), which exposes
 Windows VST3 plugins as native Linux VST3 bundles that this host loads

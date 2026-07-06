@@ -24,7 +24,9 @@
 
 #include "Vst3ViewBase.h"
 
+#include <cmath>
 #include <cstring>
+#include <optional>
 
 #include <QCloseEvent>
 #include <QGridLayout>
@@ -52,6 +54,24 @@ namespace
 bool iidEqual(const TUID a, const TUID b)
 {
 	return std::memcmp(a, b, sizeof(TUID)) == 0;
+}
+
+//! Content scale to report to plugins via IPlugViewContentScaleSupport.
+//! Reporting the Qt device pixel ratio confuses plugins that detect the
+//! system scale themselves (JUCE, DPF) or that are bridged through Wine
+//! (yabridge) - the mismatch shows up as misplaced mouse hit testing. So
+//! by default no scale is reported and plugins decide on their own;
+//! LMMS_VST3_SCALE=1.5 forces a factor, LMMS_VST3_SCALE=auto reports the
+//! device pixel ratio.
+std::optional<qreal> contentScaleOverride(const QWidget* w)
+{
+	const QByteArray env = qgetenv("LMMS_VST3_SCALE");
+	if (env.isEmpty()) { return std::nullopt; }
+	if (env == "auto") { return w->devicePixelRatioF(); }
+	bool ok = false;
+	const double value = env.toDouble(&ok);
+	if (ok && value >= 0.25 && value <= 8.) { return value; }
+	return std::nullopt;
 }
 
 } // namespace
@@ -143,13 +163,16 @@ bool Vst3EditorWindow::attachView()
 
 	m_view->setFrame(this);
 
-	IPlugViewContentScaleSupport* scaleSupport = nullptr;
-	if (m_view->queryInterface(IPlugViewContentScaleSupport::iid,
-			reinterpret_cast<void**>(&scaleSupport)) == kResultOk && scaleSupport)
+	if (const auto scale = contentScaleOverride(this))
 	{
-		scaleSupport->setContentScaleFactor(
-			static_cast<IPlugViewContentScaleSupport::ScaleFactor>(devicePixelRatioF()));
-		scaleSupport->release();
+		IPlugViewContentScaleSupport* scaleSupport = nullptr;
+		if (m_view->queryInterface(IPlugViewContentScaleSupport::iid,
+				reinterpret_cast<void**>(&scaleSupport)) == kResultOk && scaleSupport)
+		{
+			scaleSupport->setContentScaleFactor(
+				static_cast<IPlugViewContentScaleSupport::ScaleFactor>(*scale));
+			scaleSupport->release();
+		}
 	}
 
 	// VST3 view coordinates on X11 are physical pixels, Qt widget geometry
@@ -159,7 +182,8 @@ bool Vst3EditorWindow::attachView()
 	if (m_view->getSize(&size) == kResultOk)
 	{
 		m_resizingFromPlugin = true;
-		resize(physicalToLogical(QSize(size.getWidth(), size.getHeight())));
+		m_viewSize = QSize(size.getWidth(), size.getHeight());
+		resize(physicalToLogical(m_viewSize));
 		m_resizingFromPlugin = false;
 	}
 
@@ -211,7 +235,8 @@ tresult PLUGIN_API Vst3EditorWindow::resizeView(IPlugView* view, ViewRect* newSi
 
 	// newSize is in physical pixels
 	m_resizingFromPlugin = true;
-	const QSize logical = physicalToLogical(QSize(newSize->getWidth(), newSize->getHeight()));
+	m_viewSize = QSize(newSize->getWidth(), newSize->getHeight());
+	const QSize logical = physicalToLogical(m_viewSize);
 	if (m_view && m_view->canResize() != kResultTrue)
 	{
 		setFixedSize(logical);
@@ -231,16 +256,25 @@ tresult PLUGIN_API Vst3EditorWindow::resizeView(IPlugView* view, ViewRect* newSi
 void Vst3EditorWindow::resizeEvent(QResizeEvent* event)
 {
 	QWidget::resizeEvent(event);
-	if (m_view && !m_resizingFromPlugin)
+	if (!m_view || m_resizingFromPlugin) { return; }
+
+	// only forward real size changes; echoing WM configure events (or
+	// fractional-scale rounding drift) back as onSize() makes plugins
+	// stretch their editor slightly, which breaks their mouse hit testing
+	const QSize physical = logicalToPhysical(size());
+	const QSize diff = physical - m_viewSize;
+	if ((std::abs(diff.width()) <= 2 && std::abs(diff.height()) <= 2)
+		|| m_view->canResize() != kResultTrue)
 	{
-		// tell the plugin the new size in physical pixels
-		const QSize physical = logicalToPhysical(size());
-		ViewRect rect{0, 0, physical.width(), physical.height()};
-		if (m_view->checkSizeConstraint(&rect) == kResultTrue
-			|| (rect.getWidth() > 0 && rect.getHeight() > 0))
-		{
-			m_view->onSize(&rect);
-		}
+		return;
+	}
+
+	ViewRect rect{0, 0, physical.width(), physical.height()};
+	if (m_view->checkSizeConstraint(&rect) == kResultTrue
+		|| (rect.getWidth() > 0 && rect.getHeight() > 0))
+	{
+		m_viewSize = QSize(rect.getWidth(), rect.getHeight());
+		m_view->onSize(&rect);
 	}
 }
 

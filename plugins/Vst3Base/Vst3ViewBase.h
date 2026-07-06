@@ -99,6 +99,7 @@ private:
 	vst3::Vst3Plugin* m_plugin;
 	Steinberg::IPtr<Steinberg::IPlugView> m_view;
 	bool m_resizingFromPlugin = false;
+	QSize m_viewSize; //!< last size communicated with the view, physical pixels
 
 	struct EventHandlerEntry
 	{
