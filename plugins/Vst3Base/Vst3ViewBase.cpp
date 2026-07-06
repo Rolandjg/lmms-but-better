@@ -110,6 +110,24 @@ tresult PLUGIN_API Vst3EditorWindow::queryInterface(const TUID iid, void** obj)
 
 
 
+QSize Vst3EditorWindow::physicalToLogical(const QSize& size) const
+{
+	const qreal scale = devicePixelRatioF();
+	return {qRound(size.width() / scale), qRound(size.height() / scale)};
+}
+
+
+
+
+QSize Vst3EditorWindow::logicalToPhysical(const QSize& size) const
+{
+	const qreal scale = devicePixelRatioF();
+	return {qRound(size.width() * scale), qRound(size.height() * scale)};
+}
+
+
+
+
 bool Vst3EditorWindow::attachView()
 {
 	if (m_view) { return true; }
@@ -134,11 +152,14 @@ bool Vst3EditorWindow::attachView()
 		scaleSupport->release();
 	}
 
+	// VST3 view coordinates on X11 are physical pixels, Qt widget geometry
+	// is logical (scaled) pixels - convert, or the window ends up
+	// devicePixelRatio times too big and mouse hit testing is off
 	ViewRect size;
 	if (m_view->getSize(&size) == kResultOk)
 	{
 		m_resizingFromPlugin = true;
-		resize(size.getWidth(), size.getHeight());
+		resize(physicalToLogical(QSize(size.getWidth(), size.getHeight())));
 		m_resizingFromPlugin = false;
 	}
 
@@ -152,7 +173,7 @@ bool Vst3EditorWindow::attachView()
 
 	if (m_view->canResize() != kResultTrue)
 	{
-		setFixedSize(size.getWidth(), size.getHeight());
+		setFixedSize(physicalToLogical(QSize(size.getWidth(), size.getHeight())));
 	}
 
 	return true;
@@ -188,14 +209,16 @@ tresult PLUGIN_API Vst3EditorWindow::resizeView(IPlugView* view, ViewRect* newSi
 {
 	if (!view || !newSize) { return kInvalidArgument; }
 
+	// newSize is in physical pixels
 	m_resizingFromPlugin = true;
+	const QSize logical = physicalToLogical(QSize(newSize->getWidth(), newSize->getHeight()));
 	if (m_view && m_view->canResize() != kResultTrue)
 	{
-		setFixedSize(newSize->getWidth(), newSize->getHeight());
+		setFixedSize(logical);
 	}
 	else
 	{
-		resize(newSize->getWidth(), newSize->getHeight());
+		resize(logical);
 	}
 	view->onSize(newSize);
 	m_resizingFromPlugin = false;
@@ -210,7 +233,9 @@ void Vst3EditorWindow::resizeEvent(QResizeEvent* event)
 	QWidget::resizeEvent(event);
 	if (m_view && !m_resizingFromPlugin)
 	{
-		ViewRect rect{0, 0, width(), height()};
+		// tell the plugin the new size in physical pixels
+		const QSize physical = logicalToPhysical(size());
+		ViewRect rect{0, 0, physical.width(), physical.height()};
 		if (m_view->checkSizeConstraint(&rect) == kResultTrue
 			|| (rect.getWidth() > 0 && rect.getHeight() > 0))
 		{

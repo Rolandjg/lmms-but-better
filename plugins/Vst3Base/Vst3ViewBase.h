@@ -91,6 +91,11 @@ protected:
 	void resizeEvent(QResizeEvent* event) override;
 
 private:
+	//! VST3 view coordinates on X11 are physical pixels, Qt widget geometry
+	//! is logical (high-DPI scaled) pixels
+	QSize physicalToLogical(const QSize& size) const;
+	QSize logicalToPhysical(const QSize& size) const;
+
 	vst3::Vst3Plugin* m_plugin;
 	Steinberg::IPtr<Steinberg::IPlugView> m_view;
 	bool m_resizingFromPlugin = false;
