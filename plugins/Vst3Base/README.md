@@ -32,6 +32,33 @@ source of misplaced mouse hit testing. To force a factor for plugins
 that only scale when the host asks for it, set `LMMS_VST3_SCALE=1.5`
 (any factor) or `LMMS_VST3_SCALE=auto` (use the Qt device pixel ratio).
 
+### Misplaced mouse clicks in plugin GUIs
+
+Three distinct causes, only the first of which a host can fix:
+
+1. **Clicks offset by a constant amount, drifting when the window
+   moves** (Wine/yabridge plugins): the embedded GUI tracks its screen
+   position through synthetic ConfigureNotify events. This host sends
+   them (see `Vst3X11Helpers.cpp`); if you still see this with
+   yabridge, note that Wine >= 9.22 currently has a mouse offset bug of
+   its own independent of the host.
+
+2. **Clicks offset by a constant ratio from the top-left corner**
+   (plugins bundling old JUCE forks, e.g. Vital): the plugin multiplies
+   its internal hit boxes by the display scale it detects (from
+   `Xft.dpi`, GNOME/Cinnamon scaling settings or the monitor's physical
+   DPI) while rendering compensated visuals. The mismatch is internal
+   to the plugin - it receives raw X11 events directly, so no host can
+   correct it (verified experimentally: reporting a matching, larger or
+   no content scale all leave the same misalignment). Workaround: make
+   sure the plugin detects scale 1.0, e.g. remove a custom `Xft.dpi`
+   from `~/.Xresources` (check with `xrdb -query | grep dpi`) or reset
+   desktop scaling factors, then use the plugin's own GUI size setting
+   for enlargement.
+
+3. **Whole window scaled wrong** on high-DPI Qt setups: fixed in this
+   host by converting between VST3 physical and Qt logical pixels.
+
 Windows VST3 plugins can be used through
 [yabridge](https://github.com/robbert-vdh/yabridge), which exposes
 Windows VST3 plugins as native Linux VST3 bundles that this host loads
