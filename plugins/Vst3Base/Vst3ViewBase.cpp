@@ -199,18 +199,41 @@ bool Vst3EditorWindow::attachView()
 	// attach only once the window is mapped and placed: many plugin
 	// toolkits cache their screen position at attach time and translate
 	// mouse coordinates against it - attaching at the pre-placement
-	// position leaves their clicks offset by the window position (and
-	// "fullscreen", i.e. a window at the origin, would appear to fix it)
-	if (windowHandle() && windowHandle()->isExposed())
-	{
-		completeAttach();
-	}
-	else
-	{
-		m_attachPending = true;
-	}
+	// position (the origin) leaves their clicks offset by exactly the
+	// window position (and "fullscreen", i.e. a window at the origin,
+	// would appear to fix it)
+	m_attachPending = true;
+	maybeCompleteAttach(false);
 
 	return true;
+}
+
+
+
+
+void Vst3EditorWindow::maybeCompleteAttach(bool wmPlaced)
+{
+	if (!m_attachPending || !windowHandle() || !windowHandle()->isExposed()) { return; }
+
+	if (wmPlaced)
+	{
+		// a move after show means the window manager has placed the window
+		m_attachPending = false;
+		completeAttach();
+		return;
+	}
+
+	// exposed, but on some WMs the first expose arrives while the window
+	// is still at its pre-placement position - give the placement move a
+	// moment to arrive, then attach either way
+	QTimer::singleShot(150, this, [this]()
+	{
+		if (m_attachPending && windowHandle() && windowHandle()->isExposed())
+		{
+			m_attachPending = false;
+			completeAttach();
+		}
+	});
 }
 
 
@@ -237,6 +260,23 @@ void Vst3EditorWindow::completeAttach()
 	// belt and braces for toolkits that update their cached position from
 	// synthetic ConfigureNotify events (and again on every move/resize)
 	vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
+
+	// re-notify periodically while the editor is open: Wine re-creates its
+	// window hierarchy lazily and compositing WMs can reparent/move without
+	// a client-visible event, both of which would miss one-shot updates
+	if (!m_positionRefreshTimer)
+	{
+		m_positionRefreshTimer = new QTimer(this);
+		m_positionRefreshTimer->setInterval(500);
+		connect(m_positionRefreshTimer, &QTimer::timeout, this, [this]()
+		{
+			if (m_attached)
+			{
+				vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
+			}
+		});
+	}
+	m_positionRefreshTimer->start();
 }
 
 
@@ -244,11 +284,9 @@ void Vst3EditorWindow::completeAttach()
 
 bool Vst3EditorWindow::eventFilter(QObject* watched, QEvent* event)
 {
-	if (watched == windowHandle() && event->type() == QEvent::Expose
-		&& m_attachPending && windowHandle()->isExposed())
+	if (watched == windowHandle() && event->type() == QEvent::Expose)
 	{
-		m_attachPending = false;
-		completeAttach();
+		maybeCompleteAttach(false);
 	}
 	return QWidget::eventFilter(watched, event);
 }
@@ -261,6 +299,7 @@ void Vst3EditorWindow::detachView()
 	if (!m_view) { return; }
 
 	m_attachPending = false;
+	if (m_positionRefreshTimer) { m_positionRefreshTimer->stop(); }
 	if (m_attached)
 	{
 		m_view->removed();
@@ -311,6 +350,7 @@ tresult PLUGIN_API Vst3EditorWindow::resizeView(IPlugView* view, ViewRect* newSi
 void Vst3EditorWindow::moveEvent(QMoveEvent* event)
 {
 	QWidget::moveEvent(event);
+	maybeCompleteAttach(true);
 	if (m_attached)
 	{
 		// embedded GUIs (Wine/yabridge especially) track their screen

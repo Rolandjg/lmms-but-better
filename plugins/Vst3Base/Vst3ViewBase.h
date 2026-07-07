@@ -109,12 +109,18 @@ private:
 
 	//! Attach the view to the (now mapped and placed) window
 	void completeAttach();
+	//! Complete a pending attach if the window is ready. @p wmPlaced is
+	//! true when triggered by a move event (i.e. the WM has really placed
+	//! the window); expose alone starts a short grace timer instead, since
+	//! on some WMs the first expose races ahead of placement.
+	void maybeCompleteAttach(bool wmPlaced);
 
 	vst3::Vst3Plugin* m_plugin;
 	Steinberg::IPtr<Steinberg::IPlugView> m_view;
 	bool m_attached = false;
 	bool m_attachPending = false;
 	bool m_resizingFromPlugin = false;
+	QTimer* m_positionRefreshTimer = nullptr;
 	QSize m_viewSize; //!< last size communicated with the view, physical pixels
 
 	struct EventHandlerEntry
