@@ -62,10 +62,16 @@ public:
 	explicit Vst3EditorWindow(vst3::Vst3Plugin* plugin);
 	~Vst3EditorWindow() override;
 
-	//! Create and attach the plugin view; false if the plugin has no GUI
+	//! Create the plugin view and size the window; the actual attach is
+	//! deferred until the window is mapped and placed by the window
+	//! manager - plugins cache their screen position when they attach,
+	//! and attaching at the pre-placement position leaves their mouse
+	//! coordinates offset by the window position. False if no GUI.
 	bool attachView();
 	void detachView();
 	bool isViewAttached() const { return m_view != nullptr; }
+
+	bool eventFilter(QObject* watched, QEvent* event) override;
 
 	// FUnknown - lifetime is managed by Qt, not by refcounting
 	Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid, void** obj) override;
@@ -101,8 +107,13 @@ private:
 	QSize physicalToLogical(const QSize& size) const;
 	QSize logicalToPhysical(const QSize& size) const;
 
+	//! Attach the view to the (now mapped and placed) window
+	void completeAttach();
+
 	vst3::Vst3Plugin* m_plugin;
 	Steinberg::IPtr<Steinberg::IPlugView> m_view;
+	bool m_attached = false;
+	bool m_attachPending = false;
 	bool m_resizingFromPlugin = false;
 	QSize m_viewSize; //!< last size communicated with the view, physical pixels
 

@@ -29,6 +29,8 @@
 #include <optional>
 
 #include <QCloseEvent>
+#include <QEvent>
+#include <QWindow>
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -96,6 +98,10 @@ Vst3EditorWindow::Vst3EditorWindow(vst3::Vst3Plugin* plugin) :
 	// the plugin draws the whole window
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_NoSystemBackground);
+
+	// watch the QWindow for expose events to complete deferred attaches
+	winId();
+	windowHandle()->installEventFilter(this);
 }
 
 
@@ -190,24 +196,61 @@ bool Vst3EditorWindow::attachView()
 		m_resizingFromPlugin = false;
 	}
 
+	// attach only once the window is mapped and placed: many plugin
+	// toolkits cache their screen position at attach time and translate
+	// mouse coordinates against it - attaching at the pre-placement
+	// position leaves their clicks offset by the window position (and
+	// "fullscreen", i.e. a window at the origin, would appear to fix it)
+	if (windowHandle() && windowHandle()->isExposed())
+	{
+		completeAttach();
+	}
+	else
+	{
+		m_attachPending = true;
+	}
+
+	return true;
+}
+
+
+
+
+void Vst3EditorWindow::completeAttach()
+{
+	if (!m_view || m_attached) { return; }
+
 	if (m_view->attached(reinterpret_cast<void*>(winId()), kPlatformTypeX11EmbedWindowID)
 		!= kResultOk)
 	{
 		m_view->setFrame(nullptr);
 		m_view = nullptr;
-		return false;
+		return;
 	}
+	m_attached = true;
 
 	if (m_view->canResize() != kResultTrue)
 	{
-		setFixedSize(physicalToLogical(QSize(size.getWidth(), size.getHeight())));
+		setFixedSize(physicalToLogical(m_viewSize));
 	}
 
-	// the plugin caches its screen position when it attaches; tell it where
-	// it really ended up (and again on every later move/resize/show)
+	// belt and braces for toolkits that update their cached position from
+	// synthetic ConfigureNotify events (and again on every move/resize)
 	vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
+}
 
-	return true;
+
+
+
+bool Vst3EditorWindow::eventFilter(QObject* watched, QEvent* event)
+{
+	if (watched == windowHandle() && event->type() == QEvent::Expose
+		&& m_attachPending && windowHandle()->isExposed())
+	{
+		m_attachPending = false;
+		completeAttach();
+	}
+	return QWidget::eventFilter(watched, event);
 }
 
 
@@ -217,7 +260,12 @@ void Vst3EditorWindow::detachView()
 {
 	if (!m_view) { return; }
 
-	m_view->removed();
+	m_attachPending = false;
+	if (m_attached)
+	{
+		m_view->removed();
+		m_attached = false;
+	}
 	m_view->setFrame(nullptr);
 	m_view = nullptr;
 
@@ -263,7 +311,7 @@ tresult PLUGIN_API Vst3EditorWindow::resizeView(IPlugView* view, ViewRect* newSi
 void Vst3EditorWindow::moveEvent(QMoveEvent* event)
 {
 	QWidget::moveEvent(event);
-	if (m_view)
+	if (m_attached)
 	{
 		// embedded GUIs (Wine/yabridge especially) track their screen
 		// position through these synthetic events; without them mouse
@@ -278,7 +326,7 @@ void Vst3EditorWindow::moveEvent(QMoveEvent* event)
 void Vst3EditorWindow::showEvent(QShowEvent* event)
 {
 	QWidget::showEvent(event);
-	if (m_view)
+	if (m_attached)
 	{
 		vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
 	}
@@ -290,11 +338,11 @@ void Vst3EditorWindow::showEvent(QShowEvent* event)
 void Vst3EditorWindow::resizeEvent(QResizeEvent* event)
 {
 	QWidget::resizeEvent(event);
-	if (m_view)
+	if (m_attached)
 	{
 		vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
 	}
-	if (!m_view || m_resizingFromPlugin) { return; }
+	if (!m_view || !m_attached || m_resizingFromPlugin) { return; }
 
 	// only forward real size changes; echoing WM configure events (or
 	// fractional-scale rounding drift) back as onSize() makes plugins

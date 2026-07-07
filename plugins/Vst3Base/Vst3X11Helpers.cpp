@@ -26,6 +26,8 @@
 
 #include <cstdlib>
 
+#include <QtGlobal>
+
 // xcb instead of Xlib: no global error handler to fight over, errors on
 // vanished child windows are simply ignored per request
 #include <xcb/xcb.h>
@@ -94,6 +96,10 @@ void notifyDescendantsOfPosition(xcb_connection_t* conn, xcb_window_t window, xc
 
 void vst3NotifyChildWindowsOfPosition(std::uint32_t window)
 {
+	// escape hatch for debugging interactions with plugin toolkits
+	static const bool disabled = qEnvironmentVariableIsSet("LMMS_VST3_NO_CONFIGURE_NOTIFY");
+	if (disabled) { return; }
+
 	const auto conn = connection();
 	if (!conn) { return; }
 
