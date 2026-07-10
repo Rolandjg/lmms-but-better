@@ -95,6 +95,17 @@ void VstSubPluginFeatures::addPluginsFromDir( QStringList* filenames, QString pa
 		fName.remove( 0, 1 );
 		filenames->append( fName );
 	}
+
+#ifdef LMMS_BUILD_LINUX
+	const auto vst3s = QDir( ConfigManager::inst()->vstDir() + path ).
+				entryList( QStringList() << "*.vst3", QDir::Dirs, QDir::Name );
+	for( int i = 0; i < vst3s.size(); i++ )
+	{
+		QString fName = path + QDir::separator() + vst3s.at( i );
+		fName.remove( 0, 1 );
+		filenames->append( fName );
+	}
+#endif
 }
 
 
