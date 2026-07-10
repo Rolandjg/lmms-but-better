@@ -345,11 +345,6 @@ private slots:
 	void updateWindowTitle();
 	void setProgressionType(int progType);
 	/**
-	 * @brief Opens a dialog to generate an LFO-like shape (sine, triangle,
-	 * sawtooth or square) into the current clip, replacing its nodes.
-	 */
-	void generateShape();
-	/**
 	 * @brief The Edit Tangent edit mode should only be available for
 	 * Cubic Hermite progressions, so this method is responsible for disabling it
 	 * for other edit modes and reenabling it when it changes back to the Edit Tangent

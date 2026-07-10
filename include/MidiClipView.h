@@ -25,9 +25,9 @@
 #ifndef LMMS_GUI_MIDI_CLIP_VIEW_H
 #define LMMS_GUI_MIDI_CLIP_VIEW_H
 
-#include <QPixmap>
 #include <QStaticText>
 #include "ClipView.h"
+#include "embed.h"
 
 namespace lmms
 {
@@ -50,10 +50,6 @@ public:
 	Q_PROPERTY(QColor noteBorderColor READ getNoteBorderColor WRITE setNoteBorderColor)
 	Q_PROPERTY(QColor mutedNoteFillColor READ getMutedNoteFillColor WRITE setMutedNoteFillColor)
 	Q_PROPERTY(QColor mutedNoteBorderColor READ getMutedNoteBorderColor WRITE setMutedNoteBorderColor)
-	Q_PROPERTY(QColor stepOnColor READ getStepOnColor WRITE setStepOnColor)
-	Q_PROPERTY(QColor stepOffColor READ getStepOffColor WRITE setStepOffColor)
-	Q_PROPERTY(QColor stepOffLightColor READ getStepOffLightColor WRITE setStepOffLightColor)
-	Q_PROPERTY(QColor stepHighlightColor READ getStepHighlightColor WRITE setStepHighlightColor)
 
 	QColor const & getNoteFillColor() const { return m_noteFillColor; }
 	void setNoteFillColor(QColor const & color) { m_noteFillColor = color; }
@@ -66,18 +62,6 @@ public:
 
 	QColor const & getMutedNoteBorderColor() const { return m_mutedNoteBorderColor; }
 	void setMutedNoteBorderColor(QColor const & color) { m_mutedNoteBorderColor = color; }
-
-	QColor const & getStepOnColor() const { return m_stepOnColor; }
-	void setStepOnColor(QColor const & color) { m_stepOnColor = color; }
-
-	QColor const & getStepOffColor() const { return m_stepOffColor; }
-	void setStepOffColor(QColor const & color) { m_stepOffColor = color; }
-
-	QColor const & getStepOffLightColor() const { return m_stepOffLightColor; }
-	void setStepOffLightColor(QColor const & color) { m_stepOffLightColor = color; }
-
-	QColor const & getStepHighlightColor() const { return m_stepHighlightColor; }
-	void setStepHighlightColor(QColor const & color) { m_stepHighlightColor = color; }
 
 	// Returns true if selection can be merged and false if not
 	static bool canMergeSelection(QVector<ClipView*> clipvs);
@@ -109,6 +93,12 @@ protected:
 
 
 private:
+	QPixmap m_stepBtnOn0 = embed::getIconPixmap("step_btn_on_0");
+	QPixmap m_stepBtnOn200 = embed::getIconPixmap("step_btn_on_200");
+	QPixmap m_stepBtnOff = embed::getIconPixmap("step_btn_off");
+	QPixmap m_stepBtnOffLight = embed::getIconPixmap("step_btn_off_light");
+	QPixmap m_stepBtnHighlight = embed::getIconPixmap("step_btn_highlight");
+
 	MidiClip* m_clip;
 	QPixmap m_paintPixmap;
 
@@ -116,13 +106,6 @@ private:
 	QColor m_noteBorderColor;
 	QColor m_mutedNoteFillColor;
 	QColor m_mutedNoteBorderColor;
-	QColor m_stepOnColor;
-	QColor m_stepOffColor;
-	QColor m_stepOffLightColor;
-	QColor m_stepHighlightColor;
-
-	QRect beatStepRowRect() const;
-	int beatStepAt(const QPoint& pos) const;
 
 	QStaticText m_staticTextName;
 

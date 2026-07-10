@@ -27,11 +27,6 @@
 
 #include "AutomationEditor.h"
 
-#include <QComboBox>
-#include <QDialog>
-#include <QDialogButtonBox>
-#include <QDoubleSpinBox>
-#include <QFormLayout>
 #include <QInputDialog>
 #include <QLabel>
 #include <QPainter>
@@ -41,7 +36,6 @@
 #include <QStyleOption>
 #include <QToolTip>
 #include <cmath>
-#include <numbers>
 
 #include "ActionGroup.h"
 #include "AutomationNode.h"
@@ -2037,9 +2031,6 @@ AutomationEditorWindow::AutomationEditorWindow() :
 	m_flipYAction = new QAction(embed::getIconPixmap("flip_y"), tr("Flip vertically"), this);
 	m_flipXAction = new QAction(embed::getIconPixmap("flip_x"), tr("Flip horizontally"), this);
 
-	auto generateShapeAction = new QAction(embed::getIconPixmap("sin_wave_active"), tr("Generate shape (LFO)"), this);
-	connect(generateShapeAction, &QAction::triggered, this, &AutomationEditorWindow::generateShape);
-
 	connect(editModeGroup, SIGNAL(triggered(int)), m_editor, SLOT(setEditMode(int)));
 
 	editActionsToolBar->addAction(m_drawAction);
@@ -2048,8 +2039,6 @@ AutomationEditorWindow::AutomationEditorWindow() :
 	editActionsToolBar->addAction(m_editTanAction);
 	editActionsToolBar->addAction(m_flipXAction);
 	editActionsToolBar->addAction(m_flipYAction);
-	editActionsToolBar->addSeparator();
-	editActionsToolBar->addAction(generateShapeAction);
 
 	// Interpolation actions
 	DropToolBar *interpolationActionsToolBar = addDropToolBarToTop(tr("Interpolation controls"));
@@ -2308,144 +2297,6 @@ void AutomationEditorWindow::setProgressionType(int progType)
 {
 	m_editor->setProgressionType(progType);
 	updateEditTanButton();
-}
-
-void AutomationEditorWindow::generateShape()
-{
-	AutomationClip* clip = m_editor->m_clip;
-	if (clip == nullptr) { return; }
-
-	const int lengthTicks = clip->length();
-	if (lengthTicks <= 0) { return; }
-
-	QDialog dialog(this);
-	dialog.setWindowTitle(tr("Generate shape"));
-	auto layout = new QFormLayout(&dialog);
-
-	auto shapeBox = new QComboBox(&dialog);
-	shapeBox->addItems({tr("Sine"), tr("Triangle"), tr("Sawtooth"), tr("Square")});
-
-	auto cyclesBox = new QDoubleSpinBox(&dialog);
-	cyclesBox->setRange(0.25, 1024.0);
-	cyclesBox->setDecimals(2);
-	cyclesBox->setValue(4.0);
-
-	const float clipMin = clip->getMin();
-	const float clipMax = clip->getMax();
-
-	auto minBox = new QDoubleSpinBox(&dialog);
-	minBox->setRange(clipMin, clipMax);
-	minBox->setDecimals(3);
-	minBox->setSingleStep((clipMax - clipMin) / 100.0);
-	minBox->setValue(clipMin);
-
-	auto maxBox = new QDoubleSpinBox(&dialog);
-	maxBox->setRange(clipMin, clipMax);
-	maxBox->setDecimals(3);
-	maxBox->setSingleStep((clipMax - clipMin) / 100.0);
-	maxBox->setValue(clipMax);
-
-	auto phaseBox = new QDoubleSpinBox(&dialog);
-	phaseBox->setRange(0.0, 360.0);
-	phaseBox->setDecimals(1);
-	phaseBox->setSuffix(tr("°"));
-
-	layout->addRow(tr("Shape:"), shapeBox);
-	layout->addRow(tr("Cycles over clip length:"), cyclesBox);
-	layout->addRow(tr("Minimum value:"), minBox);
-	layout->addRow(tr("Maximum value:"), maxBox);
-	layout->addRow(tr("Phase:"), phaseBox);
-
-	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-	layout->addRow(buttons);
-
-	if (dialog.exec() != QDialog::Accepted) { return; }
-
-	enum Shape { Sine, Triangle, Sawtooth, Square };
-	const int shape = shapeBox->currentIndex();
-	const double cycleTicks = lengthTicks / cyclesBox->value();
-	const float lo = static_cast<float>(minBox->value());
-	const float hi = static_cast<float>(maxBox->value());
-	const double phase = phaseBox->value() / 360.0;
-
-	// Value of the continuous shape at a given tick. Sawtooth and square
-	// evaluate the half-open cycle interval; their jumps are placed
-	// separately as nodes with distinct in/out values.
-	const auto valueAt = [&](double tick) -> float {
-		const double t = tick / cycleTicks + phase;
-		const double frac = t - std::floor(t);
-		double v = 0.0;
-		switch (shape)
-		{
-			case Sine: v = 0.5 + 0.5 * std::sin(2.0 * std::numbers::pi * t); break;
-			case Triangle: v = 1.0 - std::abs(2.0 * frac - 1.0); break;
-			case Sawtooth: v = frac; break;
-			case Square: v = frac < 0.5 ? 1.0 : 0.0; break;
-		}
-		return lo + static_cast<float>(v) * (hi - lo);
-	};
-
-	clip->addJournalCheckPoint();
-	clip->removeNodes(0, lengthTicks);
-
-	if (shape == Sine)
-	{
-		// sample along the curve, capping the node count for extreme settings
-		const double step = std::max({cycleTicks / 32.0, 1.0, lengthTicks / 4096.0});
-		for (double t = 0.0; t < lengthTicks; t += step)
-		{
-			clip->putValue(TimePos(static_cast<int>(std::round(t))), valueAt(t), false);
-		}
-		clip->putValue(TimePos(lengthTicks), valueAt(lengthTicks), false);
-	}
-	else
-	{
-		// the other shapes only need nodes at their vertices and jumps;
-		// boundary nodes go first so feature nodes can overwrite them
-		clip->putValue(TimePos(0), valueAt(0.0), false);
-		clip->putValue(TimePos(lengthTicks), valueAt(lengthTicks - 1e-3), false);
-
-		// vertices/jumps happen twice per cycle for triangle and square,
-		// once per cycle for sawtooth
-		const double featureTicks = shape == Sawtooth ? cycleTicks : cycleTicks / 2.0;
-		const double offset = phase * cycleTicks;
-		int nodesPlaced = 0;
-		for (int k = static_cast<int>(std::floor(offset / featureTicks)) + 1; nodesPlaced < 8192; ++k)
-		{
-			const double t = k * featureTicks - offset;
-			if (t >= lengthTicks) { break; }
-			if (t <= 0.0) { continue; }
-
-			const TimePos nodePos{static_cast<int>(std::round(t))};
-			switch (shape)
-			{
-				case Triangle:
-					clip->putValue(nodePos, k % 2 ? hi : lo, false);
-					break;
-				case Sawtooth:
-					clip->putValues(nodePos, hi, lo, false);
-					break;
-				case Square:
-					// even vertices jump up, odd ones jump down
-					clip->putValues(nodePos, k % 2 ? hi : lo, k % 2 ? lo : hi, false);
-					break;
-			}
-			++nodesPlaced;
-		}
-	}
-
-	// stepped interpolation would hide the generated ramps
-	if (clip->progressionType() == AutomationClip::ProgressionType::Discrete)
-	{
-		clip->setProgressionType(AutomationClip::ProgressionType::Linear);
-		m_linearAction->setChecked(true);
-		m_tensionKnob->setEnabled(false);
-	}
-
-	Engine::getSong()->setModified();
-	m_editor->update();
 }
 
 void AutomationEditorWindow::updateEditTanButton()

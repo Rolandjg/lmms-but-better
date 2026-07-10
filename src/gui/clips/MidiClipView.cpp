@@ -27,7 +27,6 @@
 
 
 #include <algorithm>
-#include <cmath>
 #include <QApplication>
 #include <QInputDialog>
 #include <QMenu>
@@ -37,7 +36,6 @@
 #include "AutomationEditor.h"
 #include "ConfigManager.h"
 #include "DeprecationHelper.h"
-#include "embed.h"
 #include "GuiApplication.h"
 #include "InstrumentTrackView.h"
 #include "MidiClip.h"
@@ -60,10 +58,6 @@ MidiClipView::MidiClipView( MidiClip* clip, TrackView* parent ) :
 	m_noteBorderColor(255, 255, 255, 220),
 	m_mutedNoteFillColor(100, 100, 100, 220),
 	m_mutedNoteBorderColor(100, 100, 100, 220),
-	m_stepOnColor(160, 255, 248),
-	m_stepOffColor(11, 13, 14),
-	m_stepOffLightColor(36, 39, 43),
-	m_stepHighlightColor(167, 227, 223, 200),
 	// TODO if this option is ever added to the GUI, rename it to legacysepattern
 	m_legacySEPattern(ConfigManager::inst()->value("ui", "legacysebb", "0").toInt())
 {
@@ -80,29 +74,6 @@ MidiClipView::MidiClipView( MidiClip* clip, TrackView* parent ) :
 MidiClip* MidiClipView::getMidiClip()
 {
 	return m_clip;
-}
-
-
-
-
-//! The area covered by the step cells of a beat clip
-QRect MidiClipView::beatStepRowRect() const
-{
-	return QRect(BORDER_WIDTH, BeatStepButtonOffset,
-		width() - 2 * BORDER_WIDTH, height() - 2 * BeatStepButtonOffset);
-}
-
-
-
-
-//! Step index at the given widget position, or -1 if outside the step row
-int MidiClipView::beatStepAt(const QPoint& pos) const
-{
-	const QRect row = beatStepRowRect();
-	if (!row.contains(pos) || row.width() <= 0) { return -1; }
-
-	const int steps = std::max(1, m_clip->m_steps);
-	return std::min((pos.x() - row.x()) * steps / row.width(), steps - 1);
 }
 
 
@@ -453,15 +424,28 @@ void MidiClipView::mousePressEvent( QMouseEvent * _me )
 	const auto pos = position(_me);
 
 	bool displayPattern = fixedClips() || (pixelsPerBar() >= 96 && m_legacySEPattern);
-	const int step = m_clip->m_clipType == MidiClip::Type::BeatClip && displayPattern
-		? beatStepAt(pos)
-		: -1;
-
-	if (_me->button() == Qt::LeftButton && step >= 0)
+	if (_me->button() == Qt::LeftButton && m_clip->m_clipType == MidiClip::Type::BeatClip && displayPattern
+		&& pos.y() > BeatStepButtonOffset && pos.y() < BeatStepButtonOffset + m_stepBtnOff.height())
 
 	// when mouse button is pressed in pattern mode
 
 	{
+//	get the step number that was clicked on and
+//	do calculations in floats to prevent rounding errors...
+		float tmp = ((static_cast<float>(pos.x()) - BORDER_WIDTH)
+			* static_cast<float>(m_clip->m_steps)) / static_cast<float>(width() - BORDER_WIDTH * 2);
+
+		int step = int( tmp );
+
+//	debugging to ensure we get the correct step...
+//		qDebug( "Step (%f) %d", tmp, step );
+
+		if( step >= m_clip->m_steps )
+		{
+			qDebug( "Something went wrong in clip.cpp: step %d doesn't exist in clip!", step );
+			return;
+		}
+
 		Note * n = m_clip->noteAtStep( step );
 
 		if( n == nullptr )
@@ -512,13 +496,22 @@ void MidiClipView::mouseDoubleClickEvent(QMouseEvent *_me)
 void MidiClipView::wheelEvent(QWheelEvent * we)
 {
 	const auto pos = we->position().toPoint();
-	const bool displayPattern = fixedClips() || pixelsPerBar() >= 96;
-	const int step = m_clip->m_clipType == MidiClip::Type::BeatClip && displayPattern
-		? beatStepAt(pos)
-		: -1;
-
-	if (step >= 0)
+	if(m_clip->m_clipType == MidiClip::Type::BeatClip &&
+				(fixedClips() || pixelsPerBar() >= 96) &&
+				pos.y() > height() - m_stepBtnOff.height())
 	{
+//	get the step number that was wheeled on and
+//	do calculations in floats to prevent rounding errors...
+		float tmp = ((float(pos.x()) - BORDER_WIDTH) *
+				float(m_clip -> m_steps)) / float(width() - BORDER_WIDTH*2);
+
+		int step = int( tmp );
+
+		if( step >= m_clip->m_steps )
+		{
+			return;
+		}
+
 		Note * n = m_clip->noteAtStep( step );
 		const int direction = (we->angleDelta().y() > 0 ? 1 : -1) * (we->inverted() ? -1 : 1);
 		if(!n && direction > 0)
@@ -642,66 +635,59 @@ void MidiClipView::paintEvent( QPaintEvent * )
 	// Beat clip paint event (on BB Editor)
 	if (beatClip && displayPattern)
 	{
+		QPixmap stepon0;
+		QPixmap stepon200;
+		QPixmap stepoff;
+		QPixmap stepoffl;
+		QPixmap stephighlight;
 		const int steps = std::max(1, m_clip->m_steps);
-		const QRectF row = beatStepRowRect();
-		const float cellWidth = row.width() / steps;
+		const int w = width() - 2 * BORDER_WIDTH;
 
-		// Gaps, borders and corner radii all scale down with the cell width
-		// so the cells stay evenly spaced and readable no matter how many
-		// steps there are or how the clip is sized. Groups of four get a
-		// wider gap to keep long patterns easy to count.
-		const float gap = std::clamp(cellWidth * 0.15f, 0.5f, 2.f);
-		const float groupGap = std::clamp(cellWidth * 0.2f, gap * 0.5f, 3.f);
-		const float radius = std::min({3.f, (cellWidth - gap) * 0.25f,
-			static_cast<float>(row.height()) * 0.2f});
-
-		const int playStep = Engine::getSong()->playMode() == Song::PlayMode::Pattern
-			? Engine::getSong()->getPlayPos(Song::PlayMode::Pattern) * TimePos::stepsPerBar() / TimePos::ticksPerBar()
-			: -1;
-
-		p.setRenderHint(QPainter::Antialiasing);
+		// scale step graphics to fit the beat clip length
+		stepon0
+			= m_stepBtnOn0.scaled(w / steps, m_stepBtnOn0.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		stepon200 = m_stepBtnOn200.scaled(
+			w / steps, m_stepBtnOn200.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		stepoff
+			= m_stepBtnOff.scaled(w / steps, m_stepBtnOff.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		stepoffl = m_stepBtnOffLight.scaled(
+			w / steps, m_stepBtnOffLight.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		stephighlight = m_stepBtnHighlight.scaled(
+			w / steps, m_stepBtnHighlight.height(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 
 		for (int it = 0; it < steps; it++)	// go through all the steps in the beat clip
 		{
-			float left = static_cast<float>(row.left()) + cellWidth * it;
-			float right = left + cellWidth;
-			left += it % 4 == 0 ? groupGap : gap * 0.5f;
-			right -= it % 4 == 3 ? groupGap : gap * 0.5f;
-			const QRectF cell(left, row.top(), right - left, row.height());
+			Note* n = m_clip->noteAtStep(it);
 
-			const Note* n = m_clip->noteAtStep(it);
-			const QColor base = (it / 4) % 2 ? m_stepOffLightColor : m_stepOffColor;
+			// figure out x and y coordinates for step graphic
+			const int x = BORDER_WIDTH + static_cast<int>(it * w / steps);
+			const int y = BeatStepButtonOffset;
+
+			const bool isAtPlayPos = Engine::getSong()->getPlayPos(Song::PlayMode::Pattern) * TimePos::stepsPerBar() / TimePos::ticksPerBar() == it
+				&& Engine::getSong()->playMode() == Song::PlayMode::Pattern;
 
 			if (n)
 			{
-				// fade the active color in with the step's volume
-				const float t = std::sqrt(n->getVolume() / 200.f);
-				const auto mix = [t](int a, int b) { return static_cast<int>(a + t * (b - a)); };
-				const QColor fill(mix(base.red(), m_stepOnColor.red()),
-					mix(base.green(), m_stepOnColor.green()),
-					mix(base.blue(), m_stepOnColor.blue()));
-				p.setBrush(fill);
-				// border keeps low-volume steps distinguishable from empty ones
-				p.setPen(QPen(m_stepOnColor, std::clamp(cellWidth * 0.08f, 0.75f, 1.25f)));
+				const int vol = n->getVolume();
+				p.drawPixmap(x, y, stepoffl);
+				p.drawPixmap(x, y, stepon0);
+				p.setOpacity(std::sqrt(vol / 200.0));
+				p.drawPixmap(x, y, stepon200);
+				p.setOpacity(1);
+			}
+			else if ((it / 4) % 2)
+			{
+				p.drawPixmap(x, y, stepoffl);
 			}
 			else
 			{
-				p.setBrush(base);
-				p.setPen(Qt::NoPen);
+				p.drawPixmap(x, y, stepoff);
 			}
-			p.drawRoundedRect(cell, radius, radius);
-
-			if (it == playStep)
+			if (isAtPlayPos)
 			{
-				const float hw = std::clamp(static_cast<float>(row.height()) * 0.06f, 1.f, 2.f);
-				p.setBrush(Qt::NoBrush);
-				p.setPen(QPen(m_stepHighlightColor, hw));
-				p.drawRoundedRect(cell.adjusted(hw / 2, hw / 2, -hw / 2, -hw / 2), radius, radius);
+				p.drawPixmap(x, y, stephighlight);
 			}
 		} // end for loop
-
-		p.setRenderHint(QPainter::Antialiasing, false);
-		p.setPen(Qt::NoPen);
 
 		// draw a transparent rectangle over muted clips
 		if (muted)

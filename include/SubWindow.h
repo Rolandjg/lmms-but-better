@@ -32,6 +32,7 @@
 
 #include "lmms_export.h"
 
+class QGraphicsDropShadowEffect;
 class QLabel;
 class QPushButton;
 class QWidget;
@@ -107,6 +108,7 @@ private:
 	QPoint m_position;
 	QRect m_trackedNormalGeom;
 	QLabel * m_windowTitle;
+	QGraphicsDropShadowEffect * m_shadow;
 	bool m_hasFocus;
 	bool m_isDetachable;
 
