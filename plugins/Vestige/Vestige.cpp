@@ -662,10 +662,10 @@ void VestigeInstrumentView::openPlugin()
 	types << tr("VST2 files (*.dll)");
 #elif defined(LMMS_BUILD_LINUX)
 #	if defined(LMMS_HAVE_VST_32) || defined(LMMS_HAVE_VST_64)
-		types << tr("All VST files (*.dll *.so)")
+		types << tr("All VST files (*.dll *.so *.vst3)")
 			<< tr("Windows VST2 files (*.dll)");
 #	endif
-	types << tr("LinuxVST files (*.so)");
+	types << tr("Linux VST2/VST3 files (*.so *.vst3)");
 #endif
 
 	ofd.setNameFilters(types);

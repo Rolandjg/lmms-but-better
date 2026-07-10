@@ -121,8 +121,53 @@ namespace lmms
 
 enum class ExecutableType
 {
-	Unknown, Win32, Win64, Linux64,
+	Unknown, Win32, Win64, Linux64, LinuxVst3,
 };
+
+#ifdef LMMS_BUILD_LINUX
+static QString vst3SharedObjectPath(const QFileInfo& bundleInfo)
+{
+	if (!bundleInfo.isDir() || bundleInfo.suffix().compare("vst3", Qt::CaseInsensitive) != 0)
+	{
+		return QString();
+	}
+
+	const QStringList archDirs = {
+		"x86_64-linux",
+		"amd64-linux",
+		"i386-linux",
+		"i686-linux",
+	};
+
+	for (const auto& archDir : archDirs)
+	{
+		const auto candidate = bundleInfo.absoluteFilePath() + "/Contents/" + archDir + "/" + bundleInfo.completeBaseName() + ".so";
+		if (QFileInfo::exists(candidate))
+		{
+			return candidate;
+		}
+	}
+
+	QDir contentsDir(bundleInfo.absoluteFilePath() + "/Contents");
+	const auto sharedObjects = contentsDir.entryInfoList({"*.so"}, QDir::Files, QDir::Name);
+	if (!sharedObjects.isEmpty())
+	{
+		return sharedObjects.first().absoluteFilePath();
+	}
+
+	for (const auto& archDir : archDirs)
+	{
+		QDir dir(bundleInfo.absoluteFilePath() + "/Contents/" + archDir);
+		const auto sharedObjects = dir.entryInfoList({"*.so"}, QDir::Files, QDir::Name);
+		if (!sharedObjects.isEmpty())
+		{
+			return sharedObjects.first().absoluteFilePath();
+		}
+	}
+
+	return QString();
+}
+#endif
 
 VstPlugin::VstPlugin( const QString & _plugin ) :
 	m_plugin( PathUtil::toAbsolute(_plugin) ),
@@ -138,7 +183,16 @@ VstPlugin::VstPlugin( const QString & _plugin ) :
 	auto pluginType = ExecutableType::Unknown;
 #ifdef LMMS_BUILD_LINUX
 	QFileInfo fi(m_plugin);
-	if (fi.suffix() == "so")
+	if (fi.suffix().compare("vst3", Qt::CaseInsensitive) == 0)
+	{
+		const auto sharedObjectPath = vst3SharedObjectPath(fi);
+		if (!sharedObjectPath.isEmpty())
+		{
+			m_plugin = sharedObjectPath;
+			pluginType = ExecutableType::LinuxVst3;
+		}
+	}
+	else if (fi.suffix().compare("so", Qt::CaseInsensitive) == 0)
 	{
 		pluginType = ExecutableType::Linux64;
 	}
@@ -175,7 +229,8 @@ VstPlugin::VstPlugin( const QString & _plugin ) :
 		break;
 #ifdef LMMS_BUILD_LINUX
 	case ExecutableType::Linux64:
-		tryLoad( NATIVE_LINUX_REMOTE_VST_PLUGIN_FILEPATH_64 ); // Default: NativeLinuxRemoteVstPlugin32
+	case ExecutableType::LinuxVst3:
+		tryLoad( NATIVE_LINUX_REMOTE_VST_PLUGIN_FILEPATH_64 ); // Default: NativeLinuxRemoteVstPlugin64
 		break;
 #endif
 	default:

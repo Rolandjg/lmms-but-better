@@ -31,6 +31,8 @@
 #include "VstPlugin.h"
 #include "VstSubPluginFeatures.h"
 
+#include <QFileInfo>
+
 #include "embed.h"
 #include "plugin_export.h"
 
@@ -70,8 +72,8 @@ VstEffect::VstEffect( Model * _parent,
 	{
 		loaded = openPlugin(m_key.attributes["file"]);
 	}
-	setDisplayName( m_key.attributes["file"].section( ".dll", 0, 0 ).isEmpty()
-		? m_key.name : m_key.attributes["file"].section( ".dll", 0, 0 ) );
+	const auto pluginFileName = QFileInfo(m_key.attributes["file"]).completeBaseName();
+	setDisplayName(pluginFileName.isEmpty() ? m_key.name : pluginFileName);
 
 	setDontRun(!loaded);
 }
