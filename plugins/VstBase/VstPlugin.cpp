@@ -77,6 +77,7 @@ enum class MachineType : uint16_t
 {
 	unknown = 0x0,
 	amd64 = 0x8664,
+	arm64 = 0xaa64,
 	i386 = 0x14c,
 };
 
@@ -150,6 +151,7 @@ VstPlugin::VstPlugin( const QString & _plugin ) :
 			switch (peInfo.machineType())
 			{
 			case PE::MachineType::amd64:
+			case PE::MachineType::arm64:
 				pluginType = ExecutableType::Win64;
 				break;
 			case PE::MachineType::i386:

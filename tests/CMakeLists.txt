@@ -8,6 +8,7 @@ set(LMMS_TESTS
 	src/core/AudioBufferTest.cpp
 	src/core/AutomatableModelTest.cpp
 	src/core/MathTest.cpp
+	src/core/MidiNotePitchTest.cpp
 	src/core/ProjectVersionTest.cpp
 	src/core/RelativePathsTest.cpp
 	src/core/TimelineTest.cpp
@@ -33,3 +34,26 @@ foreach(LMMS_TEST_SRC IN LISTS LMMS_TESTS)
 	target_compile_features(${LMMS_TEST_NAME} PRIVATE cxx_std_20)
 	target_compile_definitions(${LMMS_TEST_NAME} PRIVATE LMMS_TESTING)
 endforeach()
+
+if(TARGET vst3base)
+	add_library(Vst3TestPlugin MODULE plugins/Vst3TestPlugin.cpp
+		../plugins/Vst3Base/Vst3SdkIids.cpp
+		../plugins/Vst3Base/vst3sdk/pluginterfaces/base/coreiids.cpp
+		../plugins/Vst3Base/vst3sdk/pluginterfaces/base/funknown.cpp)
+	target_include_directories(Vst3TestPlugin PRIVATE ../plugins/Vst3Base/vst3sdk)
+	target_compile_features(Vst3TestPlugin PRIVATE cxx_std_20)
+	add_executable(Vst3HostTest plugins/Vst3HostTest.cpp)
+	target_include_directories(Vst3HostTest PRIVATE $<TARGET_PROPERTY:lmmsobjs,INCLUDE_DIRECTORIES>)
+	target_static_libraries(Vst3HostTest PRIVATE lmmsobjs)
+	target_link_libraries(Vst3HostTest PRIVATE vst3base ${QT_LIBRARIES} ${QT_QTTEST_LIBRARY})
+	target_compile_features(Vst3HostTest PRIVATE cxx_std_20)
+	target_compile_definitions(Vst3HostTest PRIVATE LMMS_TESTING VST3_TEST_MODULE="$<TARGET_FILE:Vst3TestPlugin>")
+	add_dependencies(Vst3HostTest Vst3TestPlugin)
+	if(TARGET vst3instrument AND TARGET vst3effect)
+		add_dependencies(Vst3HostTest vst3instrument vst3effect)
+		target_compile_definitions(Vst3HostTest PRIVATE LMMS_TEST_VST3_WRAPPERS)
+	endif()
+	set_target_properties(Vst3HostTest PROPERTIES ENABLE_EXPORTS ON)
+	add_test(NAME Vst3HostTest COMMAND Vst3HostTest)
+	set_tests_properties(Vst3HostTest PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data" TIMEOUT 120)
+endif()

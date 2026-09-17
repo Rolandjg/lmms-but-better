@@ -215,10 +215,10 @@ void NotePlayHandle::play( SampleFrame* _working_buffer )
 		}
 	}
 
-	/* It is possible for NotePlayHandle::noteOff to be called before NotePlayHandle::play,
-	 * which results in a note-on message being sent without a subsequent note-off message.
-	 * Therefore, we check here whether the note has already been released before sending
-	 * the note-on message. */
+	// It is possible for NotePlayHandle::noteOff to be called before NotePlayHandle::play,
+	// which results in a note-on message being sent without a subsequent note-off message.
+	// Therefore, we check here whether the note has already been released before sending
+	// the note-on message.
 	if( !m_released
 		&& m_totalFramesPlayed == 0 && !m_hasMidiNote
 		&& ( hasParent() || ! m_instrumentTrack->isArpeggioEnabled() ) )
@@ -228,6 +228,7 @@ void NotePlayHandle::play( SampleFrame* _working_buffer )
 		const int baseVelocity = m_instrumentTrack->midiPort()->baseVelocity();
 
 		// send MidiNoteOn event
+		m_instrumentTrack->startNotePitch(this, offset());
 		m_instrumentTrack->processOutEvent(
 			MidiEvent( MidiNoteOn, midiChannel(), midiKey(), midiVelocity( baseVelocity ) ),
 			TimePos::fromFrames( offset(), Engine::framesPerTick() ),
@@ -395,6 +396,7 @@ void NotePlayHandle::noteOff( const f_cnt_t _s )
 				MidiEvent( MidiNoteOff, midiChannel(), midiKey(), 0 ),
 				TimePos::fromFrames( _s, Engine::framesPerTick() ),
 				_s );
+		m_instrumentTrack->endNotePitch(this, _s);
 	}
 
 	// inform attached components about MIDI finished (used for recording in Piano Roll)
@@ -557,7 +559,7 @@ void NotePlayHandle::updateFrequency()
 
 
 
-void NotePlayHandle::processTimePos(const TimePos& time, float pitchValue, bool isRecording)
+void NotePlayHandle::processTimePos(const TimePos& time, float pitchValue, bool isRecording, f_cnt_t offset)
 {
 	if (!detuning() || time < songGlobalParentOffset() + pos()) { return; }
 
@@ -568,10 +570,17 @@ void NotePlayHandle::processTimePos(const TimePos& time, float pitchValue, bool 
 	else
 	{
 		const float v = detuning()->automationClip()->valueAt(time - songGlobalParentOffset() - pos());
+
 		if (!approximatelyEqual(v, m_baseDetuning->value()))
 		{
 			m_baseDetuning->setValue(v);
 			updateFrequency();
+			m_instrumentTrack->updateNotePitch(this, offset);
+
+			for (const auto* child : m_subNotes)
+			{
+				m_instrumentTrack->updateNotePitch(child, offset);
+			}
 		}
 	}
 }

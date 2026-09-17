@@ -27,6 +27,11 @@
 
 #include "AutomationEditor.h"
 
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
 #include <QInputDialog>
 #include <QLabel>
 #include <QPainter>
@@ -36,6 +41,7 @@
 #include <QStyleOption>
 #include <QToolTip>
 #include <cmath>
+#include <numbers>
 
 #include "ActionGroup.h"
 #include "AutomationNode.h"
@@ -266,12 +272,15 @@ void AutomationEditor::keyPressEvent(QKeyEvent * ke )
 			break;
 
 		case Qt::Key_Left:
-			m_timeLine->timeline()->setTicks(std::max(0, m_timeLine->timeline()->ticks() - 16));
+			m_timeLine->timeline()->setTicks(std::max(
+				0,
+				m_timeLine->timeline()->ticks() - AutomationClip::quantization()));
 			ke->accept();
 			break;
 
 		case Qt::Key_Right:
-			m_timeLine->timeline()->setTicks(m_timeLine->timeline()->ticks() + 16);
+			m_timeLine->timeline()->setTicks(
+				m_timeLine->timeline()->ticks() + AutomationClip::quantization());
 			ke->accept();
 			break;
 
@@ -291,6 +300,7 @@ void AutomationEditor::keyPressEvent(QKeyEvent * ke )
 
 void AutomationEditor::leaveEvent(QEvent * e )
 {
+	QToolTip::hideText();
 	while (QApplication::overrideCursor() != nullptr)
 	{
 		QApplication::restoreOverrideCursor();
@@ -374,8 +384,6 @@ bool AutomationEditor::fineTuneValue(timeMap::iterator node, bool editingOutValu
 		node.value().setInValue(value);
 	}
 
-	// Notify listeners (e.g. PianoRoll) that clip data changed
-	emit m_clip->dataChanged();
 	Engine::getSong()->setModified();
 	return true;
 }
@@ -874,15 +882,24 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 						return;
 					}
 
-					// Calculate new tangent
-					float y = m_draggedOutTangent
+					// Tangents are stored as automation-value change per tick. Convert the
+					// vertical mouse distance from pixels back to value units so editing is
+					// independent of the current vertical zoom and the model's value range.
+					const float y = m_draggedOutTangent
 						? yCoordOfLevel(OUTVAL(it))
 						: yCoordOfLevel(INVAL(it));
-					float dy = m_draggedOutTangent
-						? (y - pos.y()) / m_y_delta
-						: (pos.y() - y) / m_y_delta;
-					float dx = std::abs(posTicks - POS(it));
-					float newTangent = dy / std::max(dx, 1.0f);
+					const float dy = m_draggedOutTangent
+						? y - pos.y()
+						: pos.y() - y;
+					const float dx = std::max(std::abs(posTicks - POS(it)), 1);
+					const float viewportHeight = height() - SCROLLBAR_SIZE - 1 - TOP_MARGIN;
+					const float levelRange = std::abs(m_topLevel - m_bottomLevel);
+					if (viewportHeight <= 0.0f || levelRange <= 0.0f)
+					{
+						break;
+					}
+					const float pixelsPerLevel = viewportHeight / levelRange;
+					const float newTangent = dy / (dx * pixelsPerLevel);
 
 					if (m_draggedOutTangent)
 					{
@@ -892,6 +909,8 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 					{
 						it.value().setInTangent(newTangent);
 					}
+
+					Engine::getSong()->setModified();
 				}
 				else if (m_mouseDownRight && m_action == Action::ResetTangents)
 				{
@@ -909,6 +928,7 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 		QApplication::restoreOverrideCursor();
 	}
 
+	showHoverToolTip(pos);
 	update();
 }
 
@@ -929,22 +949,38 @@ inline void AutomationEditor::drawCross( QPainter & p )
 	p.setPen(m_crossColor);
 	p.drawLine( VALUES_WIDTH, (int) cross_y, width(), (int) cross_y );
 	p.drawLine( mouse_pos.x(), TOP_MARGIN, mouse_pos.x(), height() - SCROLLBAR_SIZE );
+}
 
 
-	QPoint tt_pos =  QCursor::pos();
-	tt_pos.ry() -= 51;
-	tt_pos.rx() += 26;
-
-	float scaledLevel = m_clip->firstObject()->scaledValue( level );
-
-	// Limit the scaled-level tooltip to the grid
-	if( mouse_pos.x() >= 0 &&
-		mouse_pos.x() <= width() - SCROLLBAR_SIZE &&
-		mouse_pos.y() >= 0 &&
-		mouse_pos.y() <= height() - SCROLLBAR_SIZE )
+void AutomationEditor::showHoverToolTip(const QPoint& position)
+{
+	const bool insideGrid = position.x() >= VALUES_WIDTH
+		&& position.x() <= width() - SCROLLBAR_SIZE
+		&& position.y() >= TOP_MARGIN
+		&& position.y() <= height() - SCROLLBAR_SIZE;
+	if (!insideGrid)
 	{
-		QToolTip::showText( tt_pos, QString::number( scaledLevel ), this );
+		QToolTip::hideText();
+		return;
 	}
+
+	const int tick = std::max(
+		0,
+		(position.x() - VALUES_WIDTH) * TimePos::ticksPerBar() / m_ppb
+			+ static_cast<int>(m_currentPosition));
+	const TimePos time{tick};
+	const TimeSig timeSignature{Engine::getSong()->getTimeSigModel()};
+	const QString musicalPosition = tr("Bar %1, beat %2, tick %3")
+		.arg(time.getBar() + 1)
+		.arg(time.getBeatWithinBar(timeSignature) + 1)
+		.arg(time.getTickWithinBeat(timeSignature));
+	const QString value = m_clip->firstObject()->displayValue(getLevel(position.y()));
+
+	QPoint toolTipPosition = mapToGlobal(position + QPoint(18, -42));
+	QToolTip::showText(
+		toolTipPosition,
+		tr("%1\nValue: %2").arg(musicalPosition, value),
+		this);
 }
 
 
@@ -1080,7 +1116,7 @@ void AutomationEditor::paintEvent(QPaintEvent * pe )
 	else
 	{
 		int level = (int)m_bottomLevel;
-		auto printable = static_cast<int>(std::max(1.0f, 5 * DEFAULT_Y_DELTA / m_y_delta));
+		int printable = qMax(1, 5 * DEFAULT_Y_DELTA / m_y_delta);
 		int module = level % printable;
 		if (module)
 		{
@@ -1533,7 +1569,6 @@ void AutomationEditor::resizeEvent(QResizeEvent * re)
 	m_timeLine->setFixedWidth(width());
 
 	updateTopBottomLevels();
-	updateYDelta();
 	update();
 }
 
@@ -1825,12 +1860,6 @@ void AutomationEditor::zoomingXChanged()
 
 void AutomationEditor::zoomingYChanged()
 {
-	updateYDelta();
-	resizeEvent(nullptr);
-}
-
-void AutomationEditor::updateYDelta()
-{
 	const QString & zfac = m_zoomingYModel.currentText();
 	m_y_auto = zfac == "Auto";
 	if( !m_y_auto )
@@ -1838,18 +1867,10 @@ void AutomationEditor::updateYDelta()
 		m_y_delta = zfac.left( zfac.length() - 1 ).toInt()
 							* DEFAULT_Y_DELTA / 100;
 	}
-	else
-	{
-		if (m_maxLevel - m_minLevel == 0)
-		{
-			m_y_delta = 0.0f;
-		}
-		else
-		{
-			int gridBottom = height() - SCROLLBAR_SIZE - 1;
-			m_y_delta = static_cast<float>(gridBottom - TOP_MARGIN) / (m_maxLevel - m_minLevel);
-		}
-	}
+#ifdef LMMS_DEBUG
+	assert( m_y_delta > 0 );
+#endif
+	resizeEvent(nullptr);
 }
 
 
@@ -1883,22 +1904,22 @@ void AutomationEditor::updateTopBottomLevels()
 		int centralLevel = (int)( m_minLevel + m_maxLevel - m_scrollLevel );
 
 		m_bottomLevel = centralLevel - ( half_grid
-							/ m_y_delta );
+							/ (float)m_y_delta );
 		if( m_bottomLevel < m_minLevel )
 		{
 			m_bottomLevel = m_minLevel;
 			m_topLevel = m_minLevel + (int)floorf( grid_height
-							/ m_y_delta );
+							/ (float)m_y_delta );
 		}
 		else
 		{
 			m_topLevel = m_bottomLevel + (int)floorf( grid_height
-							/ m_y_delta );
+							/ (float)m_y_delta );
 			if( m_topLevel > m_maxLevel )
 			{
 				m_topLevel = m_maxLevel;
 				m_bottomLevel = m_maxLevel - (int)floorf(
-					grid_height / m_y_delta );
+					grid_height / (float)m_y_delta );
 			}
 		}
 	}
@@ -2048,6 +2069,9 @@ AutomationEditorWindow::AutomationEditorWindow() :
 	m_flipYAction = new QAction(embed::getIconPixmap("flip_y"), tr("Flip vertically"), this);
 	m_flipXAction = new QAction(embed::getIconPixmap("flip_x"), tr("Flip horizontally"), this);
 
+	auto generateShapeAction = new QAction(embed::getIconPixmap("sin_wave_active"), tr("Generate shape (LFO)"), this);
+	connect(generateShapeAction, &QAction::triggered, this, &AutomationEditorWindow::generateShape);
+
 	connect(editModeGroup, SIGNAL(triggered(int)), m_editor, SLOT(setEditMode(int)));
 
 	editActionsToolBar->addAction(m_drawAction);
@@ -2056,6 +2080,8 @@ AutomationEditorWindow::AutomationEditorWindow() :
 	editActionsToolBar->addAction(m_editTanAction);
 	editActionsToolBar->addAction(m_flipXAction);
 	editActionsToolBar->addAction(m_flipYAction);
+	editActionsToolBar->addSeparator();
+	editActionsToolBar->addAction(generateShapeAction);
 
 	// Interpolation actions
 	DropToolBar *interpolationActionsToolBar = addDropToolBarToTop(tr("Interpolation controls"));
@@ -2314,6 +2340,144 @@ void AutomationEditorWindow::setProgressionType(int progType)
 {
 	m_editor->setProgressionType(progType);
 	updateEditTanButton();
+}
+
+void AutomationEditorWindow::generateShape()
+{
+	AutomationClip* clip = m_editor->m_clip;
+	if (clip == nullptr) { return; }
+
+	const int lengthTicks = clip->length();
+	if (lengthTicks <= 0) { return; }
+
+	QDialog dialog(this);
+	dialog.setWindowTitle(tr("Generate shape"));
+	auto layout = new QFormLayout(&dialog);
+
+	auto shapeBox = new QComboBox(&dialog);
+	shapeBox->addItems({tr("Sine"), tr("Triangle"), tr("Sawtooth"), tr("Square")});
+
+	auto cyclesBox = new QDoubleSpinBox(&dialog);
+	cyclesBox->setRange(0.25, 1024.0);
+	cyclesBox->setDecimals(2);
+	cyclesBox->setValue(4.0);
+
+	const float clipMin = clip->getMin();
+	const float clipMax = clip->getMax();
+
+	auto minBox = new QDoubleSpinBox(&dialog);
+	minBox->setRange(clipMin, clipMax);
+	minBox->setDecimals(3);
+	minBox->setSingleStep((clipMax - clipMin) / 100.0);
+	minBox->setValue(clipMin);
+
+	auto maxBox = new QDoubleSpinBox(&dialog);
+	maxBox->setRange(clipMin, clipMax);
+	maxBox->setDecimals(3);
+	maxBox->setSingleStep((clipMax - clipMin) / 100.0);
+	maxBox->setValue(clipMax);
+
+	auto phaseBox = new QDoubleSpinBox(&dialog);
+	phaseBox->setRange(0.0, 360.0);
+	phaseBox->setDecimals(1);
+	phaseBox->setSuffix(tr("°"));
+
+	layout->addRow(tr("Shape:"), shapeBox);
+	layout->addRow(tr("Cycles over clip length:"), cyclesBox);
+	layout->addRow(tr("Minimum value:"), minBox);
+	layout->addRow(tr("Maximum value:"), maxBox);
+	layout->addRow(tr("Phase:"), phaseBox);
+
+	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+	layout->addRow(buttons);
+
+	if (dialog.exec() != QDialog::Accepted) { return; }
+
+	enum Shape { Sine, Triangle, Sawtooth, Square };
+	const int shape = shapeBox->currentIndex();
+	const double cycleTicks = lengthTicks / cyclesBox->value();
+	const float lo = static_cast<float>(minBox->value());
+	const float hi = static_cast<float>(maxBox->value());
+	const double phase = phaseBox->value() / 360.0;
+
+	// Value of the continuous shape at a given tick. Sawtooth and square
+	// evaluate the half-open cycle interval; their jumps are placed
+	// separately as nodes with distinct in/out values.
+	const auto valueAt = [&](double tick) -> float {
+		const double t = tick / cycleTicks + phase;
+		const double frac = t - std::floor(t);
+		double v = 0.0;
+		switch (shape)
+		{
+			case Sine: v = 0.5 + 0.5 * std::sin(2.0 * std::numbers::pi * t); break;
+			case Triangle: v = 1.0 - std::abs(2.0 * frac - 1.0); break;
+			case Sawtooth: v = frac; break;
+			case Square: v = frac < 0.5 ? 1.0 : 0.0; break;
+		}
+		return lo + static_cast<float>(v) * (hi - lo);
+	};
+
+	clip->addJournalCheckPoint();
+	clip->removeNodes(0, lengthTicks);
+
+	if (shape == Sine)
+	{
+		// sample along the curve, capping the node count for extreme settings
+		const double step = std::max({cycleTicks / 32.0, 1.0, lengthTicks / 4096.0});
+		for (double t = 0.0; t < lengthTicks; t += step)
+		{
+			clip->putValue(TimePos(static_cast<int>(std::round(t))), valueAt(t), false);
+		}
+		clip->putValue(TimePos(lengthTicks), valueAt(lengthTicks), false);
+	}
+	else
+	{
+		// the other shapes only need nodes at their vertices and jumps;
+		// boundary nodes go first so feature nodes can overwrite them
+		clip->putValue(TimePos(0), valueAt(0.0), false);
+		clip->putValue(TimePos(lengthTicks), valueAt(lengthTicks - 1e-3), false);
+
+		// vertices/jumps happen twice per cycle for triangle and square,
+		// once per cycle for sawtooth
+		const double featureTicks = shape == Sawtooth ? cycleTicks : cycleTicks / 2.0;
+		const double offset = phase * cycleTicks;
+		int nodesPlaced = 0;
+		for (int k = static_cast<int>(std::floor(offset / featureTicks)) + 1; nodesPlaced < 8192; ++k)
+		{
+			const double t = k * featureTicks - offset;
+			if (t >= lengthTicks) { break; }
+			if (t <= 0.0) { continue; }
+
+			const TimePos nodePos{static_cast<int>(std::round(t))};
+			switch (shape)
+			{
+				case Triangle:
+					clip->putValue(nodePos, k % 2 ? hi : lo, false);
+					break;
+				case Sawtooth:
+					clip->putValues(nodePos, hi, lo, false);
+					break;
+				case Square:
+					// even vertices jump up, odd ones jump down
+					clip->putValues(nodePos, k % 2 ? hi : lo, k % 2 ? lo : hi, false);
+					break;
+			}
+			++nodesPlaced;
+		}
+	}
+
+	// stepped interpolation would hide the generated ramps
+	if (clip->progressionType() == AutomationClip::ProgressionType::Discrete)
+	{
+		clip->setProgressionType(AutomationClip::ProgressionType::Linear);
+		m_linearAction->setChecked(true);
+		m_tensionKnob->setEnabled(false);
+	}
+
+	Engine::getSong()->setModified();
+	m_editor->update();
 }
 
 void AutomationEditorWindow::updateEditTanButton()

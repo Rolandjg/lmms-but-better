@@ -46,6 +46,7 @@ public:
 	TrackGrip* getTrackGrip() const { return m_trackGrip; }
 
 protected:
+	void mousePressEvent( QMouseEvent * me ) override;
 	void paintEvent( QPaintEvent * pe ) override;
 	bool confirmRemoval();
 

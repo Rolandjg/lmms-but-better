@@ -28,6 +28,7 @@
 #include "ConfigManager.h"
 #include "ControllerConnection.h"
 #include "DataFile.h"
+#include "DetuningHelper.h"
 #include "GuiApplication.h"
 #include "Mixer.h"
 #include "InstrumentTrackView.h"
@@ -646,7 +647,69 @@ void InstrumentTrack::updatePitch()
 {
 	updateBaseNote();
 
-	processOutEvent( MidiEvent( MidiPitchBend, midiPort()->realOutputChannel(), midiPitch() ) );
+	QMutexLocker lock(&m_notePitchMutex);
+	const int outputChannel = midiPort()->realOutputChannel();
+
+	if (!m_notePitch.hasNotes(outputChannel))
+	{
+		processOutEvent(MidiEvent(MidiPitchBend, outputChannel, midiPitch()));
+	}
+
+	for (int channel = 0; channel < 16; ++channel)
+	{
+		if (m_notePitch.hasNotes(channel)) { sendNotePitch(channel, 0); }
+	}
+}
+
+
+void InstrumentTrack::startNotePitch(const NotePlayHandle* note, f_cnt_t offset)
+{
+	if (!note->detuning() || !note->detuning()->hasAutomation()) { return; }
+
+	QMutexLocker lock(&m_notePitchMutex);
+	const int channel = midiPort()->outputChannel() == 0 ? note->midiChannel() : midiPort()->realOutputChannel();
+	m_notePitch.start(channel, note, note->currentDetuning());
+
+	sendNotePitch(channel, offset);
+}
+
+
+void InstrumentTrack::updateNotePitch(const NotePlayHandle* note, f_cnt_t offset)
+{
+	QMutexLocker lock(&m_notePitchMutex);
+
+	for (int channel = 0; channel < 16; ++channel)
+	{
+		if (m_notePitch.update(channel, note, note->currentDetuning())) { sendNotePitch(channel, offset); }
+	}
+}
+
+
+void InstrumentTrack::endNotePitch(const NotePlayHandle* note, f_cnt_t offset)
+{
+	QMutexLocker lock(&m_notePitchMutex);
+
+	for (int channel = 0; channel < 16; ++channel)
+	{
+		if (m_notePitch.end(channel, note)) { sendNotePitch(channel, offset); }
+	}
+}
+
+
+void InstrumentTrack::sendNotePitch(int channel, f_cnt_t offset)
+{
+	const MidiEvent event(MidiPitchBend, channel,
+		MidiNotePitch::bend(m_pitchModel.value() / 100.f + m_notePitch.detuning(channel), midiPitchRange()));
+	const auto time = TimePos::fromFrames(offset, Engine::framesPerTick());
+
+	// Native per-note instruments already receive detuning through frequency().
+	// Sending it to them again would apply the same bend twice.
+	if (m_instrument && m_instrument->isMidiBased())
+	{
+		m_instrument->handleMidiEvent(event, time, offset);
+	}
+
+	m_midiPort.processOutEvent(event, time);
 }
 
 
@@ -662,6 +725,7 @@ void InstrumentTrack::updatePitchRange()
 	processOutEvent( MidiEvent( MidiControlChange, midiPort()->realOutputChannel(),
 								MidiControllerRegisteredParameterNumberMSB, ( MidiPitchBendSensitivityRPN >> 8 ) & 0x7F ) );
 	processOutEvent( MidiEvent( MidiControlChange, midiPort()->realOutputChannel(), MidiControllerDataEntry, midiPitchRange() ) );
+	updatePitch();
 }
 
 
@@ -701,14 +765,16 @@ bool InstrumentTrack::play( const TimePos & _start, const f_cnt_t _frames,
 	{
 		return false;
 	}
-	const float frames_per_tick = Engine::framesPerTick();
 
+	const float frames_per_tick = Engine::framesPerTick();
 	clipVector clips;
 	class PatternTrack * pattern_track = nullptr;
+
 	if( _clip_num >= 0 )
 	{
 		Clip * clip = getClip( _clip_num );
 		clips.push_back( clip );
+
 		if (trackContainer() == Engine::patternStore())
 		{
 			pattern_track = PatternTrack::findPatternTrack(_clip_num);
@@ -724,7 +790,7 @@ bool InstrumentTrack::play( const TimePos & _start, const f_cnt_t _frames,
 	for (const auto& processHandle : m_processHandles)
 	{
 		processHandle->processTimePos(
-			_start, m_pitchModel.value(), gui::getGUI() && gui::getGUI()->pianoRoll()->isRecording());
+			_start, m_pitchModel.value(), gui::getGUI() && gui::getGUI()->pianoRoll()->isRecording(), _offset);
 	}
 
 	if ( clips.size() == 0 )

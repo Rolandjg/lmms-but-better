@@ -81,7 +81,7 @@ LadspaManager::LadspaManager()
 			}
 
 			if (exclude || !f.isFile() || f.fileName().right(3).toLower() !=
-#if defined(LMMS_BUILD_WIN32) || defined(LMMS_BUILD_CYGWIN)
+#ifdef LMMS_BUILD_WIN32
 													"dll"
 #else
 				 									".so"

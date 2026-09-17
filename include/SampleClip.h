@@ -54,8 +54,6 @@ public:
 	SampleClip& operator=( const SampleClip& that ) = delete;
 
 	void changeLength( const TimePos & _length ) override;
-	void updateLength() override;
-
 	const QString& sampleFile() const;
 	bool hasSampleFileLoaded(const QString & filename) const;
 
@@ -89,6 +87,7 @@ public:
 
 public slots:
 	void setSampleFile(const QString& sf);
+	void updateLength();
 	void toggleRecord();
 	void playbackPositionChanged();
 	void updateTrackClips();

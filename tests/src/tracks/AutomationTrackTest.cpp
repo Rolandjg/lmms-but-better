@@ -85,6 +85,40 @@ private slots:
 		QCOMPARE(c.valueAt(150), 1.0f);
 	}
 
+	void testEditableTangents()
+	{
+		using namespace lmms;
+
+		AutomationClip clip(nullptr);
+		clip.setProgressionType(AutomationClip::ProgressionType::CubicHermite);
+		clip.putValue(0, 0.f, false);
+		clip.putValue(100, 12.f, false);
+		QVERIFY(clip.setNodeTangent(0, true, 0.05f, true));
+		const auto& first = clip.getTimeMap().first();
+		QVERIFY(first.lockedTangents());
+		QCOMPARE(first.getInTangent(), 0.05f);
+		QCOMPARE(first.getOutTangent(), 0.05f);
+		QVERIFY(clip.setNodeTangent(0, true, -0.02f, false));
+		QCOMPARE(first.getInTangent(), 0.05f);
+		QCOMPARE(first.getOutTangent(), -0.02f);
+		clip.resetTangents(0, 0);
+		QVERIFY(!first.lockedTangents());
+		QVERIFY(!clip.setNodeTangent(50, true, 0.f, true));
+
+		AutomationClip copy(nullptr);
+		copy.putValue(0, -4.f, false);
+		copy.putValue(25, -2.f, false);
+		copy.copyCurveFrom(clip);
+		QCOMPARE(copy.progressionType(), clip.progressionType());
+		QCOMPARE(copy.getTimeMap().size(), clip.getTimeMap().size());
+		QCOMPARE(copy.valueAt(0), clip.valueAt(0));
+		QCOMPARE(copy.valueAt(50), clip.valueAt(50));
+		QCOMPARE(copy.valueAt(100), clip.valueAt(100));
+		clip.putValue(50, 9.f, false);
+		QCOMPARE(copy.getTimeMap().size(), 2);
+		QCOMPARE(clip.getTimeMap().size(), 3);
+	}
+
 	void testClips()
 	{
 		using namespace lmms;

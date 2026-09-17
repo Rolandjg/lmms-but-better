@@ -1,0 +1,183 @@
+/*
+ * Vst3ViewBase.h - GUI classes for the VST3 host
+ *
+ * Copyright (c) 2026 LMMS developers
+ *
+ * This file is part of LMMS - https://lmms.io
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public
+ * License along with this program (see COPYING); if not, write to the
+ * Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA 02110-1301 USA.
+ *
+ */
+
+#ifndef LMMS_VST3_VIEW_BASE_H
+#define LMMS_VST3_VIEW_BASE_H
+
+#include <QWidget>
+#include <vector>
+
+#include "pluginterfaces/base/smartpointer.h"
+#include "pluginterfaces/gui/iplugview.h"
+
+#include "vst3base_export.h"
+
+class QLabel;
+class QLineEdit;
+class QPushButton;
+class QScrollArea;
+class QSocketNotifier;
+class QTimer;
+
+namespace lmms::vst3
+{
+class Vst3Plugin;
+}
+
+namespace lmms::gui
+{
+
+
+//! Top level window embedding the native VST3 editor. Implements
+//! IPlugFrame (resize requests) and Linux::IRunLoop (event loop
+//! integration for plugin GUIs).
+class VST3BASE_EXPORT Vst3EditorWindow : public QWidget,
+	public Steinberg::IPlugFrame,
+	public Steinberg::Linux::IRunLoop
+{
+	Q_OBJECT
+
+public:
+	explicit Vst3EditorWindow(vst3::Vst3Plugin* plugin);
+	~Vst3EditorWindow() override;
+
+	//! Create the plugin view and size the window; the actual attach is
+	//! deferred until the window is mapped and placed by the window
+	//! manager - plugins cache their screen position when they attach,
+	//! and attaching at the pre-placement position leaves their mouse
+	//! coordinates offset by the window position. False if no GUI.
+	bool attachView();
+	void detachView();
+	bool isViewAttached() const { return m_attached; }
+
+	bool eventFilter(QObject* watched, QEvent* event) override;
+
+	// FUnknown - lifetime is managed by Qt, not by refcounting
+	Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid, void** obj) override;
+	Steinberg::uint32 PLUGIN_API addRef() override { return 1000; }
+	Steinberg::uint32 PLUGIN_API release() override { return 1000; }
+
+	// IPlugFrame
+	Steinberg::tresult PLUGIN_API resizeView(Steinberg::IPlugView* view,
+		Steinberg::ViewRect* newSize) override;
+
+	// Linux::IRunLoop
+	Steinberg::tresult PLUGIN_API registerEventHandler(
+		Steinberg::Linux::IEventHandler* handler, Steinberg::Linux::FileDescriptor fd) override;
+	Steinberg::tresult PLUGIN_API unregisterEventHandler(
+		Steinberg::Linux::IEventHandler* handler) override;
+	Steinberg::tresult PLUGIN_API registerTimer(
+		Steinberg::Linux::ITimerHandler* handler, Steinberg::Linux::TimerInterval milliseconds) override;
+	Steinberg::tresult PLUGIN_API unregisterTimer(
+		Steinberg::Linux::ITimerHandler* handler) override;
+
+signals:
+	void closed();
+
+protected:
+	void closeEvent(QCloseEvent* event) override;
+	void resizeEvent(QResizeEvent* event) override;
+	void moveEvent(QMoveEvent* event) override;
+	void showEvent(QShowEvent* event) override;
+
+private:
+	//! VST3 view coordinates on X11 are physical pixels, Qt widget geometry
+	//! is logical (high-DPI scaled) pixels
+	QSize physicalToLogical(const QSize& size) const;
+	QSize logicalToPhysical(const QSize& size) const;
+
+	//! Attach the view to the (now mapped and placed) window
+	void completeAttach();
+	//! Complete a pending attach if the window is ready. @p wmPlaced is
+	//! true when triggered by a move event (i.e. the WM has really placed
+	//! the window); expose alone starts a short grace timer instead, since
+	//! on some WMs the first expose races ahead of placement.
+	void maybeCompleteAttach(bool wmPlaced);
+
+	vst3::Vst3Plugin* m_plugin;
+	Steinberg::IPtr<Steinberg::IPlugView> m_view;
+	bool m_attached = false;
+	bool m_attachPending = false;
+	bool m_resizingFromPlugin = false;
+	QTimer* m_positionRefreshTimer = nullptr;
+	QSize m_viewSize; //!< last size communicated with the view, physical pixels
+
+	struct EventHandlerEntry
+	{
+		Steinberg::Linux::IEventHandler* handler;
+		QSocketNotifier* readNotifier;
+		QSocketNotifier* writeNotifier;
+	};
+	struct TimerEntry
+	{
+		Steinberg::Linux::ITimerHandler* handler;
+		QTimer* timer;
+	};
+	std::vector<EventHandlerEntry> m_eventHandlers;
+	std::vector<TimerEntry> m_timers;
+};
+
+
+//! Generic controls for a VST3 plugin: a "show GUI" button plus a
+//! searchable, paged knob browser over all plugin parameters. Every
+//! parameter is reachable (and thus automatable via the knob context
+//! menu) without creating thousands of widgets at once. Used by the
+//! instrument view and the effect controls dialog.
+class VST3BASE_EXPORT Vst3PluginWidget : public QWidget
+{
+	Q_OBJECT
+
+public:
+	Vst3PluginWidget(vst3::Vst3Plugin* plugin, QWidget* parent,
+		bool showEditorControl = true);
+	~Vst3PluginWidget() override;
+
+	void toggleEditor(bool show);
+
+private:
+	void buildUi();
+	//! Recompute the filter matches and show the current page of knobs
+	void rebuildParamPage();
+
+	vst3::Vst3Plugin* m_plugin;
+	bool m_showEditorControl = true;
+	Vst3EditorWindow* m_editorWindow = nullptr;
+	QPushButton* m_toggleUiButton = nullptr;
+	QLabel* m_editorErrorLabel = nullptr;
+
+	QLineEdit* m_filterEdit = nullptr;
+	QLabel* m_pageLabel = nullptr;
+	QPushButton* m_prevPageButton = nullptr;
+	QPushButton* m_nextPageButton = nullptr;
+	QScrollArea* m_scrollArea = nullptr;
+
+	QString m_filter;
+	int m_page = 0;
+	std::vector<std::size_t> m_matches;
+};
+
+
+} // namespace lmms::gui
+
+#endif // LMMS_VST3_VIEW_BASE_H

@@ -79,7 +79,6 @@ protected:
 
 
 private slots:
-	void onInstrumentChanged();
 	void toggleInstrumentWindow( bool _on );
 	void toggleMidiCCRack();
 	void activityIndicatorPressed();

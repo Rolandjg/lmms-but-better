@@ -115,6 +115,12 @@ public:
 	 */
 	void resetTangents(const int tick0, const int tick1);
 
+	/** Set one node tangent and optionally mirror it to the other side. */
+	bool setNodeTangent(const TimePos& time, bool outTangent, float tangent, bool mirror);
+
+	/** Replace this clip's curve data with another clip's curve data. */
+	void copyCurveFrom(const AutomationClip& source);
+
 	void recordValue(TimePos time, float value);
 
 	TimePos setDragValue( const TimePos & time,

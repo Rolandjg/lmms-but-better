@@ -26,6 +26,8 @@
 
 #include "AutomationClip.h"
 
+#include <utility>
+
 #include "AutomationNode.h"
 #include "AutomationClipView.h"
 #include "AutomationTrack.h"
@@ -427,6 +429,61 @@ void AutomationClip::resetTangents(const int tick0, const int tick1)
 		it.value().setLockedTangents(false);
 		generateTangents(it, 1);
 	}
+}
+
+
+
+
+bool AutomationClip::setNodeTangent(const TimePos& time, bool outTangent, float tangent, bool mirror)
+{
+	QMutexLocker m(&m_clipMutex);
+
+	auto it = m_timeMap.find(time);
+	if (it == m_timeMap.end()) { return false; }
+
+	if (outTangent) { it.value().setOutTangent(tangent); }
+	else { it.value().setInTangent(tangent); }
+
+	if (mirror && OFFSET(it) == 0)
+	{
+		it.value().setInTangent(tangent);
+		it.value().setOutTangent(tangent);
+	}
+
+	it.value().setLockedTangents(true);
+	emit dataChanged();
+
+	return true;
+}
+
+
+
+
+void AutomationClip::copyCurveFrom(const AutomationClip& source)
+{
+	if (this == &source) { return; }
+
+	timeMap sourceMap;
+	ProgressionType sourceProgression;
+	float sourceTension;
+	{
+		QMutexLocker sourceLock(&source.m_clipMutex);
+		sourceMap = source.m_timeMap;
+		sourceProgression = source.m_progressionType;
+		sourceTension = source.m_tension;
+	}
+
+	QMutexLocker lock(&m_clipMutex);
+	m_timeMap = std::move(sourceMap);
+
+	for (auto& node : m_timeMap) { node.setClip(this); }
+
+	m_progressionType = sourceProgression;
+	m_tension = sourceTension;
+	m_dragging = false;
+
+	updateLength();
+	emit dataChanged();
 }
 
 

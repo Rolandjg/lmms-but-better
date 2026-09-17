@@ -24,7 +24,7 @@
 
 #include "MidiWinMM.h"
 
-#ifdef LMMS_HAVE_WINMM
+#ifdef LMMS_BUILD_WIN32
 
 
 namespace lmms
@@ -305,4 +305,4 @@ void MidiWinMM::openDevices()
 
 } // namespace lmms
 
-#endif // LMMS_HAVE_WINMM
+#endif // LMMS_BUILD_WIN32

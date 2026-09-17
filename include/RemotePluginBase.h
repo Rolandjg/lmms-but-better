@@ -27,7 +27,6 @@
 
 #include <atomic>  // IWYU pragma: keep
 #include <vector>
-#include <clocale> // IWYU pragma: keep
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -46,6 +45,10 @@
 #include <unistd.h>
 #endif
 #endif // !(LMMS_HAVE_SYS_IPC_H && LMMS_HAVE_SEMAPHORE_H)
+
+#ifdef LMMS_HAVE_LOCALE_H
+#include <clocale>  // IWYU pragma: keep
+#endif
 
 #ifdef LMMS_HAVE_PTHREAD_H
 #include <pthread.h>

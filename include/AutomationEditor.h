@@ -33,7 +33,6 @@
 #include "ComboBoxModel.h"
 #include "Editor.h"
 #include "JournallingObject.h"
-#include "MidiClip.h"
 #include "SampleClip.h"
 #include "TimePos.h"
 #include "LmmsTypes.h"
@@ -44,6 +43,9 @@ class QScrollBar;
 
 namespace lmms
 {
+
+class MidiClip;
+
 namespace gui
 {
 
@@ -160,8 +162,6 @@ protected slots:
 	void zoomingXChanged();
 	void zoomingYChanged();
 
-	void updateYDelta();
-
 	/// Updates the clip's quantization using the current user selected value.
 	void setQuantization();
 
@@ -230,9 +230,8 @@ private:
 	float m_bottomLevel;
 	float m_topLevel;
 
-	// QPointers to set to nullptr on deletion
-	QPointer<MidiClip> m_ghostNotes = nullptr; 
-	QPointer<SampleClip> m_ghostSample = nullptr;
+	MidiClip* m_ghostNotes = nullptr;
+	QPointer<SampleClip> m_ghostSample = nullptr; // QPointer to set to nullptr on deletion
 	bool m_renderSample = false;
 
 	void centerTopBottomScroll();
@@ -253,7 +252,7 @@ private:
 	tick_t m_drawLastTick;
 
 	int m_ppb;
-	float m_y_delta;
+	int m_y_delta;
 	bool m_y_auto;
 
 	// Time position (key) of automation node whose outValue is being dragged
@@ -273,6 +272,7 @@ private:
 	bool m_scrollBack;
 
 	void drawCross(QPainter & p );
+	void showHoverToolTip(const QPoint& position);
 	void drawAutomationPoint( QPainter & p, timeMap::iterator it );
 	void drawAutomationTangents(QPainter& p, timeMap::iterator it);
 	bool inPatternEditor();
@@ -345,6 +345,11 @@ protected slots:
 private slots:
 	void updateWindowTitle();
 	void setProgressionType(int progType);
+	/**
+	 * @brief Opens a dialog to generate an LFO-like shape (sine, triangle,
+	 * sawtooth or square) into the current clip, replacing its nodes.
+	 */
+	void generateShape();
 	/**
 	 * @brief The Edit Tangent edit mode should only be available for
 	 * Cubic Hermite progressions, so this method is responsible for disabling it

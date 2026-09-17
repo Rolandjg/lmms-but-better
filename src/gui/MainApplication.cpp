@@ -35,8 +35,32 @@ namespace lmms::gui
 {
 
 
+namespace
+{
+
+int& preparePluginEditorPlatform(int& argc)
+{
+#ifdef LMMS_BUILD_LINUX
+	// Linux plugin editors expose X11 window IDs, including Windows editors
+	// hosted by Wine. Qt must select XWayland before QApplication starts;
+	// a native Wayland QWidget cannot be used as their embedding parent.
+	// Preserve an explicit platform override (including offscreen tests).
+	if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")
+		&& !qEnvironmentVariableIsEmpty("DISPLAY")
+		&& (qEnvironmentVariable("XDG_SESSION_TYPE") == QStringLiteral("wayland")
+			|| !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")))
+	{
+		qputenv("QT_QPA_PLATFORM", "xcb");
+	}
+#endif
+	return argc;
+}
+
+} // namespace
+
+
 MainApplication::MainApplication(int& argc, char** argv) :
-	QApplication(argc, argv),
+	QApplication(preparePluginEditorPlatform(argc), argv),
 	m_queuedFile()
 {
 #if !defined(LMMS_BUILD_WIN32) && !defined(LMMS_BUILD_APPLE) && !defined(LMMS_BUILD_HAIKU)

@@ -32,7 +32,7 @@
 namespace lmms
 {
 
-class LMMS_EXPORT AutomationTrack : public Track
+class AutomationTrack : public Track
 {
 	Q_OBJECT
 public:

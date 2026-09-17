@@ -542,6 +542,32 @@ void AudioEngine::removePlayHandle(PlayHandle * ph)
 void AudioEngine::removePlayHandlesOfTypes(Track * track, PlayHandle::Types types)
 {
 	requestChangeInModel();
+	// A newly created instrument can be replaced or deleted before the next
+	// audio period moves its play handle into m_playHandles. Remove queued
+	// handles too, otherwise they retain a pointer to the deleted instrument.
+	for (LocklessListElement* entry = m_newPlayHandles.first(), *previous = nullptr; entry;)
+	{
+		auto* next = entry->next;
+		auto* handle = entry->value;
+
+		if (handle->isFromTrack(track) && (handle->type() & types))
+		{
+			if (previous) { previous->next = next; }
+			else { m_newPlayHandles.setFirst(next); }
+
+			m_newPlayHandles.free(entry);
+			handle->audioBusHandle()->removePlayHandle(handle);
+
+			if (handle->type() == PlayHandle::Type::NotePlayHandle)
+			{
+				NotePlayHandleManager::release(static_cast<NotePlayHandle*>(handle));
+			}
+			else { delete handle; }
+		}
+		else { previous = entry; }
+		entry = next;
+	}
+
 	PlayHandleList::Iterator it = m_playHandles.begin();
 	while( it != m_playHandles.end() )
 	{
@@ -679,7 +705,7 @@ bool AudioEngine::isMidiDevNameValid(QString name)
 	}
 #endif
 
-#ifdef LMMS_HAVE_WINMM
+#ifdef LMMS_BUILD_WIN32
 	if (name == MidiWinMM::name())
 	{
 		return true;
@@ -920,7 +946,7 @@ MidiClient * AudioEngine::tryMidiClients()
 	}
 #endif
 
-#ifdef LMMS_HAVE_WINMM
+#ifdef LMMS_BUILD_WIN32
 	if( client_name == MidiWinMM::name() || client_name == "" )
 	{
 		MidiWinMM * mwmm = new MidiWinMM;

@@ -246,7 +246,7 @@ void Note::createDetuning()
 		m_detuning = std::make_shared<DetuningHelper>();
 		(void) m_detuning->automationClip();
 		m_detuning->setRange( -MaxDetuning, MaxDetuning, 0.5f );
-		m_detuning->automationClip()->setProgressionType( AutomationClip::ProgressionType::Linear );
+		m_detuning->automationClip()->setProgressionType(AutomationClip::ProgressionType::CubicHermite);
 	}
 }
 

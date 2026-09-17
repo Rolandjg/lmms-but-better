@@ -12,7 +12,6 @@ jobs:
       CMAKE_OPTS: >-
         -DUSE_WERROR=ON
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        -DTARGET_UARCH=official
         -DUSE_COMPILE_CACHE=ON
         -DWANT_DEBUG_CPACK=ON
       CCACHE_MAXSIZE: 0
@@ -82,9 +81,9 @@ jobs:
         run: |
           cmake --build build --target package
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          archive: false
+          name: linux
           path: build/lmms-*.AppImage
       - name: Trim ccache and print statistics
         run: |
@@ -102,7 +101,6 @@ jobs:
       CMAKE_OPTS: >-
         -DUSE_WERROR=ON
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        -DTARGET_UARCH=official
         -DUSE_COMPILE_CACHE=ON
         -DWANT_DEBUG_CPACK=ON
       CCACHE_MAXSIZE: 0
@@ -163,9 +161,9 @@ jobs:
         run: |
           cmake --build build --target package
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          archive: false
+          name: linux-arm64
           path: build/lmms-*.AppImage
       - name: Trim ccache and print statistics
         run: |
@@ -195,7 +193,6 @@ jobs:
         -Werror=dev
         -DUSE_WERROR=ON
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        -DTARGET_UARCH=official
         -DUSE_COMPILE_CACHE=ON
       CCACHE_MAXSIZE: 0
       CCACHE_NOCOMPRESS: 1
@@ -229,8 +226,8 @@ jobs:
       - name: Install dependencies
         run: |
           brew bundle install --verbose
-          pipx install dmgbuild
-          pipx ensurepath
+          npm update -g npm
+          npm install --location=global appdmg
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
           HOMEBREW_NO_INSTALL_UPGRADE: 1
@@ -255,9 +252,9 @@ jobs:
         run: |
           cmake --build build --target package
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          archive: false
+          name: macos-${{ matrix.arch }}
           path: build/lmms-*.dmg
       - name: Trim ccache and print statistics
         run: |
@@ -285,7 +282,6 @@ jobs:
         -Werror=dev
         -DUSE_WERROR=ON
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        -DTARGET_UARCH=official
         -DUSE_COMPILE_CACHE=ON
       CCACHE_MAXSIZE: 0
       CCACHE_NOCOMPRESS: 1
@@ -338,9 +334,9 @@ jobs:
       - name: Package
         run: cmake --build build --target package
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          archive: false
+          name: mingw64
           path: build/lmms-*.exe
       - name: Trim ccache and print statistics
         run: |
@@ -405,7 +401,6 @@ jobs:
             --toolchain C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
             -Werror=dev `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
-            -DTARGET_UARCH=official `
             -DWANT_QT6=ON `
             -DUSE_COMPILE_CACHE=ON `
             -DUSE_WERROR=ON `
@@ -424,9 +419,9 @@ jobs:
       - name: Package
         run: cmake --build build --target package
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          archive: false
+          name: msvc-x64
           path: build\lmms-*.exe
       - name: Trim ccache and print statistics
         run: |
@@ -446,7 +441,6 @@ jobs:
     env:
       CMAKE_OPTS: >-
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
-        -DTARGET_UARCH=official
         -DUSE_COMPILE_CACHE=ON
         -DCPACK_NSIS_EXECUTABLE=/clang64/bin/makensis.exe
       CCACHE_MAXSIZE: 0
@@ -490,9 +484,9 @@ jobs:
       - name: Package
         run: cmake --build build --target package
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          archive: false
+          name: windows-arm64
           path: build\lmms-*.exe
       - name: Trim ccache and print statistics
         run: |

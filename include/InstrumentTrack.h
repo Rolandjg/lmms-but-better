@@ -32,6 +32,7 @@
 #include "InstrumentSoundShaping.h"
 #include "Microtuner.h"
 #include "Midi.h"
+#include "MidiNotePitch.h"
 #include "MidiEventProcessor.h"
 #include "MidiPort.h"
 #include "NotePlayHandle.h"
@@ -112,7 +113,7 @@ public:
 	// translate pitch to midi-pitch [0,16383]
 	int midiPitch() const
 	{
-		return static_cast<int>( ( ( m_pitchModel.value() + m_pitchModel.range()/2 ) * MidiMaxPitchBend ) / m_pitchModel.range() );
+		return MidiNotePitch::bend(m_pitchModel.value() / 100.f, midiPitchRange());
 	}
 
 	/*! \brief Returns current range for pitch bend in semitones */
@@ -268,6 +269,13 @@ protected slots:
 
 private:
 	void processCCEvent(int controller);
+	void startNotePitch(const NotePlayHandle* note, f_cnt_t offset);
+	void updateNotePitch(const NotePlayHandle* note, f_cnt_t offset);
+	void endNotePitch(const NotePlayHandle* note, f_cnt_t offset);
+	void sendNotePitch(int channel, f_cnt_t offset);
+
+	MidiNotePitch m_notePitch;
+	QMutex m_notePitchMutex;
 
 	MidiPort m_midiPort;
 

@@ -27,7 +27,7 @@
 
 #include "lmmsconfig.h"
 
-#ifdef LMMS_HAVE_WINMM
+#ifdef LMMS_BUILD_WIN32
 #include <windows.h>
 #include <mmsystem.h>
 
@@ -148,6 +148,6 @@ signals:
 
 } // namespace lmms
 
-#endif // LMMS_HAVE_WINMM
+#endif // LMMS_BUILD_WIN32
 
 #endif // LMMS_MIDI_WINMM_H
