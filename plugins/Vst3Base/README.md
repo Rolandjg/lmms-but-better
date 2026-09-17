@@ -1,5 +1,7 @@
 # VST3 instruments and effects
 
+For a short installation guide, see [VST3 setup](../../doc/VST3_SETUP.md).
+
 LMMS on Linux builds `Vst3Instrument`, `Vst3Effect`, and the shared VST3 host
 by default. Instruments appear in the instrument browser; effects appear in
 **Add effect** under VST3. The **VST3 (load file)** instrument also accepts a

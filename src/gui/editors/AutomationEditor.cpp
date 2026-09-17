@@ -1116,7 +1116,7 @@ void AutomationEditor::paintEvent(QPaintEvent * pe )
 	else
 	{
 		int level = (int)m_bottomLevel;
-		int printable = qMax(1, 5 * DEFAULT_Y_DELTA / m_y_delta);
+		auto printable = static_cast<int>(std::max(1.0f, 5 * DEFAULT_Y_DELTA / m_y_delta));
 		int module = level % printable;
 		if (module)
 		{
@@ -1569,6 +1569,7 @@ void AutomationEditor::resizeEvent(QResizeEvent * re)
 	m_timeLine->setFixedWidth(width());
 
 	updateTopBottomLevels();
+	updateYDelta();
 	update();
 }
 
@@ -1860,6 +1861,13 @@ void AutomationEditor::zoomingXChanged()
 
 void AutomationEditor::zoomingYChanged()
 {
+	updateYDelta();
+	resizeEvent(nullptr);
+}
+
+
+void AutomationEditor::updateYDelta()
+{
 	const QString & zfac = m_zoomingYModel.currentText();
 	m_y_auto = zfac == "Auto";
 	if( !m_y_auto )
@@ -1867,10 +1875,15 @@ void AutomationEditor::zoomingYChanged()
 		m_y_delta = zfac.left( zfac.length() - 1 ).toInt()
 							* DEFAULT_Y_DELTA / 100;
 	}
-#ifdef LMMS_DEBUG
-	assert( m_y_delta > 0 );
-#endif
-	resizeEvent(nullptr);
+	else if (m_maxLevel - m_minLevel == 0)
+	{
+		m_y_delta = 0.0f;
+	}
+	else
+	{
+		const int gridBottom = height() - SCROLLBAR_SIZE - 1;
+		m_y_delta = static_cast<float>(gridBottom - TOP_MARGIN) / (m_maxLevel - m_minLevel);
+	}
 }
 
 
@@ -1933,18 +1946,6 @@ void AutomationEditor::updateTopBottomLevels()
 
 
 
-/**
- * @brief Given a mouse coordinate, returns a timeMap::iterator that points to
- *        the first node inside a square of side "r" pixels from those
- *        coordinates. In simpler terms, returns the automation node on those
- *        coordinates.
- * @param Int X coordinate
- * @param Int Y coordinate
- * @param Boolean. True to check if the outValue of the node was clicked instead
- *        (defaults to false)
- * @param Int R distance in pixels
- * @return timeMap::iterator with the clicked node, or timeMap.end() if none was clicked.
- */
 AutomationEditor::timeMap::iterator AutomationEditor::getNodeAt(int x, int y, bool outValue /* = false */, int r /* = 5 */)
 {
 	// Remove the VALUES_WIDTH from the x position, so we have the actual viewport x

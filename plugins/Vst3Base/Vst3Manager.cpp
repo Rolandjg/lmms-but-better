@@ -30,7 +30,6 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
-#include <QProcessEnvironment>
 #include <QProcess>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -185,13 +184,6 @@ void Vst3Manager::scanModule(const QString& path)
 	if (binary.isEmpty() || !result.open()) { return; }
 	QProcess process;
 	process.setProcessChannelMode(QProcess::MergedChannels);
-	// Discovery happens speculatively over every installed bundle. A broken
-	// plugin must not display a desktop notification just because LMMS probed
-	// it; the scanner's captured output still contains the complete error.
-	// Yabridge uses the session bus to report host startup failures.
-	auto environment = QProcessEnvironment::systemEnvironment();
-	environment.insert("DBUS_SESSION_BUS_ADDRESS", "unix:path=/dev/null");
-	process.setProcessEnvironment(environment);
 	process.start(scanner, {binary, result.fileName()});
 	if (!process.waitForStarted(5000) || !process.waitForFinished(30000))
 	{

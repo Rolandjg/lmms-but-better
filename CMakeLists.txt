@@ -72,7 +72,6 @@ INCLUDE(VersionInfo)
 INCLUDE(DetectMachine)
 
 OPTION(WANT_ALSA	"Include ALSA (Advanced Linux Sound Architecture) support" ON)
-OPTION(WANT_OSS 	"Include Open Sound System support" ON)
 OPTION(WANT_CALF	"Include CALF LADSPA plugins" ON)
 OPTION(WANT_CAPS	"Include C* Audio Plugin Suite (LADSPA plugins)" ON)
 OPTION(WANT_CARLA	"Include Carla plugin" ON)
@@ -86,7 +85,6 @@ OPTION(WANT_OGGVORBIS	"Include OGG/Vorbis support" ON)
 OPTION(WANT_PULSEAUDIO	"Include PulseAudio support" ON)
 OPTION(WANT_PORTAUDIO	"Include PortAudio support" ON)
 OPTION(WANT_SNDIO	"Include sndio support" ON)
-OPTION(WANT_SOUNDIO	"Include libsoundio support" ON)
 OPTION(WANT_SDL		"Include SDL (Simple DirectMedia Layer) support" ON)
 OPTION(WANT_SF2		"Include SoundFont2 player plugin" ON)
 OPTION(WANT_GIG		"Include GIG player plugin" ON)
@@ -113,13 +111,10 @@ option(WANT_QT6 "Build with experimental Qt6 support" OFF)
 IF(LMMS_BUILD_APPLE)
 	# Fix linking on 10.14+. See issue #4762 on github
 	LINK_DIRECTORIES("${APPLE_PREFIX}/lib")
-	SET(WANT_SOUNDIO OFF)
 	SET(WANT_ALSA OFF)
-	SET(WANT_OSS OFF)
 	SET(WANT_PULSEAUDIO OFF)
 	SET(WANT_VST OFF)
 	SET(STATUS_ALSA "<not supported on this platform>")
-	SET(STATUS_OSS "<not supported on this platform>")
 	SET(STATUS_PULSEAUDIO "<not supported on this platform>")
 	SET(STATUS_APPLEMIDI "OK")
 ELSE(LMMS_BUILD_APPLE)
@@ -129,10 +124,8 @@ ENDIF(LMMS_BUILD_APPLE)
 
 IF(LMMS_BUILD_WIN32)
 	SET(WANT_ALSA OFF)
-	SET(WANT_OSS OFF)
 	SET(WANT_PULSEAUDIO OFF)
 	SET(WANT_SNDIO OFF)
-	SET(WANT_SOUNDIO OFF)
 	SET(WANT_WINMM ON)
 	SET(BUNDLE_QT_TRANSLATIONS ON)
 	SET(LMMS_HAVE_WINMM TRUE)
@@ -140,9 +133,7 @@ IF(LMMS_BUILD_WIN32)
 		set(WANT_VST_64 OFF)
 	endif()
 	SET(STATUS_ALSA "<not supported on this platform>")
-	SET(STATUS_OSS "<not supported on this platform>")
 	SET(STATUS_PULSEAUDIO "<not supported on this platform>")
-	SET(STATUS_SOUNDIO "<disabled in this release>")
 	SET(STATUS_SNDIO "<not supported on this platform>")
 	SET(STATUS_WINMM "OK")
 	SET(STATUS_APPLEMIDI "<not supported on this platform>")
@@ -151,10 +142,6 @@ ELSE(LMMS_BUILD_WIN32)
 ENDIF(LMMS_BUILD_WIN32)
 
 IF(LMMS_BUILD_OPENBSD)
-	# “don't link deprecated ossaudio on OpenBSD”
-	# https://cvsweb.openbsd.org/checkout/ports/audio/lmms/patches/patch-CMakeLists_txt?rev=1.3
-	SET(WANT_OSS OFF)
-	SET(STATUS_OSS "<not supported on this platform>")
 	# LMMS finds SDL and compiles fine with it enabled, but it doesn't
 	# appear as an option when choosing an audio backend in settings for
 	# some reason. This might be fixable, but the OpenBSD ports
@@ -215,6 +202,8 @@ endif()
 
 find_package(Qt${QT_VERSION_MAJOR} ${LMMS_QT_MIN_VERSION} COMPONENTS Core Gui Widgets Xml Svg REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS LinguistTools QUIET)
+
+message(STATUS "Using Qt version: ${Qt${QT_VERSION_MAJOR}_VERSION}")
 
 include_directories(SYSTEM
 	${Qt${QT_VERSION_MAJOR}Core_INCLUDE_DIRS}
@@ -415,21 +404,6 @@ IF(WANT_PORTAUDIO)
 	ENDIF()
 ENDIF(WANT_PORTAUDIO)
 
-# check for libsoundio
-IF(WANT_SOUNDIO)
-  FIND_PACKAGE(SoundIo)
-  IF(SOUNDIO_FOUND)
-	SET(LMMS_HAVE_SOUNDIO TRUE)
-	SET(STATUS_SOUNDIO "OK")
-	include_directories(SYSTEM "${SOUNDIO_INCLUDE_DIR}")
-  ELSE(SOUNDIO_FOUND)
-	SET(SOUNDIO_INCLUDE_DIR "")
-	SET(STATUS_SOUNDIO "not found, please install libsoundio if you require libsoundio support")
-	SET(SOUNDIO_LIBRARY "")
-  ENDIF(SOUNDIO_FOUND)
-ENDIF(WANT_SOUNDIO)
-
-
 # check for PulseAudio
 IF(WANT_PULSEAUDIO)
 	FIND_PACKAGE(PulseAudio)
@@ -471,15 +445,6 @@ IF(WANT_OGGVORBIS)
 			"is highly recommended")
 	ENDIF(OGGVORBIS_FOUND)
 ENDIF(WANT_OGGVORBIS)
-
-
-# check for OSS
-IF(WANT_OSS AND (LMMS_HAVE_SOUNDCARD_H OR LMMS_HAVE_SYS_SOUNDCARD_H))
-	SET(LMMS_HAVE_OSS TRUE)
-	SET(STATUS_OSS "OK")
-ELSEIF(WANT_OSS)
-	SET(STATUS_OSS "<not found or not supported on this platform>")
-ENDIF()
 
 
 # check for ALSA
@@ -545,21 +510,17 @@ ELSE()
 	SET(STATUS_ZYN "not found, please install fltk")
 ENDIF()
 
-# check for Fluidsynth
-IF(WANT_SF2)
-	find_package(FluidSynth 1.1.7)
+# check for FluidSynth
+if(WANT_SF2)
+	find_package(FluidSynth 2.2.0)
 	if(FluidSynth_FOUND)
-		SET(LMMS_HAVE_FLUIDSYNTH TRUE)
-		if(FluidSynth_VERSION_STRING VERSION_GREATER_EQUAL 2)
-			set(STATUS_FLUIDSYNTH "OK")
-		else()
-			set(STATUS_FLUIDSYNTH "OK (FluidSynth version < 2: per-note panning unsupported)")
-		endif()
+		set(LMMS_HAVE_FLUIDSYNTH TRUE)
+		set(STATUS_FLUIDSYNTH "OK")
 	else()
-		SET(STATUS_FLUIDSYNTH "not found, libfluidsynth-dev (or similar)"
+		set(STATUS_FLUIDSYNTH "not found, libfluidsynth-dev (or similar)"
 			"is highly recommended")
 	endif()
-ENDIF(WANT_SF2)
+endif()
 
 # check for libgig
 If(WANT_GIG)
@@ -696,18 +657,37 @@ LIST(SORT LMMS_INCLUDES)
 # Get list of all committers from git history, ordered by number of commits.
 # The CONTRIBUTORS file is used by AboutDialog. This information can be provided
 # with -DCONTRIBUTORS=/path/to/CONTRIBUTORS instead. For instance, to generate
-# this file for version 1.1.3, the command is:
-# 	git shortlog -sne v1.1.3 | cut -c8-
-FIND_PACKAGE(Git)
-IF(GIT_FOUND AND NOT CONTRIBUTORS)
-	SET(CONTRIBUTORS "${CMAKE_BINARY_DIR}/CONTRIBUTORS")
-	EXECUTE_PROCESS(
-		COMMAND "${GIT_EXECUTABLE}" shortlog -sne
-		COMMAND cut -c8-
-		OUTPUT_FILE "${CONTRIBUTORS}"
-		WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-		TIMEOUT 1)
-ENDIF()
+# this file for version 1.2.2, the command is:
+#   git shortlog -sne v1.2.2 | cut -c8-
+if(NOT CONTRIBUTORS)
+	set(CONTRIBUTORS "${CMAKE_BINARY_DIR}/CONTRIBUTORS")
+	find_package(Git)
+	if(Git_FOUND)
+		# See https://stackoverflow.com/a/73086566/8704745
+		message(STATUS "Using Git to generate the CONTRIBUTORS file")
+		execute_process(
+			COMMAND "${GIT_EXECUTABLE}" log
+			COMMAND "${GIT_EXECUTABLE}" shortlog -sne
+			OUTPUT_VARIABLE _contributors
+			WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+			RESULT_VARIABLE _result
+			ERROR_VARIABLE _error
+			TIMEOUT 5
+		)
+		if(_result EQUAL 0)
+			string(REGEX REPLACE "[0-9\t ]+([^\r\n]+)" "\\1" _contributors "${_contributors}")
+			file(WRITE "${CONTRIBUTORS}" "${_contributors}")
+		else()
+			message(WARNING "Failed to generate the CONTRIBUTORS file, so copying doc/CONTRIBUTORS instead\n${_error}")
+			file(COPY "${CMAKE_SOURCE_DIR}/doc/CONTRIBUTORS" DESTINATION "${CMAKE_BINARY_DIR}")
+		endif()
+	else()
+		message(WARNING "Git was not found, so we'll copy doc/CONTRIBUTORS instead of generating it")
+		file(COPY "${CMAKE_SOURCE_DIR}/doc/CONTRIBUTORS" DESTINATION "${CMAKE_BINARY_DIR}")
+	endif()
+else()
+	message(STATUS "A CONTRIBUTORS file was provided, so we'll use that instead of generating it")
+endif()
 
 # we somehow have to make LMMS-binary depend on MOC-files
 ADD_FILE_DEPENDENCIES("${CMAKE_BINARY_DIR}/lmmsconfig.h")
@@ -776,21 +756,6 @@ ADD_SUBDIRECTORY(data)
 # install tasks
 ADD_SUBDIRECTORY(cmake/install)
 
-FIND_PACKAGE(UnixCommands)
-IF(GZIP)
-	ADD_CUSTOM_COMMAND(OUTPUT "${CMAKE_BINARY_DIR}/lmms.1.gz"
-					COMMAND ${GZIP} -c ${CMAKE_SOURCE_DIR}/doc/lmms.1 > ${CMAKE_BINARY_DIR}/lmms.1.gz
-					DEPENDS "${CMAKE_SOURCE_DIR}/doc/lmms.1"
-					COMMENT "Generating lmms.1.gz"
-					VERBATIM)
-
-
-	ADD_CUSTOM_TARGET(manpage ALL
-					DEPENDS "${CMAKE_BINARY_DIR}/lmms.1.gz")
-ELSEIF(UNIX)
-	MESSAGE(FATAL_ERROR "Can't find gzip required for generating lmms.1.gz")
-ENDIF()
-
 # install headers
 
 IF(LMMS_BUILD_LINUX)
@@ -806,7 +771,7 @@ ENDIF(LMMS_BUILD_LINUX)
 #
 ADD_CUSTOM_TARGET(distclean
 			COMMAND make clean
-			COMMAND rm -rf `find -name cmake_install.cmake` `find -name Makefile` `find -type d -name CMakeFiles` CMakeCache.txt lmmsconfig.h lmms.1.gz)
+			COMMAND rm -rf `find -name cmake_install.cmake` `find -name Makefile` `find -type d -name CMakeFiles` CMakeCache.txt lmmsconfig.h)
 
 #
 # add tarball-target
@@ -845,10 +810,8 @@ MESSAGE(
 "--------------------------\n"
 "* ALSA                        : ${STATUS_ALSA}\n"
 "* JACK                        : ${STATUS_JACK}\n"
-"* OSS                         : ${STATUS_OSS}\n"
 "* Sndio                       : ${STATUS_SNDIO}\n"
 "* PortAudio                   : ${STATUS_PORTAUDIO}\n"
-"* libsoundio                  : ${STATUS_SOUNDIO}\n"
 "* PulseAudio                  : ${STATUS_PULSEAUDIO}\n"
 "* SDL                         : ${STATUS_SDL}\n"
 )
@@ -857,7 +820,6 @@ MESSAGE(
 "Supported MIDI interfaces\n"
 "-------------------------\n"
 "* ALSA                        : ${STATUS_ALSA}\n"
-"* OSS                         : ${STATUS_OSS}\n"
 "* Sndio                       : ${STATUS_SNDIO}\n"
 "* JACK                        : ${STATUS_JACK}\n"
 "* WinMM                       : ${STATUS_WINMM}\n"
