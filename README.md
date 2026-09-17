@@ -1,3 +1,17 @@
+**What this fork changes**
+--------------
+* Windows native VST3 support through [yabridge](https://github.com/robbert-vdh/yabridge)
+* MPE pitch gliding support in the piano roll
+* Piano roll UX changes
+  	- Better note duplication with CTRL+D
+  	- Better pitch bending directly in the piano roll
+
+**Contributing to THIS fork**
+--------------
+Go crazy with any pull requests.
+
+If you use an LLM in your PR, name the LLM.
+
 <div align="center">
 	<h1>
 	<img src="https://raw.githubusercontent.com/LMMS/artwork/master/Icon%20%26%20Mimetypes/lmms-64x64.svg" alt="LMMS Logo"><br>LMMS
