@@ -3,6 +3,9 @@
  */
 #include <cstring>
 #include <cstdlib>
+#ifdef __APPLE__
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstcomponent.h"
@@ -196,3 +199,15 @@ extern "C" __attribute__((visibility("default"))) bool ModuleEntry(void*)
 	return true;
 }
 extern "C" __attribute__((visibility("default"))) bool ModuleExit() { return true; }
+
+#ifdef __APPLE__
+extern "C" __attribute__((visibility("default"))) bool bundleEntry(CFBundleRef bundle)
+{
+	// Verify the host passes the bundle, not a dlopen handle.
+	if (!bundle || CFGetTypeID(bundle) != CFBundleGetTypeID()) { return false; }
+	auto identifier = CFBundleGetIdentifier(bundle);
+	if (!identifier || !CFEqual(identifier, CFSTR("io.lmms.vst3-test"))) { return false; }
+	return ModuleEntry(nullptr);
+}
+extern "C" __attribute__((visibility("default"))) bool bundleExit() { return ModuleExit(); }
+#endif

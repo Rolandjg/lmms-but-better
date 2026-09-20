@@ -7,7 +7,9 @@
 #include <QPainter>
 #include <QMenu>
 #include <QToolButton>
+#ifndef Q_OS_MACOS
 #include <xcb/xcb.h>
+#endif
 #include <cstdlib>
 #include <cmath>
 
@@ -44,6 +46,7 @@ namespace
 
 // QScreen::grabWindow captures the root window, which is black on XWayland.
 // Read the editor's own X11 drawables, including its embedded child windows.
+#ifndef Q_OS_MACOS
 QImage captureEditor(xcb_connection_t* connection, xcb_window_t window)
 {
 	auto geometry = xcb_get_geometry_reply(connection, xcb_get_geometry(connection, window), nullptr);
@@ -80,6 +83,8 @@ QImage captureEditor(xcb_connection_t* connection, xcb_window_t window)
 	std::free(tree);
 	return result;
 }
+
+#endif
 
 } // namespace
 
@@ -125,7 +130,12 @@ private slots:
 	void searchPathsIncludeUserPlugins()
 	{
 		const auto paths = Vst3Manager::searchPaths();
+#ifdef Q_OS_MACOS
+		QVERIFY(paths.contains(QDir::homePath() + "/Library/Audio/Plug-Ins/VST3"));
+		QVERIFY(paths.contains("/Library/Audio/Plug-Ins/VST3"));
+#else
 		QVERIFY(paths.contains(QDir::homePath() + "/.vst3"));
+#endif
 		QVERIFY(paths.contains(ConfigManager::inst()->vstDir()));
 	}
 
@@ -158,8 +168,16 @@ private slots:
 	void scannerSurvivesCrash()
 	{
 		QTemporaryDir dir;
+#ifdef Q_OS_MACOS
+		const QString crashing = dir.path() + "/crashing.vst3";
+		QVERIFY(QDir{}.mkpath(crashing + "/Contents/MacOS"));
+		const QString source = Vst3Module::hostPath(VST3_TEST_MODULE);
+		QVERIFY(QFile::copy(source + "/Contents/Info.plist", crashing + "/Contents/Info.plist"));
+		QVERIFY(QFile::copy(VST3_TEST_MODULE, crashing + "/Contents/MacOS/" + QFileInfo{VST3_TEST_MODULE}.fileName()));
+#else
 		const QString crashing = dir.path() + "/crashing.so";
 		QVERIFY(QFile::copy(VST3_TEST_MODULE, crashing));
+#endif
 		qputenv("LMMS_TEST_VST3_CRASH", "1");
 		const auto result = Vst3Manager::instance()->classesInFile(crashing);
 		qunsetenv("LMMS_TEST_VST3_CRASH");
@@ -454,6 +472,35 @@ private slots:
 		QVERIFY(std::abs(bent / base - 2.) < .03);
 	}
 
+	void installedNativeEditor()
+	{
+		if (!qEnvironmentVariableIsSet("LMMS_TEST_VST3_NATIVE_GUI"))
+		{
+			QSKIP("Set LMMS_TEST_VST3_NATIVE_GUI and LMMS_TEST_VST3 to test the native editor");
+		}
+		const auto path = qEnvironmentVariable("LMMS_TEST_VST3");
+		QVERIFY(!path.isEmpty());
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		const auto classes = Vst3Manager::instance()->classesInFile(path);
+		QVERIFY(!classes.empty());
+		Model parent{nullptr};
+		Vst3Plugin plugin{&parent, classes.front().uid, path};
+		gui::Vst3EditorWindow editor{&plugin};
+		for (int pass = 0; pass < 2; ++pass)
+		{
+			QVERIFY(editor.attachView());
+			editor.show();
+			QTRY_VERIFY_WITH_TIMEOUT(editor.isViewAttached(), 5000);
+			QVERIFY(editor.isVisible());
+			QVERIFY(editor.width() > 0 && editor.height() > 0);
+			editor.move(editor.pos() + QPoint{30, 30});
+			QTest::qWait(1000);
+			editor.close();
+			QVERIFY(!editor.isViewAttached());
+			QVERIFY(!editor.isVisible());
+		}
+	}
+
 	void installedPlugin()
 	{
 		const QString path = qEnvironmentVariable("LMMS_TEST_VST3");
@@ -534,9 +581,13 @@ private slots:
 				const auto screenshot = qEnvironmentVariable("LMMS_TEST_VST3_SCREENSHOT");
 				if (!screenshot.isEmpty())
 				{
+#ifndef Q_OS_MACOS
 					auto connection = xcb_connect(nullptr, nullptr);
 					const auto image = captureEditor(connection, static_cast<xcb_window_t>(editor->winId()));
 					xcb_disconnect(connection);
+#else
+					const auto image = editor->grab().toImage();
+#endif
 					QVERIFY(!image.isNull());
 					QVERIFY(image.save(screenshot));
 				}

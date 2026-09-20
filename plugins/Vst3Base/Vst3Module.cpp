@@ -23,8 +23,7 @@
  */
 
 #include "Vst3Module.h"
-
-#include <dlfcn.h>
+#include "Vst3NativeModule.h"
 
 #include <QDir>
 #include <QDirIterator>
@@ -42,8 +41,6 @@ namespace lmms::vst3
 namespace
 {
 
-using ModuleEntryFunc = bool (PLUGIN_API*)(void*);
-using ModuleExitFunc = bool (PLUGIN_API*)();
 using GetFactoryProc = Steinberg::IPluginFactory* (PLUGIN_API*)();
 
 std::mutex s_moduleCacheMutex;
@@ -53,6 +50,7 @@ std::map<QString, std::weak_ptr<Vst3Module>>& moduleCache()
 	return s_cache;
 }
 
+#ifndef Q_OS_MACOS
 const char* archDirName()
 {
 #if defined(__x86_64__)
@@ -68,6 +66,8 @@ const char* archDirName()
 #endif
 }
 
+#endif
+
 } // namespace
 
 
@@ -76,6 +76,9 @@ QString Vst3Module::resolveModulePath(const QString& path)
 	const QFileInfo info{path};
 	if (!info.isDir()) { return path; }
 
+#ifdef Q_OS_MACOS
+	return Vst3NativeModule::executablePath(path);
+#else
 	// bundle format: Foo.vst3/Contents/<arch>-linux/Foo.so
 	const QDir contents{info.absoluteFilePath() + "/Contents"};
 	QDir archDir{contents.absolutePath() + "/" + archDirName()};
@@ -88,6 +91,7 @@ QString Vst3Module::resolveModulePath(const QString& path)
 	if (!soFiles.isEmpty()) { return archDir.absoluteFilePath(soFiles.first()); }
 
 	return QString();
+#endif
 }
 
 
@@ -98,6 +102,8 @@ QString Vst3Module::hostPath(const QString& path)
 	QString bundle = QFileInfo{path}.absoluteFilePath();
 	const int contents = bundle.indexOf(".vst3/Contents/");
 	if (contents >= 0) { bundle.truncate(contents + 5); }
+
+#ifndef Q_OS_MACOS
 	const QString binary = resolveModulePath(bundle);
 	QFile file{binary};
 	if (!binary.isEmpty() && file.open(QIODevice::ReadOnly) && file.read(4) == QByteArray("\x7f" "ELF", 4))
@@ -131,6 +137,8 @@ QString Vst3Module::hostPath(const QString& path)
 			if (!resolveModulePath(bridged).isEmpty()) { return bridged; }
 		}
 	}
+
+#endif
 	return bundle;
 }
 
@@ -150,38 +158,16 @@ std::shared_ptr<Vst3Module> Vst3Module::open(const QString& path, QString* error
 	const QString soPath = resolveModulePath(key);
 	if (soPath.isEmpty() || !QFileInfo::exists(soPath))
 	{
-		if (error) { *error = QString("No native VST3 module found in %1. For Windows plugins, install yabridge, add the plugin directory with yabridgectl add, and run yabridgectl sync.").arg(path); }
-		return nullptr;
-	}
-
-	// Some plugin toolkits stop worker/timer threads asynchronously in
-	// ModuleExit. Keep their code mapped while those threads unwind; an
-	// immediate dlclose otherwise lets them execute unmapped instructions
-	// (reproduced with Vital's JUCE Timer after closing its editor).
-	void* handle = dlopen(soPath.toLocal8Bit().constData(), RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
-	if (!handle)
-	{
-		if (error) { *error = QString("dlopen failed: %1").arg(dlerror()); }
+		if (error) { *error = QString("No native VST3 module found in %1. Install a plugin built for this operating system and architecture.").arg(path); }
 		return nullptr;
 	}
 
 	auto module = std::shared_ptr<Vst3Module>(new Vst3Module());
-	module->m_handle = handle;
+	module->m_native = std::make_unique<Vst3NativeModule>();
 	module->m_path = key;
+	if (!module->m_native->open(soPath, error)) { return nullptr; }
 
-	// ModuleEntry/ModuleExit are required by the VST3 spec on Linux, but
-	// tolerate modules that lack them
-	if (const auto entry = reinterpret_cast<ModuleEntryFunc>(dlsym(handle, "ModuleEntry")))
-	{
-		if (!entry(handle))
-		{
-			if (error) { *error = QString("ModuleEntry failed for \"%1\"").arg(soPath); }
-			return nullptr;
-		}
-		module->m_entered = true;
-	}
-
-	const auto getFactory = reinterpret_cast<GetFactoryProc>(dlsym(handle, "GetPluginFactory"));
+	const auto getFactory = reinterpret_cast<GetFactoryProc>(module->m_native->symbol("GetPluginFactory"));
 	if (!getFactory)
 	{
 		if (error) { *error = QString("\"%1\" exports no GetPluginFactory").arg(soPath); }
@@ -209,17 +195,7 @@ std::shared_ptr<Vst3Module> Vst3Module::open(const QString& path, QString* error
 Vst3Module::~Vst3Module()
 {
 	m_factory = nullptr;
-	if (m_handle)
-	{
-		if (m_entered)
-		{
-			if (const auto exit = reinterpret_cast<ModuleExitFunc>(dlsym(m_handle, "ModuleExit")))
-			{
-				exit();
-			}
-		}
-		dlclose(m_handle);
-	}
+	m_native.reset();
 
 	// modules that failed to load fully die inside open() with the cache
 	// mutex already held - they are not in the cache, so don't lock

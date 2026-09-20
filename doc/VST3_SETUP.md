@@ -1,8 +1,32 @@
-gippity also wrote this. Tested on fedora
 # VST3 setup
 
-LMMS's VST3 host currently runs on Linux. It supports native Linux VST3
-plugins directly and Windows VST3 plugins through Wine and yabridge.
+LMMS's VST3 host runs on Linux and macOS. It supports native VST3 plugins
+and, on Linux, Windows VST3 plugins through Wine and yabridge.
+
+## Native macOS plugins
+
+Install the macOS `.vst3` bundle in either location:
+
+- `~/Library/Audio/Plug-Ins/VST3`
+- `/Library/Audio/Plug-Ins/VST3`
+
+Restart LMMS after installation. Instruments appear in the instrument browser
+and effects under **Add effect**. You can also select a bundle with
+**VST3 (load file)**. Custom search directories can be added using the
+colon-separated `VST3_PATH` environment variable on either platform.
+
+The plugin must support the architecture of the running LMMS process
+(Apple Silicon or Intel). Native plugin editors use Cocoa and logical-point sizing for Retina
+displays, following the [VST3 view coordinate specification](https://steinbergmedia.github.io/vst3_doc/base/classSteinberg_1_1IPlugView.html). Windows plugins and yabridge are only supported on Linux.
+
+VST3 hosting is built automatically on macOS; no separate VST3 SDK download
+is needed. Build and run the host regression tests with:
+
+```sh
+cmake -S . -B build -DBUILD_TESTING=ON
+cmake --build build --target Vst3HostTest
+ctest --test-dir build/tests -R '^Vst3HostTest$' --output-on-failure
+```
 
 ## Native Linux plugins
 
@@ -48,8 +72,8 @@ LMMS on Linux.
 ## If a plugin is missing
 
 1. Restart LMMS; there is no live VST3 rescan yet.
-2. Run `yabridgectl status` and fix any reported errors.
-3. Make sure the yabridge library and host versions match, then run
+2. On Linux, run `yabridgectl status` and fix any reported errors.
+3. For yabridge plugins, make sure the library and host versions match, then run
    `yabridgectl sync` again.
 4. Confirm that the plugin or wrapper is under one of the directories listed
    above.

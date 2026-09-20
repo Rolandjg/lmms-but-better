@@ -103,9 +103,21 @@ execute_process(COMMAND install_name_tool -change
 	COMMAND_ECHO ${COMMAND_ECHO}
 	COMMAND_ERROR_IS_FATAL ANY)
 
+# Resolve the shared VST3 host relative to its instrument/effect wrappers.
+foreach(wrapper vst3instrument vst3effect)
+	if(EXISTS "${APP}/Contents/lib/${lmms}/lib${wrapper}.so")
+		execute_process(COMMAND install_name_tool -change
+			"@rpath/libvst3base.dylib" "@loader_path/libvst3base.dylib"
+			"${APP}/Contents/lib/${lmms}/lib${wrapper}.so"
+			COMMAND_ERROR_IS_FATAL ANY)
+	endif()
+endforeach()
+
 # Build list of executables to inform macdeployqt about
 # e.g. -executable=foo.dylib -executable=bar.dylib
 file(GLOB LIBS "${APP}/Contents/lib/${lmms}/*.so")
+# The VST3 scanner remains beside vst3base so discovery can locate it.
+list(APPEND LIBS "${APP}/Contents/lib/${lmms}/Vst3Scanner")
 
 # Inform macdeployqt about LADSPA plugins; may depend on bundled fftw3f, etc.
 file(GLOB LADSPA "${APP}/Contents/lib/${lmms}/ladspa/*.so")

@@ -25,6 +25,7 @@
 #ifndef LMMS_VST3_VIEW_BASE_H
 #define LMMS_VST3_VIEW_BASE_H
 
+#include "lmmsconfig.h"
 #include <QWidget>
 #include <vector>
 
@@ -50,11 +51,13 @@ namespace lmms::gui
 
 
 //! Top level window embedding the native VST3 editor. Implements
-//! IPlugFrame (resize requests) and Linux::IRunLoop (event loop
-//! integration for plugin GUIs).
+//! IPlugFrame (resize requests) and, on Linux, Linux::IRunLoop
+//! (event loop integration for plugin GUIs).
 class VST3BASE_EXPORT Vst3EditorWindow : public QWidget,
-	public Steinberg::IPlugFrame,
-	public Steinberg::Linux::IRunLoop
+	public Steinberg::IPlugFrame
+#ifndef LMMS_BUILD_APPLE
+	, public Steinberg::Linux::IRunLoop
+#endif
 {
 	Q_OBJECT
 
@@ -63,7 +66,7 @@ public:
 	~Vst3EditorWindow() override;
 
 	//! Create the plugin view and size the window; the actual attach is
-	//! deferred until the window is mapped and placed by the window
+	//! deferred on Linux until the window is mapped and placed by the window
 	//! manager - plugins cache their screen position when they attach,
 	//! and attaching at the pre-placement position leaves their mouse
 	//! coordinates offset by the window position. False if no GUI.
@@ -82,6 +85,7 @@ public:
 	Steinberg::tresult PLUGIN_API resizeView(Steinberg::IPlugView* view,
 		Steinberg::ViewRect* newSize) override;
 
+#ifndef LMMS_BUILD_APPLE
 	// Linux::IRunLoop
 	Steinberg::tresult PLUGIN_API registerEventHandler(
 		Steinberg::Linux::IEventHandler* handler, Steinberg::Linux::FileDescriptor fd) override;
@@ -91,6 +95,8 @@ public:
 		Steinberg::Linux::ITimerHandler* handler, Steinberg::Linux::TimerInterval milliseconds) override;
 	Steinberg::tresult PLUGIN_API unregisterTimer(
 		Steinberg::Linux::ITimerHandler* handler) override;
+
+#endif
 
 signals:
 	void closed();
@@ -103,7 +109,7 @@ protected:
 
 private:
 	//! VST3 view coordinates on X11 are physical pixels, Qt widget geometry
-	//! is logical (high-DPI scaled) pixels
+	//! is logical (high-DPI scaled) pixels. On macOS both use logical points.
 	QSize physicalToLogical(const QSize& size) const;
 	QSize logicalToPhysical(const QSize& size) const;
 
@@ -121,8 +127,9 @@ private:
 	bool m_attachPending = false;
 	bool m_resizingFromPlugin = false;
 	QTimer* m_positionRefreshTimer = nullptr;
-	QSize m_viewSize; //!< last size communicated with the view, physical pixels
+	QSize m_viewSize; //!< last size communicated with the view, in native view units
 
+#ifndef LMMS_BUILD_APPLE
 	struct EventHandlerEntry
 	{
 		Steinberg::Linux::IEventHandler* handler;
@@ -136,6 +143,7 @@ private:
 	};
 	std::vector<EventHandlerEntry> m_eventHandlers;
 	std::vector<TimerEntry> m_timers;
+#endif
 };
 
 

@@ -36,6 +36,8 @@
 namespace lmms::vst3
 {
 
+class Vst3NativeModule;
+
 //! A loaded VST3 module (shared object). Modules are shared between all
 //! plugin instances loaded from the same bundle and unloaded when the last
 //! user goes away.
@@ -47,13 +49,14 @@ public:
 	Vst3Module& operator=(const Vst3Module&) = delete;
 
 	//! Load (or reuse) the module at @p path. @p path may be a `.vst3`
-	//! bundle directory, a `.vst3` single file or a plain shared object.
+	//! bundle directory or its inner binary. On Linux, standalone shared
+	//! objects are also supported.
 	//! Returns nullptr on error and sets @p error if given.
 	static std::shared_ptr<Vst3Module> open(const QString& path, QString* error = nullptr);
 
 	Steinberg::IPluginFactory* factory() const { return m_factory.get(); }
 
-	//! The path the module was opened with (bundle path, not the inner .so)
+	//! The path the module was opened with (bundle path, not the inner binary)
 	const QString& path() const { return m_path; }
 
 	//! Resolve a bundle directory to the architecture specific shared
@@ -67,8 +70,7 @@ public:
 private:
 	Vst3Module() = default;
 
-	void* m_handle = nullptr;
-	bool m_entered = false;
+	std::unique_ptr<Vst3NativeModule> m_native;
 	bool m_inCache = false;
 	QString m_path;
 	Steinberg::IPtr<Steinberg::IPluginFactory> m_factory;

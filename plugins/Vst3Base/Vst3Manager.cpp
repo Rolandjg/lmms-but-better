@@ -61,8 +61,13 @@ QStringList Vst3Manager::searchPaths()
 		for (const auto& p : envPath.split(':', Qt::SkipEmptyParts)) { paths << p; }
 	}
 
+#ifdef Q_OS_MACOS
+	paths << QDir::homePath() + "/Library/Audio/Plug-Ins/VST3";
+	paths << "/Library/Audio/Plug-Ins/VST3";
+#else
 	paths << QDir::homePath() + "/.vst3";
 	paths << "/usr/lib/vst3" << "/usr/local/lib/vst3";
+#endif
 	const auto config = ConfigManager::inst();
 	paths << config->vstDir() << config->userLadspaDir();
 	paths << config->ladspaDir().split(':', Qt::SkipEmptyParts);

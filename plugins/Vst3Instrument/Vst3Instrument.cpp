@@ -147,8 +147,12 @@ void Vst3Instrument::loadFile(const QString& file)
 	const auto classes = vst3::Vst3Manager::instance()->classesInFile(path);
 	if (classes.empty())
 	{
+#ifdef Q_OS_MACOS
+		collectErrorForUI(tr("No compatible macOS VST3 plugin found in \"%1\".").arg(path));
+#else
 		collectErrorForUI(tr("No VST3 plugin found in \"%1\". For Windows plugins, "
 			"register the plugin directory with yabridgectl add and run yabridgectl sync first.").arg(path));
+#endif
 		return;
 	}
 
@@ -266,8 +270,7 @@ Vst3InsView::Vst3InsView(Vst3Instrument* instrument, QWidget* parent) :
 	m_openFileButton->setObjectName("vst3LoadPlugin");
 	m_openFileButton->setIcon(embed::getIconPixmap("project_open"));
 	m_openFileButton->setMinimumHeight(28);
-	m_openFileButton->setToolTip(tr("Select a .vst3 file, or the .so inside "
-		"a .vst3 bundle directory"));
+	m_openFileButton->setToolTip(tr("Select a .vst3 plugin bundle or its native module"));
 	connect(m_openFileButton, &QPushButton::clicked,
 		this, &Vst3InsView::openFileDialog);
 	m_layout->addWidget(m_openFileButton);
@@ -316,7 +319,12 @@ void Vst3InsView::openFileDialog()
 {
 	auto instrument = castModel<Vst3Instrument>();
 
+#ifdef Q_OS_MACOS
+	QString dir = QDir::homePath() + "/Library/Audio/Plug-Ins/VST3";
+	if (!QDir{dir}.exists()) { dir = "/Library/Audio/Plug-Ins/VST3"; }
+#else
 	QString dir = QDir::homePath() + "/.vst3";
+#endif
 	if (!QDir{dir}.exists()) { dir = QDir::homePath(); }
 
 	QFileDialog dialog{this, tr("Open VST3 plugin"), dir,
@@ -324,7 +332,9 @@ void Vst3InsView::openFileDialog()
 	dialog.setFileMode(QFileDialog::ExistingFile);
 	// non-native dialog so .vst3 bundle directories can be entered and
 	// their inner .so selected on every platform/theme
+#ifndef Q_OS_MACOS
 	dialog.setOption(QFileDialog::DontUseNativeDialog, true);
+#endif
 	if (dialog.exec() != QDialog::Accepted || dialog.selectedFiles().isEmpty())
 	{
 		return;
@@ -355,6 +365,7 @@ void Vst3InsView::toggleEditor(bool show)
 	}
 
 	m_errorLabel->hide();
+#ifndef Q_OS_MACOS
 	if (QGuiApplication::platformName() != QStringLiteral("xcb"))
 	{
 		const QSignalBlocker blocker{m_toggleUiButton};
@@ -364,6 +375,8 @@ void Vst3InsView::toggleEditor(bool show)
 		m_errorLabel->show();
 		return;
 	}
+
+#endif
 
 	if (!m_editorWindow)
 	{
