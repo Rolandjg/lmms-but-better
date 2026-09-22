@@ -6,6 +6,7 @@
 #include <QPushButton>
 #include <QPainter>
 #include <QMenu>
+#include <QProcess>
 #include <QToolButton>
 #ifndef Q_OS_MACOS
 #include <xcb/xcb.h>
@@ -191,6 +192,46 @@ private slots:
 		const auto& classes = Vst3Manager::instance()->classes();
 		QVERIFY(!classes.empty());
 		for (const auto& info : classes) { qInfo() << info.name << info.modulePath; }
+	}
+
+	void rejectsDamagedSignature()
+	{
+#ifdef Q_OS_MACOS
+		QTemporaryDir dir;
+		const QString bundle = dir.path() + "/damaged.vst3";
+		QVERIFY(QDir{}.mkpath(bundle + "/Contents/MacOS"));
+		const QString source = Vst3Module::hostPath(VST3_TEST_MODULE);
+		const QString binary = bundle + "/Contents/MacOS/" + QFileInfo{VST3_TEST_MODULE}.fileName();
+		QVERIFY(QFile::copy(source + "/Contents/Info.plist", bundle + "/Contents/Info.plist"));
+		QVERIFY(QFile::copy(VST3_TEST_MODULE, binary));
+		QCOMPARE(QProcess::execute("/usr/bin/codesign", {"--force", "--sign", "-", bundle}), 0);
+		// Damage a signed executable page without changing the Mach-O layout.
+		QFile file{binary};
+		QVERIFY(file.open(QIODevice::ReadWrite));
+		const auto offset = file.readAll().indexOf("LMMS VST3 test gain");
+		QVERIFY(offset >= 0);
+		QVERIFY(file.seek(offset));
+		QCOMPARE(file.write("X", 1), qint64{1});
+		file.close();
+		QString error;
+		QVERIFY(!Vst3Module::open(bundle, &error));
+		QVERIFY2(error.contains("code signature validation failed"), qPrintable(error));
+		QVERIFY(error.contains("Reinstall"));
+		// The scanner uses the same check and must not execute the bundle.
+		QVERIFY(Vst3Manager::instance()->classesInFile(bundle).empty());
+#else
+		QSKIP("macOS code signature validation");
+#endif
+	}
+
+	void installedInvalidSignature()
+	{
+		const auto path = qEnvironmentVariable("LMMS_TEST_VST3_INVALID_SIGNATURE");
+		if (path.isEmpty()) { QSKIP("Set LMMS_TEST_VST3_INVALID_SIGNATURE to a damaged signed plugin"); }
+		QString error;
+		QVERIFY(!Vst3Module::open(path, &error));
+		QVERIFY2(error.contains("code signature validation failed"), qPrintable(error));
+		qInfo().noquote() << error;
 	}
 
 	void deterministicAudioAndMidi()

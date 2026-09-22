@@ -48,6 +48,32 @@ public:
 } ;
 
 
+//! Combined magnitude response of both filters, measured from the impulse response of
+//! GUI-side copies of the same filter classes. Drag a handle: horizontal = cutoff,
+//! vertical = resonance.
+class FilterResponseDisplay : public QWidget
+{
+	Q_OBJECT
+public:
+	FilterResponseDisplay(DualFilterControls* controls, QWidget* parent);
+	QSize sizeHint() const override { return QSize(380, 130); }
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+	void mousePressEvent(QMouseEvent*) override;
+	void mouseMoveEvent(QMouseEvent*) override;
+	void mouseReleaseEvent(QMouseEvent*) override;
+
+private:
+	QPointF handlePosition(int filter) const;
+	double freqToX(double freq) const;
+	double xToFreq(double x) const;
+
+	DualFilterControls* m_controls;
+	int m_dragFilter = -1;
+};
+
+
 } // namespace gui
 
 } // namespace lmms

@@ -50,6 +50,7 @@ public:
 
 private:
 	void updateFilters( int begin, int end );
+	void applyPan(int tap, f_cnt_t frames);
 	void runFilter( SampleFrame* dst, SampleFrame* src, StereoOnePole & filter, const f_cnt_t frames );
 
 	inline void setFilterFreq( float fc, StereoOnePole & f )
@@ -64,6 +65,7 @@ private:
 	
 	float m_amp [32];
 	float m_lpFreq [32];
+	float m_pan [32] = {};
 
 	RingBuffer m_buffer;
 	StereoOnePole m_filter [32][4];

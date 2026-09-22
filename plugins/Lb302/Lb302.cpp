@@ -29,11 +29,18 @@
  */
 
 #include "Lb302.h"
+#include "Song.h"
 
 #include <cmath>
 #include <numbers>
 
 #include <QDebug>
+#include <QDomElement>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPainterPath>
+#include <QRandomGenerator>
+#include <QTimer>
 
 #include "AutomatableButton.h"
 #include "BandLimitedWave.h"
@@ -42,7 +49,10 @@
 #include "embed.h"
 #include "InstrumentPlayHandle.h"
 #include "InstrumentTrack.h"
+#include "ComboBox.h"
+#include "FontHelper.h"
 #include "Knob.h"
+#include "LcdSpinBox.h"
 #include "LedCheckBox.h"
 #include "NotePlayHandle.h"
 #include "Oscillator.h"
@@ -226,6 +236,10 @@ Lb302Synth::Lb302Synth(InstrumentTrack* instrumentTrack)
 	, m_accentToggle(false, this, tr("Accent"))
 	, m_deadToggle(false, this, tr("Dead"))
 	, m_db24Toggle(false, this, tr("24dB/oct Filter"))
+	, m_seqEnabled(false, this, tr("Sequencer"))
+	, m_seqLength(SeqSteps, 1, SeqSteps, this, tr("Sequence length"))
+	, m_seqRate(this, tr("Sequencer rate"))
+	, m_seqAccent(0.5f, 0.f, 1.f, 0.01f, this, tr("Accent amount"))
 	, m_vcfs{std::make_unique<Lb302FilterIIR2>(&m_fs), std::make_unique<Lb302Filter3Pole>(&m_fs)}
 {
 	connect(Engine::audioEngine(), &AudioEngine::sampleRateChanged, this, &Lb302Synth::filterChanged);
@@ -235,6 +249,20 @@ Lb302Synth::Lb302Synth(InstrumentTrack* instrumentTrack)
 	connect(&m_vcfDecKnob, &FloatModel::dataChanged, this, &Lb302Synth::decayChanged);
 	connect(&m_db24Toggle, &BoolModel::dataChanged, this, &Lb302Synth::db24Toggled);
 	connect(&m_distKnob, &FloatModel::dataChanged, this, &Lb302Synth::filterChanged);
+
+	m_seqRate.addItem(tr("1/8"));
+	m_seqRate.addItem(tr("1/16"));
+	m_seqRate.addItem(tr("1/32"));
+	m_seqRate.setValue(1);
+
+	// A classic acid line to start from: octave jumps, slides and accents
+	const std::array<SeqStep, SeqSteps> defaultPattern = {{
+		{true, true, false, 0}, {true, false, false, 0}, {true, false, true, 12}, {true, false, false, 0},
+		{false, false, false, 0}, {true, true, false, 3}, {true, false, true, 0}, {true, false, false, -2},
+		{true, true, false, 0}, {false, false, false, 0}, {true, false, false, 12}, {true, false, true, 10},
+		{true, false, false, 0}, {true, true, false, 7}, {false, false, false, 0}, {true, false, true, 5},
+	}};
+	for (int i = 0; i < SeqSteps; ++i) { m_seqPattern[i].store(packStep(defaultPattern[i])); }
 
 	// db24Toggled() would be called here, but all it does is call
 	// recalcFilter(), which is already done in filterChanged(), so there's no
@@ -260,6 +288,14 @@ void Lb302Synth::saveSettings(QDomDocument& doc, QDomElement& el)
 	m_slideToggle.saveSettings(doc, el, "slide");
 	m_deadToggle.saveSettings(doc, el, "dead");
 	m_db24Toggle.saveSettings(doc, el, "db24");
+
+	m_seqEnabled.saveSettings(doc, el, "seq");
+	m_seqLength.saveSettings(doc, el, "seq_length");
+	m_seqRate.saveSettings(doc, el, "seq_rate");
+	m_seqAccent.saveSettings(doc, el, "seq_accent");
+	QStringList pattern;
+	for (const auto& step : m_seqPattern) { pattern << QString::number(step.load(), 16); }
+	el.setAttribute("seq_pattern", pattern.join(','));
 }
 
 
@@ -276,6 +312,20 @@ void Lb302Synth::loadSettings(const QDomElement& el)
 	m_slideToggle.loadSettings(el, "slide");
 	m_deadToggle.loadSettings(el, "dead");
 	m_db24Toggle.loadSettings(el, "db24");
+
+	// The sequencer is new; older projects keep it switched off and use the default pattern
+	m_seqEnabled.loadSettings(el, "seq");
+	m_seqLength.loadSettings(el, "seq_length");
+	m_seqRate.loadSettings(el, "seq_rate");
+	m_seqAccent.loadSettings(el, "seq_accent");
+	if (el.hasAttribute("seq_pattern"))
+	{
+		const auto pattern = el.attribute("seq_pattern").split(',');
+		for (int i = 0; i < std::min<int>(SeqSteps, pattern.size()); ++i)
+		{
+			m_seqPattern[i].store(static_cast<std::uint16_t>(pattern[i].toUInt(nullptr, 16)));
+		}
+	}
 
 	// db24Toggled() would be called here, but all it does is call
 	// recalcFilter(), which is already done in filterChanged(), so there's no
@@ -331,7 +381,9 @@ void Lb302Synth::process(SampleFrame* outbuf, const f_cnt_t size)
 	if (m_newFreq)
 	{
 		m_newFreq = false;
-		const bool noteIsDead = m_deadToggle.value();
+		// Sequencer slides glide into the new pitch without retriggering, like dead notes
+		const bool noteIsDead = m_deadToggle.value() || m_seqLegato;
+		m_seqLegato = false;
 		m_vcoInc = phaseInc(m_trueFreq);
 
 		// Always reset vca on non-dead notes, and only reset vca on decaying (decayed) and never-played
@@ -473,7 +525,7 @@ void Lb302Synth::process(SampleFrame* outbuf, const f_cnt_t size)
 
 		// Write out samples.
 		sample_t samp = filter.process(m_vcoK) * m_vca;
-		for (ch_cnt_t c = 0; c < DEFAULT_CHANNELS; c++) { outbuf[i][c] = samp * vv.vol[c]; }
+		for (ch_cnt_t c = 0; c < DEFAULT_CHANNELS; c++) { outbuf[i][c] = samp * vv.vol[c] * m_accentGain; }
 
 		// Handle Envelope
 		if (m_vcaMode == VcaMode::Attack)
@@ -564,6 +616,13 @@ void Lb302Synth::processNote(NotePlayHandle* nph)
 	// Check for slide
 	if (m_playingNote == nph)
 	{
+		// The sequencer owns the pitch; the held note only provides the root for new notes
+		if (m_seqEnabled.value())
+		{
+			if (m_newFreq) { m_trueFreq = nph->frequency(); }
+			return;
+		}
+
 		m_trueFreq = nph->frequency();
 		const auto trueInc = phaseInc(m_trueFreq);
 		if (m_slideToggle.value()) { m_slideBase = trueInc; } else { m_vcoInc = trueInc; }
@@ -591,7 +650,149 @@ void Lb302Synth::play(SampleFrame* working_buffer)
 	// Mark the processed notes as having been read so that playNote() calls can overwrite them
 	m_notesReadSeq.fetch_add(writeCommitted - readIdx, std::memory_order_release);
 
+	if (m_seqEnabled.value())
+	{
+		playSequencer(working_buffer, Engine::audioEngine()->framesPerPeriod());
+		return;
+	}
+
+	if (m_seqCurrentStep.load(std::memory_order_relaxed) >= 0)
+	{
+		// Sequencer was just switched off: restore the plain voice
+		m_seqCurrentStep.store(-1, std::memory_order_relaxed);
+		m_accentGain = 1.f;
+		filterChanged();
+	}
 	process(working_buffer, Engine::audioEngine()->framesPerPeriod());
+}
+
+
+
+
+std::uint16_t Lb302Synth::packStep(const SeqStep& step)
+{
+	return static_cast<std::uint16_t>((step.gate ? 1 : 0) | (step.accent ? 2 : 0) | (step.slide ? 4 : 0)
+		| ((std::clamp(step.pitch, -12, 12) + 12) << 8));
+}
+
+
+
+
+Lb302Synth::SeqStep Lb302Synth::unpackStep(std::uint16_t packed)
+{
+	return {(packed & 1) != 0, (packed & 2) != 0, (packed & 4) != 0, std::clamp((packed >> 8) - 12, -12, 12)};
+}
+
+
+
+
+Lb302Synth::SeqStep Lb302Synth::seqStep(int index) const
+{
+	return unpackStep(m_seqPattern[std::clamp(index, 0, SeqSteps - 1)].load(std::memory_order_relaxed));
+}
+
+
+
+
+void Lb302Synth::setSeqStep(int index, const SeqStep& step)
+{
+	m_seqPattern[std::clamp(index, 0, SeqSteps - 1)].store(packStep(step), std::memory_order_relaxed);
+}
+
+
+
+
+void Lb302Synth::triggerSeqStep(int index)
+{
+	const int length = std::clamp(m_seqLength.value(), 1, SeqSteps);
+	const auto step = seqStep(index);
+	const auto previous = seqStep((index + length - 1) % length);
+	m_seqCurrentStep.store(index, std::memory_order_relaxed);
+
+	// Accent: louder and a stronger filter envelope, as on the original
+	const float accent = step.gate && step.accent ? m_seqAccent.value() : 0.f;
+	m_accentGain = 1.f + accent * 0.8f;
+	m_fs.envmod = std::clamp(m_vcfModKnob.value() + accent * 0.6f, 0.f, 1.f);
+	recalcFilter();
+
+	if (!step.gate)
+	{
+		m_seqGateOpen = false;
+		if (m_vcaMode != VcaMode::NeverPlayed) { m_vcaMode = VcaMode::Decay; }
+		return;
+	}
+
+	// A slide on the previous step ties into this one: glide to the new pitch without retriggering
+	const bool tied = m_seqGateOpen && previous.gate && previous.slide && m_seqStepIndex > 0;
+	m_slideInc = tied ? m_vcoInc : 0.f;
+	m_seqLegato = tied;
+	m_trueFreq = m_seqRootFreq * std::exp2(step.pitch / 12.f);
+	m_newFreq = true;
+	m_seqGateOpen = true;
+}
+
+
+
+
+void Lb302Synth::playSequencer(SampleFrame* outbuf, f_cnt_t frames)
+{
+	// A new held note restarts the pattern from its first step, transposed to that note
+	if (m_newFreq)
+	{
+		m_newFreq = false;
+		m_seqRootFreq = m_trueFreq;
+		m_seqFrames = 0;
+		m_seqStepIndex = -1;
+		m_seqGateOpen = false;
+	}
+
+	constexpr int divisions[] = {8, 16, 32};
+	const float sampleRate = Engine::audioEngine()->outputSampleRate();
+	const double stepFrames = sampleRate * 60.0 / Engine::getSong()->getTempo()
+		* 4.0 / divisions[std::clamp(m_seqRate.value(), 0, 2)];
+	const int length = std::clamp(m_seqLength.value(), 1, SeqSteps);
+
+	f_cnt_t pos = 0;
+	while (pos < frames)
+	{
+		if (!m_playingNote || m_playingNote->isReleased())
+		{
+			// Key released: let the last step ring out
+			if (m_vcaMode != VcaMode::NeverPlayed) { m_vcaMode = VcaMode::Decay; }
+			m_seqCurrentStep.store(-1, std::memory_order_relaxed);
+			m_seqGateOpen = false;
+			process(outbuf + pos, frames - pos);
+			return;
+		}
+
+		const auto stepIndex = static_cast<long>(m_seqFrames / stepFrames);
+		if (stepIndex != m_seqStepIndex)
+		{
+			m_seqStepIndex = stepIndex;
+			triggerSeqStep(static_cast<int>(stepIndex % length));
+		}
+
+		// Render up to the next event: the end of the gate (55 % of a step, or the whole step
+		// when it slides into the next one) or the start of the next step
+		const double stepStart = stepIndex * stepFrames;
+		auto next = static_cast<f_cnt_t>(std::ceil(stepStart + stepFrames));
+		if (m_seqGateOpen)
+		{
+			const bool slides = seqStep(static_cast<int>(stepIndex % length)).slide;
+			const auto gateEnd = static_cast<f_cnt_t>(std::ceil(stepStart + stepFrames * (slides ? 1.0 : 0.55)));
+			if (m_seqFrames >= gateEnd)
+			{
+				m_seqGateOpen = false;
+				if (m_vcaMode != VcaMode::NeverPlayed) { m_vcaMode = VcaMode::Decay; }
+			}
+			else { next = std::min(next, gateEnd); }
+		}
+
+		const auto count = std::clamp<f_cnt_t>(next - m_seqFrames, 1, frames - pos);
+		process(outbuf + pos, count);
+		pos += count;
+		m_seqFrames += count;
+	}
 }
 
 
@@ -616,13 +817,28 @@ namespace gui
 
 
 Lb302SynthView::Lb302SynthView(Instrument* instrument, QWidget* parent)
-	: InstrumentViewFixedSize(instrument, parent)
+	: InstrumentView(instrument, parent)
 {
-	setAutoFillBackground(true);
-	static auto s_artwork = PLUGIN_NAME::getIconPixmap("artwork");
-	QPalette pal;
-	pal.setBrush(backgroundRole(), s_artwork);
-	setPalette(pal);
+	setFixedSize(sizeHint());
+
+	// Sequencer section below the original artwork
+	m_seqToggle = new LedCheckBox("", this);
+	m_seqToggle->move(52, 262);
+	m_seqToggle->setToolTip(tr("Play the step pattern while a key is held (the key sets the root note)"));
+
+	m_seqLengthBox = new LcdSpinBox(2, this, tr("Sequence length"));
+	m_seqLengthBox->setLabel(tr("STEPS"));
+	m_seqLengthBox->move(80, 253);
+
+	m_seqRateBox = new ComboBox(this);
+	m_seqRateBox->setGeometry(122, 259, 62, ComboBox::DEFAULT_HEIGHT);
+
+	m_seqAccentKnob = new Knob(KnobType::Bright26, this);
+	m_seqAccentKnob->move(210, 254);
+	m_seqAccentKnob->setHintText(tr("Accent:"), "");
+
+	m_seqGrid = new Lb302StepGrid(castModel<Lb302Synth>(), this);
+	m_seqGrid->setGeometry(6, 286, 238, 64);
 
 	// GUI
 	m_vcfCutKnob = new Knob(KnobType::Bright26, this);
@@ -771,6 +987,224 @@ void Lb302SynthView::modelChanged()
 	// m_accentToggle->setModel(&syn->accentToggle);
 	m_deadToggle->setModel(&syn->m_deadToggle);
 	m_db24Toggle->setModel(&syn->m_db24Toggle);
+
+	m_seqToggle->setModel(&syn->m_seqEnabled);
+	m_seqLengthBox->setModel(&syn->m_seqLength);
+	m_seqRateBox->setModel(&syn->m_seqRate);
+	m_seqAccentKnob->setModel(&syn->m_seqAccent);
+	connect(&syn->m_seqLength, &Model::dataChanged, m_seqGrid, qOverload<>(&QWidget::update));
+}
+
+
+
+
+void Lb302SynthView::paintEvent(QPaintEvent*)
+{
+	static const auto artwork = PLUGIN_NAME::getIconPixmap("artwork");
+	QPainter p(this);
+	p.drawPixmap(0, 0, artwork);
+
+	// Continue the brushed grey of the artwork, with the same kind of pink paint splatter
+	const QRectF section(0, 250, 250, SeqHeight);
+	QLinearGradient grey(0, section.top(), 0, section.bottom());
+	grey.setColorAt(0, QColor(214, 215, 219));
+	grey.setColorAt(1, QColor(196, 197, 202));
+	p.fillRect(section, grey);
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setPen(Qt::NoPen);
+	QRandomGenerator splatter(302); // fixed seed: the same splatter every time
+	for (int i = 0; i < 9; ++i)
+	{
+		QColor pink(214, 80, 138, 60 + splatter.bounded(90));
+		p.setPen(QPen(pink, 1.5 + splatter.bounded(6.0), Qt::SolidLine, Qt::RoundCap));
+		QPainterPath stroke;
+		const QPointF start(splatter.bounded(250.0), 250 + splatter.bounded(double(SeqHeight)));
+		stroke.moveTo(start);
+		stroke.cubicTo(start + QPointF(splatter.bounded(160.0) - 80, splatter.bounded(40.0) - 20),
+			start + QPointF(splatter.bounded(200.0) - 100, splatter.bounded(60.0) - 30),
+			start + QPointF(splatter.bounded(260.0) - 130, splatter.bounded(80.0) - 40));
+		p.drawPath(stroke);
+		p.setPen(Qt::NoPen);
+		p.setBrush(pink);
+		p.drawEllipse(start, 2 + splatter.bounded(4.0), 2 + splatter.bounded(4.0));
+	}
+
+	// Thin white rule and the section title, like "VCO" and "VCF" above
+	p.setPen(QPen(QColor(255, 255, 255, 220), 1));
+	p.drawLine(QPointF(0, 250.5), QPointF(250, 250.5));
+	auto title = font();
+	title.setPixelSize(17);
+	p.setFont(title);
+	p.setPen(QColor(20, 20, 22));
+	p.drawText(QRectF(8, 254, 44, 26), Qt::AlignLeft | Qt::AlignVCenter, tr("SEQ"));
+	p.setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
+	p.drawText(QRectF(188, 262, 22, 14), Qt::AlignRight | Qt::AlignVCenter, tr("ACC"));
+}
+
+
+
+
+Lb302StepGrid::Lb302StepGrid(Lb302Synth* synth, QWidget* parent) :
+	QWidget(parent),
+	m_synth(synth)
+{
+	setMouseTracking(true);
+	setToolTip(tr("Click a step to switch it on or off, drag up/down to change its pitch, "
+		"click A for accent and S to slide into the next step. Right-click resets a step."));
+	auto timer = new QTimer(this);
+	connect(timer, &QTimer::timeout, this, [this]
+	{
+		const int step = m_synth->currentSeqStep();
+		if (step != m_shownStep) { m_shownStep = step; update(); }
+	});
+	timer->start(30);
+}
+
+int Lb302StepGrid::stepAt(int x) const
+{
+	return std::clamp(x * Lb302Synth::SeqSteps / std::max(1, width()), 0, Lb302Synth::SeqSteps - 1);
+}
+
+void Lb302StepGrid::paintEvent(QPaintEvent*)
+{
+	QPainter p(this);
+	p.setRenderHint(QPainter::Antialiasing);
+
+	// Recessed translucent panel over the grey
+	p.setPen(QPen(QColor(90, 90, 96), 1));
+	p.setBrush(QColor(255, 255, 255, 110));
+	p.drawRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), 3, 3);
+
+	const double cell = width() / static_cast<double>(Lb302Synth::SeqSteps);
+	const int length = castLength();
+	auto font = adjustedToPixelSize(this->font(), 8);
+	font.setBold(true);
+	p.setFont(font);
+
+	for (int i = 0; i < Lb302Synth::SeqSteps; ++i)
+	{
+		const auto step = m_synth->seqStep(i);
+		const double x = i * cell;
+		const bool active = i < length;
+		const int alpha = active ? 255 : 70;
+
+		// Beat grouping lines every four steps
+		if (i > 0)
+		{
+			p.setPen(QPen(QColor(60, 60, 66, i % 4 == 0 ? 160 : 50), 1));
+			p.drawLine(QPointF(x, 2), QPointF(x, height() - 2));
+		}
+
+		// Pitch bar: grows up or down from the root line
+		const QRectF pitchArea(x + 2, PitchTop, cell - 4, PitchHeight);
+		const double mid = pitchArea.center().y();
+		p.setPen(QPen(QColor(0, 0, 0, 40), 1));
+		p.drawLine(QPointF(pitchArea.left(), mid), QPointF(pitchArea.right(), mid));
+		if (step.gate)
+		{
+			const double h = step.pitch / 12.0 * (PitchHeight / 2.0 - 1);
+			const QRectF bar = QRectF(pitchArea.left() + 1, mid - std::max(h, 0.0) - 1.5,
+				pitchArea.width() - 2, std::abs(h) + 3);
+			p.setPen(Qt::NoPen);
+			p.setBrush(QColor(24, 24, 28, alpha));
+			p.drawRect(bar);
+		}
+		if (step.gate && step.pitch != 0)
+		{
+			p.setPen(QColor(24, 24, 28, alpha));
+			p.drawText(QRectF(x, step.pitch > 0 ? mid + 1 : PitchTop, cell, 10), Qt::AlignCenter,
+				QString::number(step.pitch));
+		}
+
+		// Step LED, lit red while that step plays
+		const QPointF led(x + cell / 2, LedRow);
+		const bool playing = i == m_shownStep;
+		p.setPen(QPen(QColor(40, 40, 44, alpha), 1));
+		p.setBrush(playing ? QColor(255, 48, 40) : (step.gate ? QColor(120, 30, 28, alpha) : QColor(60, 60, 64, alpha / 2)));
+		p.drawEllipse(led, 3.2, 3.2);
+		if (playing)
+		{
+			QRadialGradient glow(led, 8);
+			glow.setColorAt(0, QColor(255, 60, 40, 160));
+			glow.setColorAt(1, QColor(255, 60, 40, 0));
+			p.setPen(Qt::NoPen);
+			p.setBrush(glow);
+			p.drawEllipse(led, 8, 8);
+		}
+
+		// Accent and slide switches
+		auto drawSwitch = [&](double top, bool on, const QString& text, const QColor& onColor)
+		{
+			const QRectF box(x + 2, top, cell - 4, SwitchHeight);
+			p.setPen(QPen(QColor(40, 40, 44, alpha), 1));
+			p.setBrush(on ? QColor(onColor.red(), onColor.green(), onColor.blue(), alpha) : QColor(255, 255, 255, alpha / 3));
+			p.drawRoundedRect(box, 2, 2);
+			p.setPen(on ? QColor(255, 255, 255, alpha) : QColor(40, 40, 44, alpha / 2));
+			p.drawText(box, Qt::AlignCenter, text);
+		};
+		drawSwitch(AccentTop, step.accent, "A", QColor(214, 80, 138));
+		drawSwitch(SlideTop, step.slide, "S", QColor(24, 24, 28));
+	}
+}
+
+int Lb302StepGrid::castLength() const
+{
+	return std::clamp(m_synth->m_seqLength.value(), 1, Lb302Synth::SeqSteps);
+}
+
+void Lb302StepGrid::mousePressEvent(QMouseEvent* event)
+{
+	const int index = stepAt(event->pos().x());
+	auto step = m_synth->seqStep(index);
+	m_dragStep = -1;
+
+	if (event->button() == Qt::RightButton)
+	{
+		step = Lb302Synth::SeqStep{};
+	}
+	else if (event->pos().y() >= SlideTop) { step.slide = !step.slide; }
+	else if (event->pos().y() >= AccentTop) { step.accent = !step.accent; }
+	else
+	{
+		// Pitch area: remember the press so a drag changes pitch and a plain click toggles the gate
+		m_dragStep = index;
+		m_dragStartY = event->pos().y();
+		m_dragStartPitch = step.pitch;
+		m_dragged = false;
+		return;
+	}
+	m_synth->setSeqStep(index, step);
+	Engine::getSong()->setModified();
+	update();
+}
+
+void Lb302StepGrid::mouseMoveEvent(QMouseEvent* event)
+{
+	if (m_dragStep < 0) { return; }
+	const int delta = (m_dragStartY - event->pos().y()) / 3;
+	if (delta == 0 && !m_dragged) { return; }
+	m_dragged = true;
+	auto step = m_synth->seqStep(m_dragStep);
+	step.gate = true;
+	step.pitch = std::clamp(m_dragStartPitch + delta, -12, 12);
+	m_synth->setSeqStep(m_dragStep, step);
+	update();
+}
+
+void Lb302StepGrid::mouseReleaseEvent(QMouseEvent*)
+{
+	if (m_dragStep >= 0)
+	{
+		if (!m_dragged)
+		{
+			auto step = m_synth->seqStep(m_dragStep);
+			step.gate = !step.gate;
+			m_synth->setSeqStep(m_dragStep, step);
+		}
+		Engine::getSong()->setModified();
+		update();
+	}
+	m_dragStep = -1;
 }
 
 

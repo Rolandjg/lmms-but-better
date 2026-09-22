@@ -25,6 +25,11 @@
 
 #include "EqControlsDialog.h"
 
+#include <QLabel>
+
+#include "FontHelper.h"
+#include "ModernWidgets.h"
+
 #include <QWidget>
 
 #include "AutomatableButton.h"
@@ -148,6 +153,19 @@ EqControlsDialog::EqControlsDialog( EqControls *controls ) :
 	outSpecButton->setCheckable(true);
 	outSpecButton->setModel( &controls->m_analyseOutModel );
 	outSpecButton->move( 302, 240 );
+
+	// Which part of the stereo signal the bands work on, styled like the analyser row
+	auto channelMode = new ModernSegmented(this);
+	channelMode->setStyle(ModernSegmented::Style::Outline);
+	channelMode->setModel(&controls->m_channelModeModel);
+	channelMode->setToolTips({tr("Bands process left and right"), tr("Bands process only the mid (mono) part"),
+		tr("Bands process only the side (stereo) part")});
+	channelMode->setGeometry(380, 239, 94, 16);
+
+	auto soloHint = new QLabel(tr("Alt-click a band to listen"), this);
+	soloHint->setFont(adjustedToPixelSize(soloHint->font(), SMALL_FONT_SIZE));
+	soloHint->setStyleSheet("color: rgba(255, 255, 255, 120);");
+	soloHint->move(28, 241);
 
 	//hp filter type
 	auto hp12Button = new PixmapButton(this, nullptr);

@@ -51,8 +51,11 @@ public:
 
 	int controlCount() override
 	{
-		return 4;
+		return 10;
 	}
+
+	float m_outPeakL = 0.f;
+	float m_outPeakR = 0.f;
 
 	gui::EffectControlDialog* createView() override
 	{
@@ -70,8 +73,15 @@ private:
 	FloatModel m_sizeModel;
 	FloatModel m_colorModel;
 	FloatModel m_outputGainModel;
+	FloatModel m_predelayModel;
+	FloatModel m_lowCutModel;
+	FloatModel m_modulationModel;
+	FloatModel m_widthModel;
+	FloatModel m_duckModel;
+	BoolModel m_freezeModel;
 
 	friend class gui::ReverbSCControlDialog;
+	friend class gui::ReverbDecayDisplay;
 	friend class ReverbSCEffect;
 
 } ;

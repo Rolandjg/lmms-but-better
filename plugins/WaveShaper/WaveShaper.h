@@ -27,7 +27,11 @@
 #ifndef _WAVESHAPER_H
 #define _WAVESHAPER_H
 
+#include <array>
+#include <atomic>
+
 #include "Effect.h"
+#include "OversamplingHelpers.h"
 #include "WaveShaperControls.h"
 
 namespace lmms
@@ -48,10 +52,20 @@ public:
 		return( &m_wsControls );
 	}
 
+	static constexpr int MaxOversampleStages = 3;
+
+	//! Peak input level (after input gain) of the last period, for the curve indicator
+	std::atomic<float> m_inputLevel{0.f};
+
 
 private:
 
 	WaveShaperControls m_wsControls;
+
+	std::array<Upsampler<MaxOversampleStages>, 2> m_upsamplers;
+	std::array<Downsampler<MaxOversampleStages>, 2> m_downsamplers;
+	int m_stages = -1;
+	float m_sampleRate = 0.f;
 
 	friend class WaveShaperControls;
 

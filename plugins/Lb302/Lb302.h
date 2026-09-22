@@ -36,6 +36,9 @@
 #include <memory>
 
 #include "Hardware.h"
+#include <cstdint>
+
+#include "ComboBoxModel.h"
 #include "Instrument.h"
 #include "InstrumentView.h"
 #include "NotePlayHandle.h"
@@ -50,6 +53,7 @@ namespace gui
 class AutomatableButtonGroup;
 class Knob;
 class Lb302SynthView;
+class Lb302StepGrid;
 class LedCheckBox;
 }
 
@@ -139,6 +143,7 @@ class Lb302Synth : public Instrument
 {
 	Q_OBJECT
 	friend class gui::Lb302SynthView;
+	friend class gui::Lb302StepGrid;
 
 public:
 	Lb302Synth(InstrumentTrack*);
@@ -149,6 +154,22 @@ public:
 	void loadSettings(const QDomElement& el) override;
 	QString nodeName() const override;
 	gui::PluginView* instantiateView(QWidget* parent) override;
+
+	//! One step of the built-in 303-style pattern sequencer
+	struct SeqStep
+	{
+		bool gate = true;
+		bool accent = false;
+		bool slide = false; //!< Tie into the next step and glide to its pitch without retriggering
+		int pitch = 0;      //!< Semitones relative to the held note, -12..12
+	};
+	static constexpr int SeqSteps = 16;
+
+	SeqStep seqStep(int index) const;
+	//! Safe to call from the GUI while the pattern plays
+	void setSeqStep(int index, const SeqStep& step);
+	//! Step currently playing, or -1 when the sequencer is idle
+	int currentSeqStep() const { return m_seqCurrentStep.load(std::memory_order_relaxed); }
 
 public slots:
 	void filterChanged();
@@ -162,6 +183,12 @@ private:
 	void processNote(NotePlayHandle* nph);
 	void process(SampleFrame* outbuf, const f_cnt_t size);
 	void recalcFilter();
+
+	//! Renders a period while the sequencer drives the voice from the held note
+	void playSequencer(SampleFrame* outbuf, f_cnt_t frames);
+	void triggerSeqStep(int index);
+	static std::uint16_t packStep(const SeqStep& step);
+	static SeqStep unpackStep(std::uint16_t packed);
 
 	enum class VcoShape { Sawtooth, Triangle, Square, RoundSquare, Moog, Sine, Exponential, WhiteNoise,
 		BLSawtooth, BLSquare, BLTriangle, BLMoog };
@@ -186,6 +213,20 @@ private:
 	BoolModel m_accentToggle;
 	BoolModel m_deadToggle;
 	BoolModel m_db24Toggle;
+
+	BoolModel m_seqEnabled;
+	IntModel m_seqLength;
+	ComboBoxModel m_seqRate;
+	FloatModel m_seqAccent;
+
+	std::array<std::atomic<std::uint16_t>, SeqSteps> m_seqPattern;
+	std::atomic<int> m_seqCurrentStep{-1};
+	float m_seqRootFreq = 0.f;
+	f_cnt_t m_seqFrames = 0;  //!< Frames since the held note started
+	long m_seqStepIndex = -1; //!< Absolute index of the step being played
+	bool m_seqGateOpen = false;
+	bool m_seqLegato = false; //!< Next pitch change glides without retriggering the envelopes
+	float m_accentGain = 1.f;
 
 	// Oscillator
 	float m_vcoInc = 0.f; //!< %Sample increment for the frequency. Creates Sawtooth.
@@ -312,7 +353,40 @@ namespace gui
 {
 
 
-class Lb302SynthView : public InstrumentViewFixedSize
+//! 16-step pattern editor: pitch bars, a running step LED, and accent / slide switches
+class Lb302StepGrid : public QWidget
+{
+	Q_OBJECT
+public:
+	Lb302StepGrid(Lb302Synth* synth, QWidget* parent);
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+	void mousePressEvent(QMouseEvent*) override;
+	void mouseMoveEvent(QMouseEvent*) override;
+	void mouseReleaseEvent(QMouseEvent*) override;
+
+private:
+	int stepAt(int x) const;
+	int castLength() const;
+
+	static constexpr int PitchTop = 2;
+	static constexpr int PitchHeight = 30;
+	static constexpr int LedRow = 38;
+	static constexpr int AccentTop = 44;
+	static constexpr int SlideTop = 54;
+	static constexpr int SwitchHeight = 9;
+
+	Lb302Synth* m_synth;
+	int m_shownStep = -1;
+	int m_dragStep = -1;
+	int m_dragStartY = 0;
+	int m_dragStartPitch = 0;
+	bool m_dragged = false;
+};
+
+
+class Lb302SynthView : public InstrumentView
 {
 	Q_OBJECT
 
@@ -336,6 +410,21 @@ private:
 	// LedCheckBox* m_accentToggle; // TODO: implement accent notes
 	LedCheckBox* m_deadToggle;
 	LedCheckBox* m_db24Toggle;
+
+	LedCheckBox* m_seqToggle;
+	class LcdSpinBox* m_seqLengthBox;
+	class ComboBox* m_seqRateBox;
+	Knob* m_seqAccentKnob;
+	QWidget* m_seqGrid;
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+
+public:
+	//! Height of the sequencer section added below the original artwork
+	static constexpr int SeqHeight = 104;
+	QSize sizeHint() const override { return QSize(250, 250 + SeqHeight); }
+	QSize minimumSizeHint() const override { return sizeHint(); }
 };
 
 

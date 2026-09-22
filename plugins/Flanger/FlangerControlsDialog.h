@@ -46,6 +46,22 @@ public:
 };
 
 
+//! Live magnitude response of the comb filter at the current sweep position
+class FlangerResponseDisplay : public QWidget
+{
+	Q_OBJECT
+public:
+	FlangerResponseDisplay(FlangerControls* controls, QWidget* parent);
+	QSize sizeHint() const override { return QSize(340, 100); }
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+
+private:
+	FlangerControls* m_controls;
+};
+
+
 } // namespace gui
 
 } // namespace lmms

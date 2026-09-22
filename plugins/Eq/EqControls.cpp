@@ -77,8 +77,15 @@ EqControls::EqControls( EqEffect *effect ) :
 	m_lpTypeModel( 0,0,2, this, tr( "Low-pass type" ) ) ,
 	m_hpTypeModel( 0,0,2, this, tr( "High-pass type" ) ),
 	m_analyseInModel( true, this , tr( "Analyse IN" ) ),
-	m_analyseOutModel( true, this, tr( "Analyse OUT" ) )
+	m_analyseOutModel( true, this, tr( "Analyse OUT" ) ),
+	m_channelModeModel(this, tr("Channels")),
+	m_soloBandModel(-1, -1, 7, this, tr("Solo band"))
 {
+	m_channelModeModel.addItem(tr("L+R"));
+	m_channelModeModel.addItem(tr("MID"));
+	m_channelModeModel.addItem(tr("SIDE"));
+	m_soloBandModel.setJournalling(false);
+
 	m_hpFeqModel.setScaleLogarithmic( true );
 	m_lowShelfFreqModel.setScaleLogarithmic( true );
 	m_para1FreqModel.setScaleLogarithmic( true );
@@ -149,6 +156,7 @@ void EqControls::loadSettings( const QDomElement &_this )
 	m_hpTypeModel.loadSettings( _this, "HP" );
 	m_analyseInModel.loadSettings( _this, "AnalyseIn" );
 	m_analyseOutModel.loadSettings( _this, "AnalyseOut" );
+	m_channelModeModel.loadSettings(_this, "ChannelMode");
 }
 
 gui::EffectControlDialog* EqControls::createView()
@@ -203,6 +211,7 @@ void EqControls::saveSettings( QDomDocument &doc, QDomElement &parent )
 	m_hpTypeModel.saveSettings( doc, parent, "HP" );
 	m_analyseInModel.saveSettings( doc, parent, "AnalyseIn" );
 	m_analyseOutModel.saveSettings( doc, parent, "AnalyseOut" );
+	m_channelModeModel.saveSettings(doc, parent, "ChannelMode");
 }
 
 

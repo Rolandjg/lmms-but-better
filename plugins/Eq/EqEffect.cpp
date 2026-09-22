@@ -24,6 +24,9 @@
 
 #include "EqEffect.h"
 
+#include <cmath>
+#include <numbers>
+
 #include "Engine.h"
 #include "lmms_math.h"
 
@@ -165,6 +168,38 @@ Effect::ProcessStatus EqEffect::processImpl(SampleFrame* buf, const f_cnt_t fram
 	m_eqControls.m_inPeakL = m_eqControls.m_inPeakL < m_inPeak[0] ? m_inPeak[0] : m_eqControls.m_inPeakL;
 	m_eqControls.m_inPeakR = m_eqControls.m_inPeakR < m_inPeak[1] ? m_inPeak[1] : m_eqControls.m_inPeakR;
 
+	// Channel mode: the bands process L/R (0), only the mid (1) or only the side (2) signal
+	const int channelMode = m_eqControls.m_channelModeModel.value();
+
+	// Solo: replace the output with the region the band acts on, so it can be heard in isolation
+	const int solo = m_eqControls.m_soloBandModel.value();
+	if (solo != m_lastSolo)
+	{
+		for (auto& filter : m_solo) { filter.reset(); }
+		m_lastSolo = solo;
+	}
+	if (solo >= 0)
+	{
+		using Type = dsp::Biquad::Type;
+		// Octave bandwidth to Q for the peak bands
+		auto bwToQ = [](float bw) { return 1.f / (2.f * std::sinh(std::numbers::ln2_v<float> / 2.f * std::max(bw, 0.05f))); };
+		Type type = Type::Bandpass;
+		float freq = 1000.f;
+		float q = 0.707f;
+		switch (solo)
+		{
+		case 0: type = Type::Lowpass; freq = hpFreq; break;          // what the high-pass removes
+		case 1: type = Type::Lowpass; freq = lowShelfFreq; break;
+		case 2: freq = para1Freq; q = bwToQ(para1Bw); break;
+		case 3: freq = para2Freq; q = bwToQ(para2Bw); break;
+		case 4: freq = para3Freq; q = bwToQ(para3Bw); break;
+		case 5: freq = para4Freq; q = bwToQ(para4Bw); break;
+		case 6: type = Type::Highpass; freq = highShelfFreq; break;
+		default: type = Type::Highpass; freq = lpFreq; break;        // what the low-pass removes
+		}
+		for (auto& filter : m_solo) { filter.set(type, freq, q, sampleRate); }
+	}
+
 	float periodProgress = 0.0f; // percentage of period processed
 	for( f_cnt_t f = 0; f < frames; ++f)
 	{
@@ -172,6 +207,13 @@ Effect::ProcessStatus EqEffect::processImpl(SampleFrame* buf, const f_cnt_t fram
 		//wet dry buffer
 		dryS[0] = buf[f][0];
 		dryS[1] = buf[f][1];
+		const auto input = std::array{buf[f][0], buf[f][1]};
+		if (channelMode != 0)
+		{
+			// Process mid in channel 0 and side in channel 1
+			buf[f][0] = (input[0] + input[1]) * 0.5f;
+			buf[f][1] = (input[0] - input[1]) * 0.5f;
+		}
 		if( hpActive )
 		{
 			buf[f][0] = m_hp12.update( buf[f][0], 0, periodProgress );
@@ -247,6 +289,21 @@ Effect::ProcessStatus EqEffect::processImpl(SampleFrame* buf, const f_cnt_t fram
 				buf[f][0] = m_lp481.update( buf[f][0], 0, periodProgress );
 				buf[f][1] = m_lp481.update( buf[f][1], 1, periodProgress );
 			}
+		}
+
+		if (channelMode != 0)
+		{
+			// Keep the unprocessed half and decode back to left/right
+			const float mid = channelMode == 1 ? buf[f][0] : (input[0] + input[1]) * 0.5f;
+			const float side = channelMode == 2 ? buf[f][1] : (input[0] - input[1]) * 0.5f;
+			buf[f][0] = mid + side;
+			buf[f][1] = mid - side;
+		}
+
+		if (solo >= 0)
+		{
+			buf[f][0] = m_solo[0].process(input[0]);
+			buf[f][1] = m_solo[1].process(input[1]);
 		}
 
 		//apply wet / dry levels

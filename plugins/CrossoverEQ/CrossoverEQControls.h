@@ -27,6 +27,8 @@
 #ifndef CROSSOVEREQ_CONTROLS_H
 #define CROSSOVEREQ_CONTROLS_H
 
+#include <array>
+
 #include "EffectControls.h"
 #include "CrossoverEQControlDialog.h"
 
@@ -51,7 +53,7 @@ public:
 
 	int controlCount() override
 	{
-		return( 11 );
+		return( 19 );
 	}
 
 	gui::EffectControlDialog * createView() override
@@ -81,6 +83,9 @@ private:
 	BoolModel m_mute2;
 	BoolModel m_mute3;
 	BoolModel m_mute4;
+
+	std::array<BoolModel, 4> m_solo;
+	std::array<FloatModel, 4> m_width;
 	
 	friend class gui::CrossoverEQControlDialog;
 	friend class CrossoverEQEffect;

@@ -45,6 +45,12 @@ class MultitapEchoControlDialog : public EffectControlDialog
 public:
 	MultitapEchoControlDialog( MultitapEchoControls * controls );
 	~MultitapEchoControlDialog() override = default;
+
+	//! Height of the added per-tap pan panel
+	static constexpr int PanPanelHeight = 115;
+
+protected:
+	void paintEvent(QPaintEvent*) override;
 };
 
 

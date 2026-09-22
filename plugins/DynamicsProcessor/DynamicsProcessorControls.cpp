@@ -47,8 +47,11 @@ DynProcControls::DynProcControls( DynProcEffect * _eff ) :
 	m_attackModel( 10.0f, 1.0f, 500.0f, 1.0f, this, tr( "Attack time" ) ),
 	m_releaseModel( 100.0f, 1.0f, 500.0f, 1.0f, this, tr( "Release time" ) ),
 	m_wavegraphModel( 0.0f, 1.0f, 200, this ),
-	m_stereomodeModel( 0, 0, 2, this, tr( "Stereo mode" ) )
+	m_stereomodeModel( 0, 0, 2, this, tr( "Stereo mode" ) ),
+	m_lookaheadModel(this, tr("Lookahead"))
 {
+	for (const auto& item : {tr("Off"), QString("1"), QString("3"), QString("5"), QString("10")}) { m_lookaheadModel.addItem(item); }
+
 	connect( &m_wavegraphModel, SIGNAL( samplesChanged( int, int ) ),
 			this, SLOT( samplesChanged( int, int ) ) );
 	connect( Engine::audioEngine(), SIGNAL( sampleRateChanged() ), this, SLOT( sampleRateChanged() ) );
@@ -80,6 +83,7 @@ void DynProcControls::loadSettings( const QDomElement & _this )
 	m_attackModel.loadSettings( _this, "attack" );
 	m_releaseModel.loadSettings( _this, "release" );
 	m_stereomodeModel.loadSettings( _this, "stereoMode" );
+	m_lookaheadModel.loadSettings(_this, "lookahead");
 	
 //load waveshape
 	int size = 0;
@@ -103,6 +107,7 @@ void DynProcControls::saveSettings( QDomDocument & _doc,
 	m_attackModel.saveSettings( _doc, _this, "attack" );
 	m_releaseModel.saveSettings( _doc, _this, "release" );
 	m_stereomodeModel.saveSettings( _doc, _this, "stereoMode" );
+	m_lookaheadModel.saveSettings(_doc, _this, "lookahead");
 	
 
 //save waveshape

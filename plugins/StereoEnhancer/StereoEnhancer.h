@@ -26,7 +26,11 @@
 #ifndef _STEREO_ENHANCER_H
 #define _STEREO_ENHANCER_H
 
+#include <array>
+
 #include "Effect.h"
+#include "ModernDsp.h"
+#include "ModernWidgets.h"
 #include "DspEffectLibrary.h"
 #include "StereoEnhancerControls.h"
 
@@ -51,6 +55,8 @@ public:
 
 	void clearMyBuffer();
 
+	ScopeBuffer m_scope;
+
 
 private:
 	DspEffectLibrary::StereoEnhancer m_seFX;
@@ -58,6 +64,9 @@ private:
 	SampleFrame* m_delayBuffer;
 	int m_currFrame;
 	bool m_delayBufferCleared = true;
+
+	std::array<dsp::TwoPole, 2> m_lowSplit;
+	std::array<dsp::TwoPole, 2> m_highSplit;
 
 	StereoEnhancerControls m_bbControls;
 

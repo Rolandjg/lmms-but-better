@@ -134,6 +134,18 @@ Effect::ProcessStatus DynProcEffect::processImpl(SampleFrame* buf, const f_cnt_t
 		}
 	}
 
+	constexpr float LookaheadMs[] = {0.f, 1.f, 3.f, 5.f, 10.f};
+	const float sampleRate = Engine::audioEngine()->outputSampleRate();
+	const auto lookahead = static_cast<std::size_t>(
+		LookaheadMs[std::clamp(m_dpControls.m_lookaheadModel.value(), 0, 4)] * 0.001f * sampleRate);
+	const auto lookaheadCapacity = static_cast<std::size_t>(0.011f * sampleRate) + 1;
+	if (m_lookaheadBuffer.size() != lookaheadCapacity)
+	{
+		m_lookaheadBuffer.assign(lookaheadCapacity, SampleFrame());
+		m_lookaheadWrite = 0;
+	}
+	float detectorPeak = 0.f;
+
 	for (f_cnt_t f = 0; f < frames; ++f)
 	{
 		auto s = std::array{buf[f][0], buf[f][1]};
@@ -141,11 +153,18 @@ Effect::ProcessStatus DynProcEffect::processImpl(SampleFrame* buf, const f_cnt_t
 // apply input gain
 		s[0] *= inputGain;
 		s[1] *= inputGain;
+		const auto detectorInput = s;
+
+		// The detector below sees the current input while the audio path (wet and dry) is delayed
+		m_lookaheadBuffer[m_lookaheadWrite] = buf[f];
+		const auto dry = m_lookaheadBuffer[(m_lookaheadWrite + lookaheadCapacity - lookahead) % lookaheadCapacity];
+		m_lookaheadWrite = (m_lookaheadWrite + 1) % lookaheadCapacity;
+		s = {dry.left() * inputGain, dry.right() * inputGain};
 
 // update peak values
 		for ( i=0; i <= 1; i++ )
 		{
-			const double t = m_rms[i]->update( s[i] );
+			const double t = m_rms[i]->update( detectorInput[i] );
 			if( t > m_currentPeak[i] )
 			{
 				m_currentPeak[i] = m_currentPeak[i] * m_attCoeff + (1 - m_attCoeff) * t;
@@ -180,6 +199,8 @@ Effect::ProcessStatus DynProcEffect::processImpl(SampleFrame* buf, const f_cnt_t
 			}
 		}
 
+		detectorPeak = std::max({detectorPeak, sm_peak[0], sm_peak[1]});
+
 // start effect
 
 		for ( i=0; i <= 1; i++ )
@@ -204,9 +225,11 @@ Effect::ProcessStatus DynProcEffect::processImpl(SampleFrame* buf, const f_cnt_t
 		s[1] *= outputGain;
 
 // mix wet/dry signals
-		buf[f][0] = d * buf[f][0] + w * s[0];
-		buf[f][1] = d * buf[f][1] + w * s[1];
+		buf[f][0] = d * dry.left() + w * s[0];
+		buf[f][1] = d * dry.right() + w * s[1];
 	}
+
+	m_detectorLevel.store(detectorPeak, std::memory_order_relaxed);
 
 	return ProcessStatus::ContinueIfNotQuiet;
 }

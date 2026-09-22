@@ -15,5 +15,4 @@ BUILD_PLUGIN(
 	MOCFILES
 	ReverbSCControls.h
 	ReverbSCControlDialog.h
-	EMBEDDED_RESOURCES artwork.svg
 )

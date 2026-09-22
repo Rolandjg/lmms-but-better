@@ -26,6 +26,8 @@
 #ifndef LMMS_KICKER_H
 #define LMMS_KICKER_H
 
+#include <vector>
+
 #include "AutomatableModel.h"
 #include "Instrument.h"
 #include "InstrumentView.h"
@@ -71,6 +73,14 @@ public:
 
 	gui::PluginView* instantiateView( QWidget * _parent ) override;
 
+	//! Render one kick offline (mono) exactly as playNote() would, for the waveform preview
+	std::vector<float> renderPreview(float sampleRate) const;
+	//! Start/end frequencies that a note at the track's base note would use
+	float previewStartFrequency() const;
+	float previewEndFrequency() const;
+	float frequencySlope() const { return m_slopeModel.value(); }
+	float lengthMs() const { return m_decayModel.value(); }
+
 
 private:
 	FloatModel m_startFreqModel;
@@ -98,15 +108,26 @@ namespace gui
 {
 
 
-class KickerInstrumentView : public InstrumentViewFixedSize
+class KickerInstrumentView : public InstrumentView
 {
 	Q_OBJECT
 public:
 	KickerInstrumentView( Instrument * _instrument, QWidget * _parent );
 	~KickerInstrumentView() override = default;
 
+	QSize sizeHint() const override { return QSize(250, 250 + PreviewHeight); }
+	QSize minimumSizeHint() const override { return sizeHint(); }
+
+	//! Height of the waveform preview strip inserted above the logo
+	static constexpr int PreviewHeight = 74;
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+
 private:
 	void modelChanged() override;
+
+	QWidget* m_preview;
 
 	Knob * m_startFreqKnob;
 	Knob * m_endFreqKnob;

@@ -115,6 +115,14 @@ void EqHandle::paint( QPainter *painter, const QStyleOptionGraphicsItem *option,
 	loadPixmap();
 	painter->drawPixmap( - ( m_circlePixmap.width() / 2 ) - 1 , - ( m_circlePixmap.height() / 2 ), m_circlePixmap );
 
+	if (m_soloing)
+	{
+		// Ring around the handle while its band is being auditioned
+		painter->setPen(QPen(QColor(29, 226, 118), 2));
+		painter->setBrush(Qt::NoBrush);
+		painter->drawEllipse(QPointF(-1, 0), m_circlePixmap.width() / 2.0 - 1.5, m_circlePixmap.height() / 2.0 - 1.5);
+	}
+
 	// on mouse hover draw an info box and change the pixmap of the handle
 	if ( isMouseHover() )
 	{
@@ -537,6 +545,14 @@ double EqHandle::calculateGain(const double freq, const double a1, const double 
 
 void EqHandle::mousePressEvent( QGraphicsSceneMouseEvent *event )
 {
+	if (event->button() == Qt::LeftButton && (event->modifiers() & Qt::AltModifier))
+	{
+		m_soloing = true;
+		emit soloRequested(m_numb, true);
+		update();
+		event->accept();
+		return;
+	}
 	if( event->button() == Qt::LeftButton )
 	{
 		m_mousePressed = true;
@@ -549,6 +565,14 @@ void EqHandle::mousePressEvent( QGraphicsSceneMouseEvent *event )
 
 void EqHandle::mouseReleaseEvent( QGraphicsSceneMouseEvent *event )
 {
+	if (m_soloing)
+	{
+		m_soloing = false;
+		emit soloRequested(m_numb, false);
+		update();
+		event->accept();
+		return;
+	}
 	if( event->button() == Qt::LeftButton )
 	{
 		m_mousePressed = false;

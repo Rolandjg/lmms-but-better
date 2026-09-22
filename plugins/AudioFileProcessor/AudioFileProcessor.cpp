@@ -33,6 +33,14 @@
 #include "plugin_export.h"
 
 #include <QDomElement>
+#include <QFileInfo>
+#include <QRegularExpression>
+#include <cmath>
+#include <numbers>
+
+#include "AudioEngine.h"
+#include "Engine.h"
+#include "TimeStretch.h"
 
 
 namespace lmms
@@ -76,6 +84,9 @@ AudioFileProcessor::AudioFileProcessor( InstrumentTrack * _instrument_track ) :
 	m_loopModel( 0, 0, 2, this, tr( "Loop mode" ) ),
 	m_stutterModel( false, this, tr( "Stutter" ) ),
 	m_interpolationModel( this, tr( "Interpolation mode" ) ),
+	m_warpModel(false, this, tr("Warp to song tempo")),
+	m_sampleTempoModel(120, 20, 300, this, tr("Sample tempo")),
+	m_crossfadeModel(0.f, 0.f, 500.f, 0.1f, this, tr("Loop crossfade")),
 	m_nextPlayStartPoint( 0 ),
 	m_nextPlayBackwards( false )
 {
@@ -97,6 +108,16 @@ AudioFileProcessor::AudioFileProcessor( InstrumentTrack * _instrument_track ) :
 	m_interpolationModel.addItem( tr( "Linear" ) );
 	m_interpolationModel.addItem( tr( "Sinc" ) );
 	m_interpolationModel.setValue( 1 );
+
+	// Warp and loop crossfade both need a rebuilt playback buffer
+	connect(&m_warpModel, &Model::dataChanged, this, &AudioFileProcessor::scheduleRebuild);
+	connect(&m_sampleTempoModel, &Model::dataChanged, this, [this] { if (m_warpModel.value()) { scheduleRebuild(); } });
+	connect(Engine::getSong(), &Song::tempoChanged, this, [this] { if (m_warpModel.value()) { scheduleRebuild(); } });
+	connect(&m_crossfadeModel, &Model::dataChanged, this, &AudioFileProcessor::scheduleRebuild);
+	for (Model* model : std::initializer_list<Model*>{&m_loopPointModel, &m_endPointModel, &m_loopModel, &m_reverseModel})
+	{
+		connect(model, &Model::dataChanged, this, [this] { if (m_crossfadeModel.value() > 0.f) { scheduleRebuild(); } });
+	}
 
 	pointChanged();
 }
@@ -194,10 +215,12 @@ void AudioFileProcessor::deleteNotePluginData( NotePlayHandle * _n )
 
 void AudioFileProcessor::saveSettings(QDomDocument& doc, QDomElement& elem)
 {
-	elem.setAttribute("src", m_sample.sampleFile());
-	if (m_sample.sampleFile().isEmpty())
+	// Always store the original audio; warp and crossfade are re-applied on load
+	const auto source = Sample(m_sourceBuffer ? m_sourceBuffer : SampleBuffer::emptyBuffer());
+	elem.setAttribute("src", source.sampleFile());
+	if (source.sampleFile().isEmpty())
 	{
-		elem.setAttribute("sampledata", m_sample.toBase64());
+		elem.setAttribute("sampledata", source.toBase64());
 	}
 	m_reverseModel.saveSettings(doc, elem, "reversed");
 	m_loopModel.saveSettings(doc, elem, "looped");
@@ -207,6 +230,9 @@ void AudioFileProcessor::saveSettings(QDomDocument& doc, QDomElement& elem)
 	m_loopPointModel.saveSettings(doc, elem, "lframe");
 	m_stutterModel.saveSettings(doc, elem, "stutter");
 	m_interpolationModel.saveSettings(doc, elem, "interp");
+	m_warpModel.saveSettings(doc, elem, "warp");
+	m_sampleTempoModel.saveSettings(doc, elem, "sampletempo");
+	m_crossfadeModel.saveSettings(doc, elem, "xfade");
 }
 
 
@@ -224,7 +250,8 @@ void AudioFileProcessor::loadSettings(const QDomElement& elem)
 	}
 	else if (auto sampleData = elem.attribute("sampledata"); !sampleData.isEmpty())
 	{
-		m_sample = Sample(SampleBuffer::fromBase64(sampleData));
+		m_sourceBuffer = SampleBuffer::fromBase64(sampleData);
+		m_sample = Sample(m_sourceBuffer);
 	}
 
 	m_loopModel.loadSettings(elem, "looped");
@@ -253,6 +280,16 @@ void AudioFileProcessor::loadSettings(const QDomElement& elem)
 	{
 		m_interpolationModel.setValue(1.0f); // linear by default
 	}
+
+	// Older projects have no warp settings: warp stays off and the detected tempo is kept
+	const bool hasTempo = elem.hasAttribute("sampletempo") || !elem.firstChildElement("sampletempo").isNull();
+	const int detectedTempo = m_sampleTempoModel.value();
+	m_warpModel.loadSettings(elem, "warp");
+	m_sampleTempoModel.loadSettings(elem, "sampletempo");
+	if (!hasTempo) { m_sampleTempoModel.setValue(detectedTempo); }
+	m_crossfadeModel.loadSettings(elem, "xfade");
+	m_rebuildQueued = false;
+	rebuildPlaybackSample();
 
 	pointChanged();
 	emit sampleUpdated();
@@ -318,11 +355,118 @@ void AudioFileProcessor::setAudioFile(const QString& _audio_file, bool _rename)
 	}
 	// else we don't touch the track-name, because the user named it self
 
-	m_sample = Sample(SampleBuffer::fromFile(_audio_file));
+	m_sourceBuffer = SampleBuffer::fromFile(_audio_file);
+	m_sampleTempoModel.setValue(detectTempo(_audio_file,
+		m_sourceBuffer->sampleRate() > 0 ? static_cast<double>(m_sourceBuffer->size()) / m_sourceBuffer->sampleRate() : 0.0));
+	m_warpedRatio = 0.0;
+	rebuildPlaybackSample();
 	loopPointChanged();
 	ampModelChanged();
 	reverseModelChanged();
 	emit sampleUpdated();
+}
+
+
+
+
+bool AudioFileProcessor::crossfadeActive() const
+{
+	// Baked crossfades only make sense for forward loops
+	return m_crossfadeModel.value() > 0.f && m_loopModel.value() == static_cast<int>(Sample::Loop::On)
+		&& !m_reverseModel.value();
+}
+
+
+
+
+void AudioFileProcessor::scheduleRebuild()
+{
+	if (m_rebuildQueued) { return; }
+	m_rebuildQueued = true;
+	QMetaObject::invokeMethod(this, [this]
+	{
+		if (!m_rebuildQueued) { return; } // a direct rebuild already happened
+		m_rebuildQueued = false;
+		rebuildPlaybackSample();
+	}, Qt::QueuedConnection);
+}
+
+
+
+
+void AudioFileProcessor::rebuildPlaybackSample()
+{
+	if (!m_sourceBuffer) { return; }
+
+	const bool warp = m_warpModel.value() && m_sourceBuffer->size() > 0;
+	const double ratio = warp ? m_sampleTempoModel.value() / static_cast<double>(Engine::getSong()->getTempo()) : 1.0;
+	const bool crossfade = crossfadeActive();
+
+	std::shared_ptr<const SampleBuffer> buffer = m_sourceBuffer;
+	if (ratio != 1.0 || crossfade)
+	{
+		if (ratio != m_warpedRatio)
+		{
+			// Stretching is the expensive part, so its result is cached per tempo ratio
+			m_warpedFrames = ratio == 1.0
+				? std::vector<SampleFrame>(m_sourceBuffer->data(), m_sourceBuffer->data() + m_sourceBuffer->size())
+				: dsp::timeStretch(m_sourceBuffer->data(), m_sourceBuffer->size(), ratio, m_sourceBuffer->sampleRate());
+			m_warpedRatio = ratio;
+		}
+
+		auto frames = m_warpedFrames;
+		if (crossfade && !frames.empty())
+		{
+			// Blend the end of the loop into the audio leading up to the loop point, so jumping
+			// from the end back to the loop point continues seamlessly
+			const auto size = static_cast<long>(frames.size());
+			const long loopStart = std::clamp(static_cast<long>(m_loopPointModel.value() * size), 0L, size);
+			const long loopEnd = std::clamp(static_cast<long>(m_endPointModel.value() * size), loopStart, size);
+			const long length = std::min({static_cast<long>(m_crossfadeModel.value() * 0.001f * m_sourceBuffer->sampleRate()),
+				loopStart, loopEnd - loopStart});
+			for (long i = 0; i < length; ++i)
+			{
+				const float x = (i + 0.5f) / length * std::numbers::pi_v<float> / 2.f;
+				auto& tail = frames[loopEnd - length + i];
+				tail = tail * std::cos(x) + frames[loopStart - length + i] * std::sin(x);
+			}
+		}
+		buffer = std::make_shared<SampleBuffer>(std::move(frames), m_sourceBuffer->sampleRate(), m_sourceBuffer->audioFile());
+	}
+
+	Engine::audioEngine()->requestChangeInModel();
+	m_sample = Sample(buffer);
+	m_sample.setAmplification(m_ampModel.value() / 100.0f);
+	m_sample.setReversed(m_reverseModel.value());
+	pointChanged();
+	Engine::audioEngine()->doneChangeInModel();
+
+	emit sampleUpdated();
+}
+
+
+
+
+int AudioFileProcessor::detectTempo(const QString& fileName, double seconds)
+{
+	static const auto bpmPattern = QRegularExpression(R"((\d{2,3}(?:\.\d+)?)\s*bpm)", QRegularExpression::CaseInsensitiveOption);
+	if (const auto match = bpmPattern.match(QFileInfo(fileName).fileName()); match.hasMatch())
+	{
+		return std::clamp(qRound(match.captured(1).toDouble()), 20, 300);
+	}
+	if (seconds <= 0.0) { return 120; }
+
+	// Assume the loop is a whole number of 4/4 bars and pick the count giving the most typical tempo
+	int best = 120;
+	double bestDistance = 1e9;
+	for (int bars : {1, 2, 4, 8, 16})
+	{
+		const double bpm = bars * 4 * 60.0 / seconds;
+		if (bpm < 60.0 || bpm > 200.0) { continue; }
+		const double distance = std::abs(std::log2(bpm / 120.0));
+		if (distance < bestDistance) { bestDistance = distance; best = qRound(bpm); }
+	}
+	return best;
 }
 
 

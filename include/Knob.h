@@ -37,7 +37,10 @@ namespace lmms::gui
 
 enum class KnobType
 {
-	Dark28, Bright26, Small17, Vintage32, Styled
+	Dark28, Bright26, Small17, Vintage32, Styled,
+	//! Knobs used by the modernized plugin UIs. They use the theme's standard knob
+	//! artwork, draw bipolar ranges from zero and render their own compact label.
+	Modern, ModernSmall, ModernLarge
 } ;
 
 
@@ -162,6 +165,12 @@ public:
 	QColor textColor() const;
 	void setTextColor( const QColor & c );
 
+	bool isModern() const
+	{
+		return m_knobNum == KnobType::Modern || m_knobNum == KnobType::ModernSmall
+			|| m_knobNum == KnobType::ModernLarge;
+	}
+
 
 protected:
 	void paintEvent(QPaintEvent*) override;
@@ -199,7 +208,9 @@ private:
 						float _innerRadius = 1) const;
 
 	void drawKnob( QPainter * _p );
+	void drawModernKnob(QPainter& p);
 	void drawLabel(QPainter& p);
+	int modernDiameter() const;
 	bool updateAngle();
 
 	int angleFromValue( float value, float minValue, float maxValue, float totalAngle ) const

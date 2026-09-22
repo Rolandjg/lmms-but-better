@@ -476,7 +476,12 @@ void InstrumentTrackWindow::updateInstrumentView()
 				std::max(INSTRUMENT_WIDTH, m_instrumentView->width()),
 				std::max(INSTRUMENT_HEIGHT, m_instrumentView->maximumHeight()),
 			};
-		m_tabWidget->setMaximumSize(maxSize);
+		// The tab widget also needs room for its tab bar, otherwise views taller
+		// than the default size get clipped at the bottom
+		m_tabWidget->setMaximumSize(m_instrumentView->isResizable()
+			? maxSize
+			: QSize{std::max(maxSize.width(), m_instrumentView->width() + 4),
+				std::max(maxSize.height(), m_instrumentView->maximumHeight() + GRAPHIC_TAB_HEIGHT - 1)});
 		// Individual tabs must also have their maximum widths set,
 		// otherwise they will remain wide, and their overflowing contents
 		// will get clipped.

@@ -63,3 +63,12 @@ if(TARGET vst3base)
 	add_test(NAME Vst3HostTest COMMAND Vst3HostTest)
 	set_tests_properties(Vst3HostTest PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data" TIMEOUT 120)
 endif()
+
+# Developer tool: renders native plugin UIs to PNG and sanity-checks effect output.
+# Build with `make PluginSnapshot`; not part of the test suite.
+add_executable(PluginSnapshot EXCLUDE_FROM_ALL plugins/PluginSnapshot.cpp)
+target_include_directories(PluginSnapshot PRIVATE $<TARGET_PROPERTY:lmmsobjs,INCLUDE_DIRECTORIES>)
+target_static_libraries(PluginSnapshot PRIVATE lmmsobjs)
+target_link_libraries(PluginSnapshot PRIVATE ${QT_LIBRARIES})
+target_compile_features(PluginSnapshot PRIVATE cxx_std_20)
+set_target_properties(PluginSnapshot PROPERTIES ENABLE_EXPORTS ON)

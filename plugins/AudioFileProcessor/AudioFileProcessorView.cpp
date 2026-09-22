@@ -29,7 +29,10 @@
 
 #include <QPainter>
 
+#include "AutomatableButton.h"
 #include "ComboBox.h"
+#include "Engine.h"
+#include "LcdSpinBox.h"
 #include "DataFile.h"
 #include "FileDialog.h"
 #include "FontHelper.h"
@@ -46,10 +49,57 @@ namespace lmms
 namespace gui
 {
 
+namespace
+{
+
+// The extra strip that holds the warp and crossfade controls
+constexpr int StripTop = 160;
+constexpr int StripHeight = 40;
+
+//! Toggle drawn like the plugin's own buttons: black when off, lit blue when on
+class AfpToggle : public AutomatableButton
+{
+public:
+	AfpToggle(const QString& text, QWidget* parent) :
+		AutomatableButton(parent, text)
+	{
+		setText(text);
+		setCheckable(true);
+		setCursor(Qt::PointingHandCursor);
+		setFixedSize(40, 18);
+		setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
+	}
+
+protected:
+	void paintEvent(QPaintEvent*) override
+	{
+		QPainter p(this);
+		p.setRenderHint(QPainter::Antialiasing);
+		const bool on = model()->value();
+		const QRectF r = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+		QLinearGradient fill(0, 0, 0, height());
+		fill.setColorAt(0, on ? QColor(110, 190, 255) : QColor(28, 28, 30));
+		fill.setColorAt(1, on ? QColor(53, 128, 220) : QColor(0, 0, 0));
+		p.setPen(QPen(on ? QColor(53, 109, 168) : QColor(70, 70, 72), 1));
+		p.setBrush(fill);
+		p.drawRoundedRect(r, 3, 3);
+		auto f = font();
+		f.setBold(true);
+		p.setFont(f);
+		p.setPen(on ? QColor(255, 255, 255) : QColor(207, 244, 254));
+		p.drawText(rect(), Qt::AlignCenter, text());
+	}
+};
+
+} // namespace
+
+
 AudioFileProcessorView::AudioFileProcessorView(Instrument* instrument,
 							QWidget* parent) :
-	InstrumentViewFixedSize(instrument, parent)
+	InstrumentView(instrument, parent)
 {
+	setFixedSize(sizeHint());
+
 	m_openAudioFileButton = new PixmapButton(this);
 	m_openAudioFileButton->setCursor(Qt::PointingHandCursor);
 	m_openAudioFileButton->move(227, 72);
@@ -134,6 +184,21 @@ AudioFileProcessorView::AudioFileProcessorView(Instrument* instrument,
 	m_interpBox = new ComboBox(this);
 	m_interpBox->setGeometry(142, 62, 82, ComboBox::DEFAULT_HEIGHT);
 
+// warp / crossfade strip
+	m_warpButton = new AfpToggle(tr("WARP"), this);
+	m_warpButton->move(12, StripTop + 11);
+	m_warpButton->setToolTip(tr("Time-stretch the sample to the song tempo without changing its pitch"));
+
+	m_tempoSpinBox = new LcdSpinBox(3, this, tr("Sample tempo"));
+	m_tempoSpinBox->setLabel(tr("BPM"));
+	m_tempoSpinBox->move(60, StripTop + 4);
+	m_tempoSpinBox->setToolTip(tr("Original tempo of the sample (detected when it is loaded)"));
+
+	m_crossfadeKnob = new Knob(KnobType::Bright26, tr("X-FADE"), SMALL_FONT_SIZE, this);
+	m_crossfadeKnob->move(206, StripTop + 3);
+	m_crossfadeKnob->setHintText(tr("Loop crossfade:"), " ms");
+	m_crossfadeKnob->setToolTip(tr("Crossfade the loop end into the loop point to remove clicks"));
+
 // wavegraph
 	m_waveView = 0;
 	newWaveView();
@@ -186,7 +251,7 @@ void AudioFileProcessorView::newWaveView()
 		dynamic_cast<AudioFileProcessorWaveView::knob*>(m_startKnob),
 		dynamic_cast<AudioFileProcessorWaveView::knob*>(m_endKnob),
 		dynamic_cast<AudioFileProcessorWaveView::knob*>(m_loopKnob));
-	m_waveView->move(2, 172);
+	m_waveView->move(2, 172 + StripHeight);
 	
 	m_waveView->show();
 }
@@ -217,8 +282,39 @@ void AudioFileProcessorView::paintEvent(QPaintEvent*)
 {
 	QPainter p(this);
 
+	// The original artwork is split at the plain brushed-metal gap above the waveform
+	// to make room for the warp strip
 	static auto s_artwork = PLUGIN_NAME::getIconPixmap("artwork");
-	p.drawPixmap(0, 0, s_artwork);
+	p.drawPixmap(0, 0, s_artwork, 0, 0, 250, StripTop);
+	for (int y = StripTop; y < StripTop + StripHeight; y += 8)
+	{
+		p.drawPixmap(0, y, s_artwork, 0, 152, 250, std::min(8, StripTop + StripHeight - y));
+	}
+	p.drawPixmap(0, StripTop + StripHeight, s_artwork, 0, StripTop, 250, 250 - StripTop);
+
+	// Recessed panel matching the knob strip
+	{
+		p.save();
+		p.setRenderHint(QPainter::Antialiasing);
+		const QRectF panel(4.5, StripTop + 2.5, 241, StripHeight - 5);
+		QLinearGradient bg(0, panel.top(), 0, panel.bottom());
+		bg.setColorAt(0, QColor(10, 10, 11));
+		bg.setColorAt(1, QColor(24, 25, 27));
+		p.setPen(QPen(QColor(70, 72, 76), 1));
+		p.setBrush(bg);
+		p.drawRoundedRect(panel, 4, 4);
+
+		auto a = castModel<AudioFileProcessor>();
+		const int songTempo = Engine::getSong()->getTempo();
+		const float ratio = a->warpModel().value() ? a->sampleTempoModel().value() / static_cast<float>(songTempo) : 1.f;
+		p.setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
+		p.setPen(a->warpModel().value() ? QColor(207, 244, 254) : QColor(120, 124, 130));
+		p.drawText(QRectF(104, StripTop + 6, 96, 14), Qt::AlignLeft | Qt::AlignVCenter,
+			tr("SONG %1 BPM").arg(songTempo));
+		p.drawText(QRectF(104, StripTop + 20, 96, 14), Qt::AlignLeft | Qt::AlignVCenter,
+			a->warpModel().value() ? tr("LENGTH x%1").arg(ratio, 0, 'f', 2) : tr("WARP OFF"));
+		p.restore();
+	}
 
 	auto a = castModel<AudioFileProcessor>();
 
@@ -276,6 +372,14 @@ void AudioFileProcessorView::modelChanged()
 	m_loopGroup->setModel(&a->loopModel());
 	m_stutterButton->setModel(&a->stutterModel());
 	m_interpBox->setModel(&a->interpolationModel());
+	m_warpButton->setModel(&a->warpModel());
+	m_tempoSpinBox->setModel(&a->sampleTempoModel());
+	m_crossfadeKnob->setModel(&a->crossfadeModel());
+	for (Model* model : std::initializer_list<Model*>{&a->warpModel(), &a->sampleTempoModel()})
+	{
+		connect(model, &Model::dataChanged, this, qOverload<>(&QWidget::update));
+	}
+	connect(Engine::getSong(), &Song::tempoChanged, this, qOverload<>(&QWidget::update));
 	sampleUpdated();
 }
 

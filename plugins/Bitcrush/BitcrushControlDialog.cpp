@@ -28,10 +28,12 @@
 
 #include "embed.h"
 #include "BitcrushControlDialog.h"
+
+#include <QHBoxLayout>
+
 #include "BitcrushControls.h"
-#include "FontHelper.h"
-#include "LedCheckBox.h"
 #include "Knob.h"
+#include "ModernWidgets.h"
 
 namespace lmms::gui
 {
@@ -40,77 +42,39 @@ namespace lmms::gui
 BitcrushControlDialog::BitcrushControlDialog( BitcrushControls * controls ) :
 	EffectControlDialog( controls )
 {
-	setAutoFillBackground( true );
-	QPalette pal;
-	pal.setBrush( backgroundRole(),	PLUGIN_NAME::getIconPixmap( "artwork" ) );
-	setPalette( pal );
-	setFixedSize( 181, 128 );
-	
-	// labels
-	const auto labelFont = adjustedToPixelSize(font(), DEFAULT_FONT_SIZE);
+	modern::applyWindowStyle(this);
 
-	auto inLabel = new QLabel(tr("IN"), this);
-	inLabel->setFont(labelFont);
-	inLabel->move( 24, 15 );
+	auto layout = new QHBoxLayout(this);
+	layout->setContentsMargins(8, 8, 8, 8);
+	layout->setSpacing(6);
+	layout->setSizeConstraint(QLayout::SetFixedSize);
 
-	auto outLabel = new QLabel(tr("OUT"), this);
-	outLabel->setFont(labelFont);
-	outLabel->move( 139, 15 );
-	
-	// input knobs
-	auto inGain = new Knob(KnobType::Bright26, tr("GAIN"), SMALL_FONT_SIZE, this);
-	inGain->move( 16, 32 );
-	inGain->setModel( & controls->m_inGain );
-	inGain->setHintText( tr( "Input gain:" ) , " dBFS" );
+	auto input = new ModernSection(tr("Input"), this);
+	input->grid()->addWidget(modern::makeKnob(this, &controls->m_inGain, tr("GAIN"), tr("Input gain:"), " dBFS"), 0, 0);
+	input->grid()->addWidget(modern::makeKnob(this, &controls->m_inNoise, tr("NOISE"), tr("Input noise:"), "%"), 1, 0);
+	layout->addWidget(input);
 
-	auto inNoise = new Knob(KnobType::Bright26, tr("NOISE"), SMALL_FONT_SIZE, this);
-	inNoise->move( 14, 76 );
-	inNoise->setModel( & controls->m_inNoise );
-	inNoise->setHintText( tr( "Input noise:" ) , "%" );
-	
-	
-	// output knobs
-	auto outGain = new Knob(KnobType::Bright26, tr("GAIN"), SMALL_FONT_SIZE, this);
-	outGain->move( 138, 32 );
-	outGain->setModel( & controls->m_outGain );
-	outGain->setHintText( tr( "Output gain:" ) , " dBFS" );
-
-	auto outClip = new Knob(KnobType::Bright26, tr("CLIP"), SMALL_FONT_SIZE, this);
-	outClip->move( 138, 76 );
-	outClip->setModel( & controls->m_outClip );
-    outClip->setHintText( tr( "Output clip:" ) , " dBFS");
-
-	
-	
-	// leds
-	auto rateEnabled = new LedCheckBox("", this, tr("Rate enabled"), LedCheckBox::LedColor::Green);
-	rateEnabled->move( 64, 14 );
-	rateEnabled->setModel( & controls->m_rateEnabled );
+	auto rateSection = new ModernSection(tr("Rate"), this);
+	auto rateEnabled = new ModernToggle(tr("ON"), this);
+	rateEnabled->setModel(&controls->m_rateEnabled);
 	rateEnabled->setToolTip(tr("Enable sample-rate crushing"));
+	rateSection->grid()->addWidget(rateEnabled, 0, 0, 1, 2);
+	rateSection->grid()->addWidget(modern::makeKnob(this, &controls->m_rate, tr("FREQ"), tr("Sample rate:"), " Hz"), 1, 0);
+	rateSection->grid()->addWidget(modern::makeKnob(this, &controls->m_stereoDiff, tr("STEREO"), tr("Stereo difference:"), "%"), 1, 1);
+	layout->addWidget(rateSection);
 
-	auto depthEnabled = new LedCheckBox("", this, tr("Depth enabled"), LedCheckBox::LedColor::Green);
-	depthEnabled->move( 101, 14 );
-	depthEnabled->setModel( & controls->m_depthEnabled );
+	auto depthSection = new ModernSection(tr("Depth"), this);
+	auto depthEnabled = new ModernToggle(tr("ON"), this);
+	depthEnabled->setModel(&controls->m_depthEnabled);
 	depthEnabled->setToolTip(tr("Enable bit-depth crushing"));
-	
-	
-	// rate crushing knobs
-	auto rate = new Knob(KnobType::Bright26, tr("FREQ"), SMALL_FONT_SIZE, this);
-	rate->move( 59, 32 );
-	rate->setModel( & controls->m_rate );
-	rate->setHintText( tr( "Sample rate:" ) , " Hz" );
+	depthSection->grid()->addWidget(depthEnabled, 0, 0);
+	depthSection->grid()->addWidget(modern::makeKnob(this, &controls->m_levels, tr("LEVELS"), tr("Levels:"), ""), 1, 0);
+	layout->addWidget(depthSection);
 
-	auto stereoDiff = new Knob(KnobType::Bright26, tr("STEREO"), SMALL_FONT_SIZE, this);
-	stereoDiff->move( 72, 76 );
-	stereoDiff->setModel( & controls->m_stereoDiff );
-	stereoDiff->setHintText( tr( "Stereo difference:" ) , "%" );
-	
-	
-	// depth crushing knob
-	auto levels = new Knob(KnobType::Bright26, tr("QUANT"), SMALL_FONT_SIZE, this);
-	levels->move( 92, 32 );
-	levels->setModel( & controls->m_levels );
-	levels->setHintText( tr( "Levels:" ) , "" );
+	auto output = new ModernSection(tr("Output"), this);
+	output->grid()->addWidget(modern::makeKnob(this, &controls->m_outGain, tr("GAIN"), tr("Output gain:"), " dBFS"), 0, 0);
+	output->grid()->addWidget(modern::makeKnob(this, &controls->m_outClip, tr("CLIP"), tr("Output clip:"), " dBFS"), 1, 0);
+	layout->addWidget(output);
 }
 
 

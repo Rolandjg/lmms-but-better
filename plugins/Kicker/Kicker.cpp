@@ -26,9 +26,13 @@
 #include "Kicker.h"
 
 #include <QDomElement>
+#include <QPainter>
+#include <QPainterPath>
+#include <cmath>
 
 #include "AudioEngine.h"
 #include "Engine.h"
+#include "FontHelper.h"
 #include "InstrumentTrack.h"
 #include "Knob.h"
 #include "LedCheckBox.h"
@@ -211,6 +215,40 @@ void KickerInstrument::playNote( NotePlayHandle * _n,
 
 
 
+float KickerInstrument::previewStartFrequency() const
+{
+	return m_startNoteModel.value() ? instrumentTrack()->baseFreq() : m_startFreqModel.value();
+}
+
+
+
+
+float KickerInstrument::previewEndFrequency() const
+{
+	return m_endNoteModel.value() ? instrumentTrack()->baseFreq() : m_endFreqModel.value();
+}
+
+
+
+
+std::vector<float> KickerInstrument::renderPreview(float sampleRate) const
+{
+	const float length = m_decayModel.value() * sampleRate / 1000.0f;
+	SweepOsc osc(DistFX(m_distModel.value(), m_gainModel.value()),
+		previewStartFrequency(), previewEndFrequency(),
+		m_noiseModel.value() * m_noiseModel.value(), m_clickModel.value() * 0.25f,
+		m_slopeModel.value(), m_envModel.value(), m_distModel.value(), m_distEndModel.value(), length);
+
+	std::vector<SampleFrame> frames(static_cast<std::size_t>(length) + 1);
+	osc.update(frames.data(), frames.size(), sampleRate);
+	std::vector<float> mono(frames.size());
+	for (std::size_t i = 0; i < frames.size(); ++i) { mono[i] = frames[i].left(); }
+	return mono;
+}
+
+
+
+
 void KickerInstrument::deleteNotePluginData( NotePlayHandle * _n )
 {
 	delete static_cast<SweepOsc *>( _n->m_pluginData );
@@ -267,10 +305,161 @@ public:
 
 
 
+namespace
+{
+
+constexpr int PreviewTop = 176;
+const QColor KickerBlue(81, 159, 255);
+
+//! Engraved screen showing the rendered kick (blue) and its pitch sweep (pale line)
+class KickerPreview : public QWidget
+{
+public:
+	KickerPreview(KickerInstrument* kicker, QWidget* parent) :
+		QWidget(parent),
+		m_kicker(kicker)
+	{
+		setToolTip(QObject::tr("Preview of one kick at the track's base note: waveform and pitch sweep"));
+	}
+
+	void invalidate()
+	{
+		m_dirty = true;
+		update();
+	}
+
+protected:
+	void paintEvent(QPaintEvent*) override
+	{
+		if (m_dirty)
+		{
+			// Rendering a few hundred ms of a sine sweep is cheap enough to do on demand
+			m_samples = m_kicker->renderPreview(PreviewRate);
+			m_dirty = false;
+		}
+
+		QPainter p(this);
+		p.setRenderHint(QPainter::Antialiasing);
+		const QRectF outer = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+
+		// Engraved bevel like the panels of the artwork: dark top-left, light bottom-right
+		p.setPen(QPen(QColor(90, 94, 98), 1));
+		p.drawLine(outer.topLeft(), outer.topRight());
+		p.drawLine(outer.topLeft(), outer.bottomLeft());
+		p.setPen(QPen(QColor(235, 237, 240), 1));
+		p.drawLine(outer.bottomLeft(), outer.bottomRight());
+		p.drawLine(outer.topRight(), outer.bottomRight());
+
+		const QRectF screen = outer.adjusted(1.5, 1.5, -1.5, -1.5);
+		QLinearGradient bg(0, screen.top(), 0, screen.bottom());
+		bg.setColorAt(0, QColor(12, 16, 22));
+		bg.setColorAt(1, QColor(26, 33, 42));
+		p.setPen(Qt::NoPen);
+		p.setBrush(bg);
+		p.drawRoundedRect(screen, 3, 3);
+
+		const double mid = screen.center().y();
+		const double half = screen.height() / 2.0 - 4.0;
+		p.setPen(QPen(QColor(255, 255, 255, 25), 1));
+		p.drawLine(QPointF(screen.left() + 3, mid), QPointF(screen.right() - 3, mid));
+
+		const auto count = m_samples.size();
+		if (count > 1)
+		{
+			// Min/max per pixel column keeps even long, dense kicks readable
+			const int columns = static_cast<int>(screen.width()) - 6;
+			QPainterPath wave;
+			std::vector<QPointF> lower;
+			for (int x = 0; x < columns; ++x)
+			{
+				const auto from = count * x / columns;
+				const auto to = std::max(from + 1, count * (x + 1) / columns);
+				float lo = 1.f, hi = -1.f;
+				for (auto i = from; i < to && i < count; ++i)
+				{
+					lo = std::min(lo, m_samples[i]);
+					hi = std::max(hi, m_samples[i]);
+				}
+				const double px = screen.left() + 3 + x;
+				const QPointF top(px, mid - std::clamp(hi, -1.f, 1.f) * half);
+				if (x == 0) { wave.moveTo(top); } else { wave.lineTo(top); }
+				lower.emplace_back(px, mid - std::clamp(lo, -1.f, 1.f) * half);
+			}
+			for (auto it = lower.rbegin(); it != lower.rend(); ++it) { wave.lineTo(*it); }
+			wave.closeSubpath();
+
+			QColor fill = KickerBlue;
+			fill.setAlpha(170);
+			p.setBrush(fill);
+			p.setPen(QPen(KickerBlue.lighter(130), 0.8));
+			p.drawPath(wave);
+		}
+
+		// Pitch sweep on a log scale from 20 Hz to 1 kHz, following the oscillator's formula
+		const float startFreq = m_kicker->previewStartFrequency();
+		const float endFreq = m_kicker->previewEndFrequency();
+		const float slope = m_kicker->frequencySlope();
+		auto freqToY = [&](float f)
+		{
+			const float norm = std::log(std::clamp(f, 20.f, 1000.f) / 20.f) / std::log(50.f);
+			return screen.bottom() - 4 - norm * (screen.height() - 8);
+		};
+		QPainterPath pitch;
+		const int steps = 80;
+		for (int i = 0; i <= steps; ++i)
+		{
+			const float t = static_cast<float>(i) / steps;
+			const float f = endFreq + (startFreq - endFreq) * (1.f - std::pow(t, slope));
+			const QPointF pt(screen.left() + 3 + t * (screen.width() - 6), freqToY(f));
+			if (i == 0) { pitch.moveTo(pt); } else { pitch.lineTo(pt); }
+		}
+		p.setBrush(Qt::NoBrush);
+		p.setPen(QPen(QColor(230, 240, 255, 200), 1.2, Qt::DashLine));
+		p.drawPath(pitch);
+
+		p.setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
+		p.setPen(QColor(170, 205, 255));
+		p.drawText(QRectF(screen.left() + 6, screen.top() + 3, 140, 12), Qt::AlignLeft | Qt::AlignVCenter,
+			QObject::tr("%1 Hz → %2 Hz").arg(qRound(startFreq)).arg(qRound(endFreq)));
+		p.drawText(QRectF(screen.right() - 86, screen.bottom() - 15, 80, 12), Qt::AlignRight | Qt::AlignVCenter,
+			QObject::tr("%1 ms").arg(qRound(m_kicker->lengthMs())));
+	}
+
+private:
+	static constexpr float PreviewRate = 22050.f;
+
+	KickerInstrument* m_kicker;
+	std::vector<float> m_samples;
+	bool m_dirty = true;
+};
+
+} // namespace
+
+
+
+
+void KickerInstrumentView::paintEvent(QPaintEvent*)
+{
+	// The original artwork is split just above the logo panel to make room for the preview,
+	// and the gap is filled with the brushed metal in between the panels
+	static const auto artwork = PLUGIN_NAME::getIconPixmap("artwork");
+	QPainter p(this);
+	p.drawPixmap(0, 0, artwork, 0, 0, 250, PreviewTop);
+	p.drawPixmap(QRect(0, PreviewTop, 250, PreviewHeight), artwork, QRect(0, PreviewTop, 250, 2));
+	p.drawPixmap(0, PreviewTop + PreviewHeight, artwork, 0, PreviewTop, 250, 250 - PreviewTop);
+}
+
+
+
+
 KickerInstrumentView::KickerInstrumentView( Instrument * _instrument,
 							QWidget * _parent ) :
-	InstrumentViewFixedSize( _instrument, _parent )
+	InstrumentView( _instrument, _parent )
 {
+	setFixedSize(sizeHint());
+	m_preview = new KickerPreview(castModel<KickerInstrument>(), this);
+	m_preview->setGeometry(9, PreviewTop + 2, 232, PreviewHeight - 4);
+
 	const int ROW1 = 14;
 	const int ROW2 = ROW1 + 56;
 	const int ROW3 = ROW2 + 56;
@@ -328,10 +517,6 @@ KickerInstrumentView::KickerInstrumentView( Instrument * _instrument,
 	m_endNoteToggle = new LedCheckBox( "", this, "", LedCheckBox::LedColor::Green );
 	m_endNoteToggle->move( END_COL + 8, LED_ROW );
 
-	setAutoFillBackground( true );
-	QPalette pal;
-	pal.setBrush( backgroundRole(), PLUGIN_NAME::getIconPixmap( "artwork" ) );
-	setPalette( pal );
 }
 
 
@@ -352,6 +537,15 @@ void KickerInstrumentView::modelChanged()
 	m_slopeKnob->setModel( &k->m_slopeModel );
 	m_startNoteToggle->setModel( &k->m_startNoteModel );
 	m_endNoteToggle->setModel( &k->m_endNoteModel );
+
+	auto preview = static_cast<KickerPreview*>(m_preview);
+	for (Model* model : std::initializer_list<Model*>{&k->m_startFreqModel, &k->m_endFreqModel, &k->m_decayModel,
+		&k->m_distModel, &k->m_distEndModel, &k->m_gainModel, &k->m_envModel, &k->m_noiseModel, &k->m_clickModel,
+		&k->m_slopeModel, &k->m_startNoteModel, &k->m_endNoteModel})
+	{
+		connect(model, &Model::dataChanged, preview, [preview] { preview->invalidate(); });
+	}
+	preview->invalidate();
 }
 
 

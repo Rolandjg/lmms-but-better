@@ -25,6 +25,7 @@
 #ifndef EQCONTROLS_H
 #define EQCONTROLS_H
 
+#include "ComboBoxModel.h"
 #include "EffectControls.h"
 #include "EqSpectrumView.h"
 
@@ -43,6 +44,8 @@ class EqControls : public EffectControls
 {
 	Q_OBJECT
 public:
+	IntModel& soloBandModel() { return m_soloBandModel; }
+
 	explicit EqControls( EqEffect* effect );
 	~EqControls() override = default;
 
@@ -133,6 +136,11 @@ private:
 
 	BoolModel m_analyseInModel;
 	BoolModel m_analyseOutModel;
+
+	//! Which part of the signal the bands process: stereo, mid only or side only
+	ComboBoxModel m_channelModeModel;
+	//! Band being auditioned (-1 = none). Transient, not saved.
+	IntModel m_soloBandModel;
 
 	friend class gui::EqControlsDialog;
 	friend class EqEffect;

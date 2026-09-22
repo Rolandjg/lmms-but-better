@@ -26,21 +26,23 @@
 #ifndef FLANGEREFFECT_H
 #define FLANGEREFFECT_H
 
+#include <array>
+#include <atomic>
+
 #include "Effect.h"
+#include "ModernDsp.h"
 #include "FlangerControls.h"
 
 namespace lmms
 {
 
-class MonoDelay;
-class QuadratureLfo;
 
 
 class FlangerEffect : public Effect
 {
 public:
 	FlangerEffect( Model* parent , const Descriptor::SubPluginFeatures::Key* key );
-	~FlangerEffect() override;
+	~FlangerEffect() override = default;
 
 	ProcessStatus processImpl(SampleFrame* buf, const f_cnt_t frames) override;
 
@@ -51,11 +53,15 @@ public:
 	void changeSampleRate();
 	void restartLFO();
 
+	//! Current left-channel delay in seconds, published for the response display
+	std::atomic<float> m_currentDelay{0.001f};
+
 private:
 	FlangerControls m_flangerControls;
-	MonoDelay* m_lDelay;
-	MonoDelay* m_rDelay;
-	QuadratureLfo* m_lfo;
+	std::array<dsp::DelayLine, 2> m_delays;
+	std::array<float, 2> m_lastOut{};
+	double m_lfoPhase = 0.0;
+	float m_sampleRate = 44100.f;
 };
 
 

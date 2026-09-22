@@ -24,6 +24,9 @@
 
 
 #include "FlangerControls.h"
+
+#include <QDomElement>
+
 #include "FlangerEffect.h"
 #include "Engine.h"
 #include "Song.h"
@@ -41,9 +44,13 @@ FlangerControls::FlangerControls( FlangerEffect *effect ) :
 	m_lfoPhaseModel(90.f, 0.f, 360.f, 0.0001f, this, tr("Stereo phase")),
 	m_feedbackModel(0.f, -1.f, 1.f, 0.0001f, this, tr("Feedback")),
 	m_whiteNoiseAmountModel(0.f, 0.f, 0.05f, 0.0001f, this, tr("Noise")),
-	m_invertFeedbackModel ( false, this, tr( "Invert" ) )
-
+	m_invertFeedbackModel ( false, this, tr( "Invert" ) ),
+	m_mixModel(50.f, 0.f, 100.f, 0.1f, this, tr("Mix")),
+	m_shapeModel(this, tr("LFO shape"))
 {
+	m_shapeModel.addItem(tr("Sine"));
+	m_shapeModel.addItem(tr("Triangle"));
+
 	connect( Engine::audioEngine(), SIGNAL( sampleRateChanged() ), this, SLOT( changedSampleRate() ) );
 	connect( Engine::getSong(), SIGNAL( playbackStateChanged() ), this, SLOT( changedPlaybackState() ) );
 }
@@ -60,7 +67,13 @@ void FlangerControls::loadSettings( const QDomElement &_this )
 	m_feedbackModel.loadSettings( _this, "Feedback" );
 	m_whiteNoiseAmountModel.loadSettings( _this, "WhiteNoise" );
 	m_invertFeedbackModel.loadSettings( _this, "Invert" );
+	m_shapeModel.loadSettings(_this, "Shape");
 
+	// Before the mix control existed the flanger output was 100 % wet, which projects
+	// relied on together with the effect's dry/wet knob; keep them sounding the same.
+	const bool hasMix = _this.hasAttribute("Mix") || !_this.firstChildElement("Mix").isNull();
+	m_mixModel.loadSettings(_this, "Mix");
+	if (!hasMix) { m_mixModel.setValue(100.f); }
 }
 
 
@@ -75,6 +88,8 @@ void FlangerControls::saveSettings( QDomDocument &doc, QDomElement &parent )
 	m_feedbackModel.saveSettings( doc, parent, "Feedback" ) ;
 	m_whiteNoiseAmountModel.saveSettings( doc, parent , "WhiteNoise" ) ;
 	m_invertFeedbackModel.saveSettings( doc, parent, "Invert" );
+	m_mixModel.saveSettings(doc, parent, "Mix");
+	m_shapeModel.saveSettings(doc, parent, "Shape");
 }
 
 

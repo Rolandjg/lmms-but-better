@@ -28,7 +28,10 @@
 #define BIT_INVADER_H
 
 #include "AutomatableModel.h"
+#include <array>
+
 #include "Instrument.h"
+#include "SampleFrame.h"
 #include "InstrumentView.h"
 #include "Graph.h"
 
@@ -50,10 +53,16 @@ class BSynth
 public:
 	BSynth( float * sample, NotePlayHandle * _nph,
 			bool _interpolation, float factor, 
-			const sample_rate_t _sample_rate );
+			const sample_rate_t _sample_rate,
+			int unisonVoices = 1, float unisonDetune = 0.f, float unisonSpread = 0.f );
 	virtual ~BSynth();
 	
 	sample_t nextStringSample( float sample_length );
+
+	//! Next stereo frame; with a single voice both channels equal nextStringSample()
+	SampleFrame nextFrame(float sampleLength);
+
+	static constexpr int MaxUnisonVoices = 8;
 
 
 private:
@@ -64,6 +73,15 @@ private:
 	const sample_rate_t sample_rate;
 
 	bool interpolation;
+
+	float readShape(float position, float sampleLength) const;
+
+	//! Extra phases, pitch ratios and stereo gains used when unison is on
+	int m_voices = 1;
+	std::array<float, MaxUnisonVoices> m_phases{};
+	std::array<float, MaxUnisonVoices> m_ratios{};
+	std::array<float, MaxUnisonVoices> m_gainsLeft{};
+	std::array<float, MaxUnisonVoices> m_gainsRight{};
 	
 } ;
 
@@ -105,6 +123,10 @@ private:
 	
 	BoolModel m_interpolation;
 	BoolModel m_normalize;
+
+	FloatModel m_unisonVoicesModel;
+	FloatModel m_unisonDetuneModel;
+	FloatModel m_unisonSpreadModel;
 	
 	float m_normalizeFactor;
 	
@@ -143,6 +165,9 @@ private:
 	void modelChanged() override;
 
 	Knob * m_sampleLengthKnob;
+	Knob * m_unisonVoicesKnob;
+	Knob * m_unisonDetuneKnob;
+	Knob * m_unisonSpreadKnob;
 	PixmapButton * m_sinWaveBtn;
 	PixmapButton * m_triangleWaveBtn;
 	PixmapButton * m_sqrWaveBtn;

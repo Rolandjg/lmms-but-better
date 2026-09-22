@@ -25,6 +25,8 @@
 
 #include "DualFilter.h"
 
+#include <cmath>
+
 #include "embed.h"
 #include "BasicFilters.h"
 #include "plugin_export.h"
@@ -127,6 +129,11 @@ Effect::ProcessStatus DualFilterEffect::processImpl(SampleFrame* buf, const f_cn
 
 	const bool enabled1 = m_dfControls.m_enabled1Model.value();
 	const bool enabled2 = m_dfControls.m_enabled2Model.value();
+	const bool serial = m_dfControls.m_routingModel.value() == static_cast<int>(DualFilterControls::Routing::Serial);
+	const float drive = m_dfControls.m_driveModel.value() * 0.01f;
+	// Drive pushes the input into a soft clipper and compensates the level afterwards
+	const float driveGain = 1.f + drive * 7.f;
+	const float driveMakeup = 1.f / std::tanh(driveGain);
 
 
 
@@ -139,9 +146,15 @@ Effect::ProcessStatus DualFilterEffect::processImpl(SampleFrame* buf, const f_cn
 		const float mix1 = 1.0f - mix2;
 		const float gain1 = *gain1Ptr * 0.01f;
 		const float gain2 = *gain2Ptr * 0.01f;
+		auto in = std::array{buf[f][0], buf[f][1]};
+		if (drive > 0.f)
+		{
+			in[0] = std::tanh(in[0] * driveGain) * driveMakeup;
+			in[1] = std::tanh(in[1] * driveGain) * driveMakeup;
+		}
 		auto s = std::array{0.0f, 0.0f};	// mix
-		auto s1 = std::array{buf[f][0], buf[f][1]};	// filter 1
-		auto s2 = std::array{buf[f][0], buf[f][1]};	// filter 2
+		auto s1 = in;	// filter 1
+		auto s2 = in;	// filter 2
 
 		// update filter 1
 		if( enabled1 )
@@ -166,6 +179,23 @@ Effect::ProcessStatus DualFilterEffect::processImpl(SampleFrame* buf, const f_cn
 			// apply mix
 			s[0] += ( s1[0] * mix1 );
 			s[1] += ( s1[1] * mix1 );
+		}
+
+		// In serial mode filter 2 processes filter 1's output; the mix knob then blends
+		// between the output of the first stage and the output of the whole chain
+		if (serial)
+		{
+			if (!enabled1)
+			{
+				s[0] += s1[0] * mix1;
+				s[1] += s1[1] * mix1;
+			}
+			s2 = s1;
+			if (!enabled2)
+			{
+				s[0] += s2[0] * mix2;
+				s[1] += s2[1] * mix2;
+			}
 		}
 
 		// update filter 2

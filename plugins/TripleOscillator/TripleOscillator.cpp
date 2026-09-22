@@ -25,18 +25,26 @@
 
 #include <QDomElement>
 #include <QFileInfo>
+#include <QPainter>
+#include <cmath>
+#include <numbers>
+#include <vector>
 
 #include "TripleOscillator.h"
 #include "AudioEngine.h"
 #include "AutomatableButton.h"
+#include "lmms_math.h"
+#include "ModernDsp.h"
 #include "Engine.h"
 #include "FileDialog.h"
 #include "InstrumentTrack.h"
 #include "Knob.h"
+#include "LcdSpinBox.h"
 #include "NotePlayHandle.h"
 #include "Oscillator.h"
 #include "PathUtil.h"
 #include "PixmapButton.h"
+#include "FontHelper.h"
 #include "SampleBuffer.h"
 #include "Song.h"
 #include "embed.h"
@@ -213,8 +221,16 @@ void OscillatorObject::updateUseWaveTable()
 
 
 TripleOscillator::TripleOscillator( InstrumentTrack * _instrument_track ) :
-	Instrument( _instrument_track, &tripleoscillator_plugin_descriptor )
+	Instrument( _instrument_track, &tripleoscillator_plugin_descriptor ),
+	m_unisonVoicesModel(this, tr("Unison voices")),
+	m_unisonDetuneModel(15.f, 0.f, 100.f, 0.1f, this, tr("Unison detune")),
+	m_unisonSpreadModel(60.f, 0.f, 100.f, 0.1f, this, tr("Unison stereo spread"))
 {
+	for (int v = 1; v <= MaxUnisonVoices; ++v)
+	{
+		m_unisonVoicesModel.addItem(QString::number(v));
+	}
+
 	for( int i = 0; i < NUM_OF_OSCILLATORS; ++i )
 	{
 		m_osc[i] = new OscillatorObject( this, i );
@@ -254,6 +270,9 @@ void TripleOscillator::saveSettings( QDomDocument & _doc, QDomElement & _this )
 		_this.setAttribute( "userwavefile" + is,
 					m_osc[i]->m_sampleBuffer->audioFile() );
 	}
+	m_unisonVoicesModel.saveSettings(_doc, _this, "unisonVoices");
+	m_unisonDetuneModel.saveSettings(_doc, _this, "unisonDetune");
+	m_unisonSpreadModel.saveSettings(_doc, _this, "unisonSpread");
 }
 
 
@@ -290,6 +309,10 @@ void TripleOscillator::loadSettings( const QDomElement & _this )
 			else { Engine::getSong()->collectError(QString("%1: %2").arg(tr("Sample not found"), userWaveFile)); }
 		}
 	}
+	// Unison was added later; older projects load with a single voice
+	m_unisonVoicesModel.loadSettings(_this, "unisonVoices");
+	m_unisonDetuneModel.loadSettings(_this, "unisonDetune");
+	m_unisonSpreadModel.loadSettings(_this, "unisonSpread");
 }
 
 
@@ -303,79 +326,148 @@ QString TripleOscillator::nodeName() const
 
 
 
+//! Per-voice copies of the oscillator parameters. The Oscillator class keeps references
+//! to these, so they must stay at a stable address for the lifetime of the note.
+struct TripleOscillator::UnisonVoice
+{
+	std::array<float, NUM_OF_OSCILLATORS> detuneLeft{}, detuneRight{};
+	std::array<float, NUM_OF_OSCILLATORS> phaseLeft{}, phaseRight{};
+	std::array<float, NUM_OF_OSCILLATORS> volumeLeft{}, volumeRight{};
+	std::array<float, NUM_OF_OSCILLATORS> randomPhase{};
+	float detuneRatio = 1.f;
+	float gainLeft = 1.f;
+	float gainRight = 1.f;
+	Oscillator* left = nullptr;
+	Oscillator* right = nullptr;
+};
+
+struct TripleOscillator::NoteData
+{
+	std::vector<UnisonVoice> voices;
+	std::vector<SampleFrame> scratch;
+
+	~NoteData()
+	{
+		for (auto& voice : voices)
+		{
+			delete voice.left;
+			delete voice.right;
+		}
+	}
+};
+
+
+
+
 void TripleOscillator::playNote( NotePlayHandle * _n,
 						SampleFrame* _working_buffer )
 {
 	if (!_n->m_pluginData)
 	{
-		auto oscs_l = std::array<Oscillator*, NUM_OF_OSCILLATORS>{};
-		auto oscs_r = std::array<Oscillator*, NUM_OF_OSCILLATORS>{};
+		auto data = new NoteData;
+		const int voiceCount = std::clamp(m_unisonVoicesModel.value() + 1, 1, MaxUnisonVoices);
+		// Sized once: oscillators hold references into these elements
+		data->voices.resize(voiceCount);
+		data->scratch.resize(Engine::audioEngine()->framesPerPeriod());
 
-		for( int i = NUM_OF_OSCILLATORS - 1; i >= 0; --i )
+		const float detune = m_unisonDetuneModel.value();
+		const float spread = m_unisonSpreadModel.value() * 0.01f;
+		for (int v = 0; v < voiceCount; ++v)
 		{
-
-			// the last oscs needs no sub-oscs...
-			if( i == NUM_OF_OSCILLATORS - 1 )
+			auto& voice = data->voices[v];
+			const auto layout = dsp::unisonVoice(v, voiceCount, detune, spread);
+			voice.detuneRatio = layout.detuneRatio;
+			voice.gainLeft = layout.gainLeft;
+			voice.gainRight = layout.gainRight;
+			// Each voice starts at a random point in time so the stack doesn't sum into one loud
+			// click. Offsetting every oscillator by the same time (not the same phase) keeps the
+			// phase relationships between the oscillators, which MIX, AM, PM and sync rely on.
+			const float cycles = voiceCount > 1 ? fastRand(1.f) : 0.f;
+			const float sampleRate = Engine::audioEngine()->outputSampleRate();
+			for (int i = 0; i < NUM_OF_OSCILLATORS; ++i)
 			{
-				oscs_l[i] = new Oscillator(
-						&m_osc[i]->m_waveShapeModel,
-						&m_osc[i]->m_modulationAlgoModel,
-						_n->frequency(),
-						m_osc[i]->m_detuningLeft,
-						m_osc[i]->m_phaseOffsetLeft,
-						m_osc[i]->m_volumeLeft );
-				oscs_l[i]->setUseWaveTable(m_osc[i]->m_useWaveTable);
-				oscs_r[i] = new Oscillator(
-						&m_osc[i]->m_waveShapeModel,
-						&m_osc[i]->m_modulationAlgoModel,
-						_n->frequency(),
-						m_osc[i]->m_detuningRight,
-						m_osc[i]->m_phaseOffsetRight,
-						m_osc[i]->m_volumeRight );
-				oscs_r[i]->setUseWaveTable(m_osc[i]->m_useWaveTable);
+				const float multiplier = m_osc[i]->m_detuningLeft * sampleRate;
+				voice.randomPhase[i] = cycles * multiplier - std::floor(cycles * multiplier);
 			}
-			else
-			{
-				oscs_l[i] = new Oscillator(
-						&m_osc[i]->m_waveShapeModel,
-						&m_osc[i]->m_modulationAlgoModel,
-						_n->frequency(),
-						m_osc[i]->m_detuningLeft,
-						m_osc[i]->m_phaseOffsetLeft,
-						m_osc[i]->m_volumeLeft,
-						oscs_l[i + 1] );
-				oscs_l[i]->setUseWaveTable(m_osc[i]->m_useWaveTable);
-				oscs_r[i] = new Oscillator(
-						&m_osc[i]->m_waveShapeModel,
-						&m_osc[i]->m_modulationAlgoModel,
-						_n->frequency(),
-						m_osc[i]->m_detuningRight,
-						m_osc[i]->m_phaseOffsetRight,
-						m_osc[i]->m_volumeRight,
-						oscs_r[i + 1] );
-				oscs_r[i]->setUseWaveTable(m_osc[i]->m_useWaveTable);
-			}
-
-			oscs_l[i]->setUserWave( m_osc[i]->m_sampleBuffer );
-			oscs_r[i]->setUserWave( m_osc[i]->m_sampleBuffer );
-			oscs_l[i]->setUserAntiAliasWaveTable(m_osc[i]->m_userAntiAliasWaveTable);
-			oscs_r[i]->setUserAntiAliasWaveTable(m_osc[i]->m_userAntiAliasWaveTable);
 		}
 
-		_n->m_pluginData = new oscPtr;
-		static_cast<oscPtr *>( _n->m_pluginData )->oscLeft = oscs_l[0];
-		static_cast< oscPtr *>( _n->m_pluginData )->oscRight =
-								oscs_r[0];
+		for (auto& voice : data->voices)
+		{
+			for (int i = 0; i < NUM_OF_OSCILLATORS; ++i)
+			{
+				voice.detuneLeft[i] = m_osc[i]->m_detuningLeft * voice.detuneRatio;
+				voice.detuneRight[i] = m_osc[i]->m_detuningRight * voice.detuneRatio;
+				voice.phaseLeft[i] = m_osc[i]->m_phaseOffsetLeft + voice.randomPhase[i];
+				voice.phaseRight[i] = m_osc[i]->m_phaseOffsetRight + voice.randomPhase[i];
+				voice.volumeLeft[i] = m_osc[i]->m_volumeLeft;
+				voice.volumeRight[i] = m_osc[i]->m_volumeRight;
+			}
+
+			Oscillator* subLeft = nullptr;
+			Oscillator* subRight = nullptr;
+			// Build the modulation chain from the last oscillator up to the first
+			for (int i = NUM_OF_OSCILLATORS - 1; i >= 0; --i)
+			{
+				auto left = new Oscillator(&m_osc[i]->m_waveShapeModel, &m_osc[i]->m_modulationAlgoModel,
+					_n->frequency(), voice.detuneLeft[i], voice.phaseLeft[i], voice.volumeLeft[i], subLeft);
+				auto right = new Oscillator(&m_osc[i]->m_waveShapeModel, &m_osc[i]->m_modulationAlgoModel,
+					_n->frequency(), voice.detuneRight[i], voice.phaseRight[i], voice.volumeRight[i], subRight);
+				for (auto osc : {left, right})
+				{
+					osc->setUseWaveTable(m_osc[i]->m_useWaveTable);
+					osc->setUserWave(m_osc[i]->m_sampleBuffer);
+					osc->setUserAntiAliasWaveTable(m_osc[i]->m_userAntiAliasWaveTable);
+				}
+				subLeft = left;
+				subRight = right;
+			}
+			voice.left = subLeft;
+			voice.right = subRight;
+		}
+
+		_n->m_pluginData = data;
 	}
 
-	Oscillator * osc_l = static_cast<oscPtr *>( _n->m_pluginData )->oscLeft;
-	Oscillator * osc_r = static_cast<oscPtr *>( _n->m_pluginData )->oscRight;
+	auto data = static_cast<NoteData*>(_n->m_pluginData);
 
 	const f_cnt_t frames = _n->framesLeftForCurrentPeriod();
 	const f_cnt_t offset = _n->noteOffset();
+	const bool unison = data->voices.size() > 1;
 
-	osc_l->update( _working_buffer + offset, frames, 0 );
-	osc_r->update( _working_buffer + offset, frames, 1 );
+	for (auto& voice : data->voices)
+	{
+		// Track live knob changes (the oscillators read these by reference)
+		for (int i = 0; i < NUM_OF_OSCILLATORS; ++i)
+		{
+			voice.detuneLeft[i] = m_osc[i]->m_detuningLeft * voice.detuneRatio;
+			voice.detuneRight[i] = m_osc[i]->m_detuningRight * voice.detuneRatio;
+			voice.volumeLeft[i] = m_osc[i]->m_volumeLeft;
+			voice.volumeRight[i] = m_osc[i]->m_volumeRight;
+		}
+	}
+
+	if (!unison)
+	{
+		auto& voice = data->voices.front();
+		voice.left->update(_working_buffer + offset, frames, 0);
+		voice.right->update(_working_buffer + offset, frames, 1);
+	}
+	else
+	{
+		// Render each voice separately and sum with its stereo position and level
+		zeroSampleFrames(_working_buffer + offset, frames);
+		auto scratch = data->scratch.data();
+		for (auto& voice : data->voices)
+		{
+			voice.left->update(scratch, frames, 0);
+			voice.right->update(scratch, frames, 1);
+			for (f_cnt_t f = 0; f < frames; ++f)
+			{
+				_working_buffer[offset + f][0] += scratch[f][0] * voice.gainLeft;
+				_working_buffer[offset + f][1] += scratch[f][1] * voice.gainRight;
+			}
+		}
+	}
 
 	applyFadeIn(_working_buffer, _n);
 	applyRelease( _working_buffer, _n );
@@ -386,11 +478,7 @@ void TripleOscillator::playNote( NotePlayHandle * _n,
 
 void TripleOscillator::deleteNotePluginData( NotePlayHandle * _n )
 {
-	delete static_cast<Oscillator *>( static_cast<oscPtr *>(
-						_n->m_pluginData )->oscLeft );
-	delete static_cast<Oscillator *>( static_cast<oscPtr *>(
-						_n->m_pluginData )->oscRight );
-	delete static_cast<oscPtr *>( _n->m_pluginData );
+	delete static_cast<NoteData*>(_n->m_pluginData);
 }
 
 
@@ -406,7 +494,7 @@ gui::PluginView* TripleOscillator::instantiateView( QWidget * _parent )
 
 void TripleOscillator::updateAllDetuning()
 {
-	for (const auto& osc : m_osc)
+	for (auto& osc : m_osc)
 	{
 		osc->updateDetuningLeft();
 		osc->updateDetuningRight();
@@ -434,14 +522,8 @@ public:
 
 TripleOscillatorView::TripleOscillatorView( Instrument * _instrument,
 							QWidget * _parent ) :
-	InstrumentViewFixedSize( _instrument, _parent )
+	InstrumentView( _instrument, _parent )
 {
-	setAutoFillBackground( true );
-	QPalette pal;
-	pal.setBrush( backgroundRole(),
-				PLUGIN_NAME::getIconPixmap( "artwork" ) );
-	setPalette( pal );
-
 	const int mod_x = 66;
 	const int mod1_y = 58;
 	const int mod2_y = 75;
@@ -693,6 +775,59 @@ TripleOscillatorView::TripleOscillatorView( Instrument * _instrument,
 		m_oscKnobs[i] = OscillatorKnobs( vk, pk, ck, flk, frk, pok,
 							spdk, uwb, wsbg, uwt );
 	}
+
+	// Unison was added later: its controls sit on a strip below the original artwork
+	m_unisonVoices = new LcdSpinBox(1, this, tr("Unison voices"));
+	m_unisonVoices->setDisplayOffset(1);
+	m_unisonVoices->setToolTip(tr("Number of stacked voices per note"));
+	m_unisonVoices->move(96 - m_unisonVoices->sizeHint().width() / 2, UnisonStripY + 6);
+
+	// Same columns as the phase knobs above
+	m_unisonDetune = new TripleOscKnob(this);
+	m_unisonDetune->move(188, UnisonStripY + 3);
+	m_unisonDetune->setHintText(tr("Unison detune:"), " " + tr("cents"));
+
+	m_unisonSpread = new TripleOscKnob(this);
+	m_unisonSpread->move(217, UnisonStripY + 3);
+	m_unisonSpread->setHintText(tr("Unison stereo spread:"), "%");
+
+	setFixedSize(sizeHint());
+}
+
+
+
+
+void TripleOscillatorView::paintEvent(QPaintEvent*)
+{
+	static const auto artwork = PLUGIN_NAME::getIconPixmap("artwork");
+	QPainter p(this);
+	p.drawPixmap(0, 0, artwork);
+
+	// Continue the artwork's plain grey below it, with a separator like the ones between the oscillators
+	static const QColor grey = artwork.toImage().pixelColor(artwork.width() - 2, artwork.height() - 2);
+	p.fillRect(QRect(0, UnisonStripY, width(), height() - UnisonStripY), grey);
+	p.setPen(grey.darker(125));
+	p.drawLine(4, UnisonStripY, width() - 5, UnisonStripY);
+
+	// The knob bodies are printed in the artwork, so reuse the printed one under the phase-offset knob
+	const QRect printedKnob(188, 109, 28, 26);
+	for (const Knob* knob : {m_unisonDetune, m_unisonSpread})
+	{
+		p.drawPixmap(QRect(knob->pos(), printedKnob.size()), artwork, printedKnob);
+	}
+
+	auto f = adjustedToPixelSize(font(), SMALL_FONT_SIZE);
+	f.setBold(true);
+	p.setFont(f);
+	p.setPen(QColor(90, 90, 90));
+	const int labelY = UnisonStripY + 30;
+	p.drawText(QRect(66, labelY, 60, 12), Qt::AlignHCenter | Qt::AlignTop, tr("VOICES"));
+	p.drawText(QRect(180, labelY, 40, 12), Qt::AlignHCenter | Qt::AlignTop, tr("DET"));
+	p.drawText(QRect(208, labelY, 42, 12), Qt::AlignHCenter | Qt::AlignTop, tr("SPRD"));
+
+	f.setPixelSize(13);
+	p.setFont(f);
+	p.drawText(QRect(6, UnisonStripY + 2, 58, 28), Qt::AlignLeft | Qt::AlignVCenter, tr("UNISON"));
 }
 
 
@@ -729,6 +864,10 @@ void TripleOscillatorView::modelChanged()
 						SIGNAL( doubleClicked() ),
 				t->m_osc[i], SLOT( oscUserDefWaveDblClick() ) );
 	}
+
+	m_unisonVoices->setModel(&t->m_unisonVoicesModel);
+	m_unisonDetune->setModel(&t->m_unisonDetuneModel);
+	m_unisonSpread->setModel(&t->m_unisonSpreadModel);
 }
 
 

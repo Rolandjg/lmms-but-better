@@ -44,17 +44,24 @@ MultitapEchoControls::MultitapEchoControls( MultitapEchoEffect * eff ) :
 	m_swapInputs( false, this, "Swap inputs" ),
 	m_stages( 1.0f, 1.0f, 4.0f, 1.0f, this, "Lowpass stages" ),
 	m_ampGraph( -60.0f, 0.0f, 16, this ),
-	m_lpGraph( 0.0f, 3.0f, 16, this )
+	m_lpGraph( 0.0f, 3.0f, 16, this ),
+	m_panGraph(-1.0f, 1.0f, 16, this),
+	m_feedback(0.0f, 0.0f, 95.0f, 0.1f, this, tr("Feedback"))
 {
 	m_stages.setStrictStepSize( true );
 	connect( &m_ampGraph, SIGNAL( samplesChanged( int, int ) ), this, SLOT( ampSamplesChanged( int, int ) ) );
 	connect( &m_lpGraph, SIGNAL( samplesChanged( int, int ) ), this, SLOT( lpSamplesChanged( int, int ) ) );
+	connect(&m_panGraph, SIGNAL(samplesChanged(int, int)), this, SLOT(panSamplesChanged(int, int)));
 
 	connect( &m_steps, SIGNAL( dataChanged() ), this, SLOT( lengthChanged() ) );
 	connect( Engine::audioEngine(), SIGNAL( sampleRateChanged() ), this, SLOT( sampleRateChanged() ) );
 
 	setDefaultAmpShape();
 	setDefaultLpShape();
+
+	// Every tap starts centered
+	std::vector<float> centered(m_steps.value(), 0.f);
+	m_panGraph.setSamples(centered.data());
 }
 
 
@@ -73,6 +80,11 @@ void MultitapEchoControls::saveSettings( QDomDocument & doc, QDomElement & paren
 	QString lpString;
 	base64::encode( (const char *) m_lpGraph.samples(), m_lpGraph.length() * sizeof(float), lpString );
 	parent.setAttribute( "lpsteps", lpString );
+
+	QString panString;
+	base64::encode((const char *) m_panGraph.samples(), m_panGraph.length() * sizeof(float), panString);
+	parent.setAttribute("pansteps", panString);
+	m_feedback.saveSettings(doc, parent, "feedback");
 }
 
 
@@ -89,11 +101,27 @@ void MultitapEchoControls::loadSettings( const QDomElement & elem )
 	
 	base64::decode( elem.attribute( "ampsteps"), &dst, &size );
 	m_ampGraph.setSamples( (float*) dst );
+	delete[] dst;
+	dst = nullptr;
 
 	base64::decode( elem.attribute( "lpsteps"), &dst, &size );
 	m_lpGraph.setSamples( (float*) dst );
-	
 	delete[] dst;
+	dst = nullptr;
+
+	// Per-tap panning and feedback were added later; older projects keep centered taps
+	if (elem.hasAttribute("pansteps"))
+	{
+		base64::decode(elem.attribute("pansteps"), &dst, &size);
+		m_panGraph.setSamples((float*) dst);
+		delete[] dst;
+	}
+	else
+	{
+		std::vector<float> centered(m_panGraph.length(), 0.f);
+		m_panGraph.setSamples(centered.data());
+	}
+	m_feedback.loadSettings(elem, "feedback");
 }
 
 
@@ -159,9 +187,23 @@ void MultitapEchoControls::lpResetClicked()
 }
 
 
+void MultitapEchoControls::panSamplesChanged(int begin, int end)
+{
+	const float* samples = m_panGraph.samples();
+	for (int i = begin; i <= end; ++i)
+	{
+		m_effect->m_pan[i] = samples[i];
+	}
+}
+
+
+
+
 void MultitapEchoControls::lengthChanged()
 {
 	const int len = m_steps.value();
+	m_panGraph.setLength(len);
+	panSamplesChanged(0, len - 1);
 	m_ampGraph.setLength( len );
 	ampSamplesChanged( 0, len - 1 );
 	m_lpGraph.setLength( len );

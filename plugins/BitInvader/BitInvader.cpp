@@ -24,6 +24,7 @@
 
 #include <cmath>
 #include <QDomElement>
+#include <QLabel>
 
 #include "BitInvader.h"
 #include "AudioEngine.h"
@@ -37,6 +38,8 @@
 #include "PixmapButton.h"
 #include "Song.h"
 #include "lmms_math.h"
+#include "FontHelper.h"
+#include "ModernDsp.h"
 
 #include "embed.h"
 #include "plugin_export.h"
@@ -69,7 +72,8 @@ Plugin::Descriptor PLUGIN_EXPORT bitinvader_plugin_descriptor =
 
 
 BSynth::BSynth( float * _shape, NotePlayHandle * _nph, bool _interpolation,
-				float _factor, const sample_rate_t _sample_rate ) :
+				float _factor, const sample_rate_t _sample_rate,
+				int unisonVoices, float unisonDetune, float unisonSpread ) :
 	sample_index( 0 ),
 	sample_realindex( 0 ),
 	nph( _nph ),
@@ -91,6 +95,52 @@ BSynth::BSynth( float * _shape, NotePlayHandle * _nph, bool _interpolation,
 		}
 		sample_shape[i] = buf;
 	}
+
+	m_voices = std::clamp(unisonVoices, 1, MaxUnisonVoices);
+	for (int v = 0; v < m_voices; ++v)
+	{
+		const auto layout = dsp::unisonVoice(v, m_voices, unisonDetune, unisonSpread);
+		m_ratios[v] = layout.detuneRatio;
+		m_gainsLeft[v] = layout.gainLeft;
+		m_gainsRight[v] = layout.gainRight;
+		// Random start phases keep the stacked voices from starting with one loud spike
+		m_phases[v] = m_voices > 1 ? fastRand(static_cast<float>(wavetableSize)) : 0.f;
+	}
+}
+
+
+
+
+float BSynth::readShape(float position, float sampleLength) const
+{
+	const auto index = static_cast<int>(position);
+	if (!interpolation) { return sample_shape[index]; }
+	const auto nextIndex = index < sampleLength - 1 ? index + 1 : 0;
+	return std::lerp(sample_shape[index], sample_shape[nextIndex], fraction(position));
+}
+
+
+
+
+SampleFrame BSynth::nextFrame(float sampleLength)
+{
+	if (m_voices == 1)
+	{
+		const auto s = nextStringSample(sampleLength);
+		return SampleFrame(s, s);
+	}
+
+	const auto baseStep = static_cast<float>(sampleLength / (sample_rate / nph->frequency()));
+	SampleFrame out;
+	for (int v = 0; v < m_voices; ++v)
+	{
+		auto& phase = m_phases[v];
+		while (phase >= sampleLength) { phase -= sampleLength; }
+		const float s = readShape(phase, sampleLength);
+		phase += baseStep * m_ratios[v];
+		out += SampleFrame(s * m_gainsLeft[v], s * m_gainsRight[v]);
+	}
+	return out;
 }
 
 
@@ -137,7 +187,10 @@ BitInvader::BitInvader( InstrumentTrack * _instrument_track ) :
 	m_sampleLength(wavetableSize, 4, wavetableSize, 1, this, tr("Sample length")),
 	m_graph(-1.0f, 1.0f, wavetableSize, this),
 	m_interpolation(false, this, tr("Interpolation")),
-	m_normalize(false, this, tr("Normalize"))
+	m_normalize(false, this, tr("Normalize")),
+	m_unisonVoicesModel(1.f, 1.f, BSynth::MaxUnisonVoices, 1.f, this, tr("Unison voices")),
+	m_unisonDetuneModel(15.f, 0.f, 100.f, 0.1f, this, tr("Unison detune")),
+	m_unisonSpreadModel(60.f, 0.f, 100.f, 0.1f, this, tr("Unison stereo spread"))
 {
 	m_graph.setWaveToSine();
 	lengthChanged();
@@ -176,6 +229,10 @@ void BitInvader::saveSettings( QDomDocument & _doc, QDomElement & _this )
 	
 	// save LED 
 	m_normalize.saveSettings( _doc, _this, "normalize" );
+
+	m_unisonVoicesModel.saveSettings(_doc, _this, "unisonVoices");
+	m_unisonDetuneModel.saveSettings(_doc, _this, "unisonDetune");
+	m_unisonSpreadModel.saveSettings(_doc, _this, "unisonSpread");
 }
 
 
@@ -205,6 +262,11 @@ void BitInvader::loadSettings( const QDomElement & _this )
 	m_interpolation.loadSettings( _this, "interpolation" );
 	// Load LED 
 	m_normalize.loadSettings( _this, "normalize" );
+
+	// Unison was added later; older projects load with a single voice
+	m_unisonVoicesModel.loadSettings(_this, "unisonVoices");
+	m_unisonDetuneModel.loadSettings(_this, "unisonDetune");
+	m_unisonSpreadModel.loadSettings(_this, "unisonSpread");
 
 }
 
@@ -264,7 +326,9 @@ void BitInvader::playNote( NotePlayHandle * _n,
 					const_cast<float*>( m_graph.samples() ),
 					_n,
 					m_interpolation.value(), factor,
-				Engine::audioEngine()->outputSampleRate() );
+				Engine::audioEngine()->outputSampleRate(),
+				static_cast<int>(m_unisonVoicesModel.value()),
+				m_unisonDetuneModel.value(), m_unisonSpreadModel.value() * 0.01f );
 	}
 
 	const f_cnt_t frames = _n->framesLeftForCurrentPeriod();
@@ -273,7 +337,7 @@ void BitInvader::playNote( NotePlayHandle * _n,
 	auto ps = static_cast<BSynth*>(_n->m_pluginData);
 	for( f_cnt_t frame = offset; frame < frames + offset; ++frame )
 	{
-		_working_buffer[frame] = SampleFrame(ps->nextStringSample(m_graph.length()));
+		_working_buffer[frame] = ps->nextFrame(m_graph.length());
 	}
 
 	applyRelease( _working_buffer, _n );
@@ -316,6 +380,26 @@ BitInvaderView::BitInvaderView( Instrument * _instrument,
 	m_sampleLengthKnob = new Knob( KnobType::Dark28, this );
 	m_sampleLengthKnob->move( 6, 201 );
 	m_sampleLengthKnob->setHintText( tr( "Sample length" ), "" );
+
+	// Unison knobs sit in the free space next to Length, with one caption styled like its label
+	auto unisonKnob = [this](const QString& hint, const QString& unit, int x)
+	{
+		auto knob = new Knob(KnobType::Small17, this);
+		knob->move(x, 208);
+		knob->setHintText(hint, unit);
+		return knob;
+	};
+	m_unisonVoicesKnob = unisonKnob(tr("Unison voices:"), "", 48);
+	m_unisonDetuneKnob = unisonKnob(tr("Unison detune:"), " " + tr("cents"), 74);
+	m_unisonSpreadKnob = unisonKnob(tr("Unison stereo spread:"), "%", 100);
+	auto unisonLabel = new QLabel(tr("Unison"), this);
+	auto labelFont = adjustedToPixelSize(unisonLabel->font(), SMALL_FONT_SIZE);
+	labelFont.setBold(true);
+	unisonLabel->setFont(labelFont);
+	unisonLabel->setStyleSheet("color: white;");
+	unisonLabel->setGeometry(44, 228, 78, 14);
+	unisonLabel->setAlignment(Qt::AlignCenter);
+	unisonLabel->setToolTip(tr("Voices, detune and stereo spread of the unison stack"));
 
 	m_graph = new Graph( this, Graph::Style::Nearest, 204, 134 );
 	m_graph->move(23,59);	// 55,120 - 2px border
@@ -443,6 +527,9 @@ void BitInvaderView::modelChanged()
 	m_sampleLengthKnob->setModel( &b->m_sampleLength );
 	m_interpolationToggle->setModel( &b->m_interpolation );
 	m_normalizeToggle->setModel( &b->m_normalize );
+	m_unisonVoicesKnob->setModel(&b->m_unisonVoicesModel);
+	m_unisonDetuneKnob->setModel(&b->m_unisonDetuneModel);
+	m_unisonSpreadKnob->setModel(&b->m_unisonSpreadModel);
 
 }
 

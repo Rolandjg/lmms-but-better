@@ -71,6 +71,12 @@ LMMS on Linux.
 
 ## If a plugin is missing
 
+On macOS, LMMS checks the native executable's code signature before loading
+a VST3 plugin. A damaged signature can otherwise cause macOS to terminate the
+whole application when plugin code runs. If the log reports **code signature
+validation failed**, reinstall the plugin using its original installer. This
+check also applies to scanning, so an invalid plugin may be absent from the list.
+
 1. Restart LMMS; there is no live VST3 rescan yet.
 2. On Linux, run `yabridgectl status` and fix any reported errors.
 3. For yabridge plugins, make sure the library and host versions match, then run

@@ -38,10 +38,12 @@ class AutomatableButtonGroup;
 class Knob;
 class PixmapButton;
 class ComboBox;
+class AutomatableButton;
+class LcdSpinBox;
 class AudioFileProcessorWaveView;
 
 
-class AudioFileProcessorView : public gui::InstrumentViewFixedSize
+class AudioFileProcessorView : public gui::InstrumentView
 {
 	Q_OBJECT
 public:
@@ -49,6 +51,9 @@ public:
 	virtual ~AudioFileProcessorView() = default;
 
 	void newWaveView();
+
+	QSize sizeHint() const override { return QSize(250, 290); }
+	QSize minimumSizeHint() const override { return sizeHint(); }
 
 protected slots:
 	void sampleUpdated();
@@ -76,6 +81,10 @@ private:
 	AutomatableButtonGroup* m_loopGroup;
 	PixmapButton* m_stutterButton;
 	ComboBox* m_interpBox;
+
+	AutomatableButton* m_warpButton;
+	LcdSpinBox* m_tempoSpinBox;
+	Knob* m_crossfadeKnob;
 } ;
 
 } // namespace gui

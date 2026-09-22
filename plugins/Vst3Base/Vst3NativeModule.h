@@ -10,6 +10,7 @@
 #include <dlfcn.h>
 #ifdef Q_OS_MACOS
 #include <CoreFoundation/CoreFoundation.h>
+#include <Security/Security.h>
 #endif
 
 namespace lmms::vst3
@@ -80,6 +81,30 @@ public:
 			return false;
 		}
 		binary = executablePath(bundlePath);
+		// dyld can load a damaged signed image successfully, then macOS kills
+		// the entire host when a bad code page is first touched. Validate the
+		// native executable before running any plugin code (including entry).
+		auto url = CFBundleCopyBundleURL(m_bundle);
+		SecStaticCodeRef code = nullptr;
+		auto status = SecStaticCodeCreateWithPath(url, kSecCSDefaultFlags, &code);
+		CFRelease(url);
+		if (status == errSecSuccess)
+		{
+			status = SecStaticCodeCheckValidity(code, kSecCSDoNotValidateResources, nullptr);
+		}
+		if (code) { CFRelease(code); }
+		// Preserve support for unsigned development plugins where macOS allows
+		// them. This checks signature integrity, not notarization or publisher.
+		if (status != errSecSuccess && status != errSecCSUnsigned)
+		{
+			if (error)
+			{
+				*error = QString("VST3 code signature validation failed for \"%1\" (macOS error %2). "
+					"Reinstall the plugin from its original installer before loading it.")
+					.arg(bundlePath).arg(status);
+			}
+			return false;
+		}
 		entryArgument = m_bundle;
 #endif
 		// Keep code mapped while asynchronous plugin threads unwind after exit.

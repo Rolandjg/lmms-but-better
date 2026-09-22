@@ -24,7 +24,10 @@
 #ifndef EQEFFECT_H
 #define EQEFFECT_H
 
+#include <array>
+
 #include "Effect.h"
+#include "ModernDsp.h"
 #include "EqControls.h"
 #include "EqFilter.h"
 
@@ -66,6 +69,10 @@ public:
 
 private:
 	EqControls m_eqControls;
+
+	//! Band-isolation filters used while a band is soloed
+	std::array<dsp::Biquad, 2> m_solo;
+	int m_lastSolo = -1;
 
 	EqHp12Filter m_hp12;
 	EqHp12Filter m_hp24;

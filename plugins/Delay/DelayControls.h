@@ -1,5 +1,5 @@
 /*
- * delaycontrols.h - declaration of DelayControl class.
+ * DelayControls.h - declaration of DelayControl class.
  *
  * Copyright (c) 2014 David French <dave/dot/french3/at/googlemail/dot/com>
  *
@@ -25,8 +25,10 @@
 #ifndef DELAYCONTROLS_H
 #define DELAYCONTROLS_H
 
+#include "ComboBoxModel.h"
 #include "EffectControls.h"
 #include "DelayControlsDialog.h"
+#include "TempoSyncKnobModel.h"
 
 namespace lmms
 {
@@ -39,6 +41,8 @@ class DelayControls : public EffectControls
 {
 	Q_OBJECT
 public:
+	enum class Mode { Stereo, PingPong, Mono };
+
 	DelayControls( DelayEffect* effect );
 	~DelayControls() override = default;
 	void saveSettings( QDomDocument& doc, QDomElement& parent ) override;
@@ -48,7 +52,7 @@ public:
 		return "Delay";
 	}
 	int controlCount() override{
-		return 5;
+		return 14;
 	}
 	gui::EffectControlDialog* createView() override
 	{
@@ -70,7 +74,17 @@ private:
 	TempoSyncKnobModel m_lfoAmountModel;
 	FloatModel m_outGainModel;
 
+	ComboBoxModel m_modeModel;
+	FloatModel m_offsetModel;
+	FloatModel m_lowCutModel;
+	FloatModel m_highCutModel;
+	FloatModel m_driveModel;
+	FloatModel m_widthModel;
+	FloatModel m_duckModel;
+	BoolModel m_freezeModel;
+
 	friend class gui::DelayControlsDialog;
+	friend class gui::DelayTapDisplay;
 	friend class DelayEffect;
 };
 

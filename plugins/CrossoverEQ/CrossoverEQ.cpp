@@ -25,6 +25,10 @@
  */
  
 #include "CrossoverEQ.h"
+
+#include <array>
+
+#include "ModernDsp.h"
 #include "lmms_math.h"
 #include "embed.h"
 #include "plugin_export.h"
@@ -126,65 +130,51 @@ Effect::ProcessStatus CrossoverEQEffect::processImpl(SampleFrame* buf, const f_c
 		m_gain4 = dbfsToAmp( m_controls.m_gain4.value() );
 	}
 	
-	// mute values update
-	const bool mute1 = m_controls.m_mute1.value();
-	const bool mute2 = m_controls.m_mute2.value();
-	const bool mute3 = m_controls.m_mute3.value();
-	const bool mute4 = m_controls.m_mute4.value();
-	
+	// mute values update (the models are "enabled" flags: true = band plays)
+	const std::array<bool, 4> enabled = {m_controls.m_mute1.value(), m_controls.m_mute2.value(),
+		m_controls.m_mute3.value(), m_controls.m_mute4.value()};
+	std::array<bool, 4> solo;
+	bool anySolo = false;
+	std::array<float, 4> width;
+	for (int i = 0; i < 4; ++i)
+	{
+		solo[i] = m_controls.m_solo[i].value();
+		anySolo = anySolo || solo[i];
+		width[i] = m_controls.m_width[i].value() * 0.01f;
+	}
+	const std::array<float, 4> gains = {m_gain1, m_gain2, m_gain3, m_gain4};
+
 	m_needsUpdate = false;
-	
+
 	zeroSampleFrames(m_work, frames);
-	
-	// run temp bands
+
 	for (auto f = std::size_t{0}; f < frames; ++f)
 	{
-		m_tmp1[f][0] = m_lp2.update( buf[f][0], 0 );
-		m_tmp1[f][1] = m_lp2.update( buf[f][1], 1 );
-		m_tmp2[f][0] = m_hp3.update( buf[f][0], 0 );
-		m_tmp2[f][1] = m_hp3.update( buf[f][1], 1 );
+		// Split into four bands; the filters always run so they stay in sync when a band is toggled
+		std::array<std::array<float, 2>, 4> band;
+		for (int ch = 0; ch < 2; ++ch)
+		{
+			const float low = m_lp2.update(buf[f][ch], ch);
+			const float high = m_hp3.update(buf[f][ch], ch);
+			band[0][ch] = m_lp1.update(low, ch);
+			band[1][ch] = m_hp2.update(low, ch);
+			band[2][ch] = m_lp3.update(high, ch);
+			band[3][ch] = m_hp4.update(high, ch);
+		}
+
+		for (int i = 0; i < 4; ++i)
+		{
+			// Soloed bands play regardless of their mute state; with any solo, all others are silent
+			const bool plays = anySolo ? solo[i] : enabled[i];
+			if (!plays) { continue; }
+			float left = band[i][0] * gains[i];
+			float right = band[i][1] * gains[i];
+			if (width[i] != 1.f) { dsp::applyWidth(left, right, width[i]); }
+			m_work[f][0] += left;
+			m_work[f][1] += right;
+		}
 	}
 
-	// run band 1
-	if( mute1 )
-	{
-		for (auto f = std::size_t{0}; f < frames; ++f)
-		{
-			m_work[f][0] += m_lp1.update( m_tmp1[f][0], 0 ) * m_gain1;
-			m_work[f][1] += m_lp1.update( m_tmp1[f][1], 1 ) * m_gain1;
-		}
-	}
-	
-	// run band 2
-	if( mute2 )
-	{
-		for (auto f = std::size_t{0}; f < frames; ++f)
-		{
-			m_work[f][0] += m_hp2.update( m_tmp1[f][0], 0 ) * m_gain2;
-			m_work[f][1] += m_hp2.update( m_tmp1[f][1], 1 ) * m_gain2;
-		}
-	}
-	
-	// run band 3
-	if( mute3 )
-	{
-		for (auto f = std::size_t{0}; f < frames; ++f)
-		{
-			m_work[f][0] += m_lp3.update( m_tmp2[f][0], 0 ) * m_gain3;
-			m_work[f][1] += m_lp3.update( m_tmp2[f][1], 1 ) * m_gain3;
-		}
-	}
-	
-	// run band 4
-	if( mute4 )
-	{
-		for (auto f = std::size_t{0}; f < frames; ++f)
-		{
-			m_work[f][0] += m_hp4.update( m_tmp2[f][0], 0 ) * m_gain4;
-			m_work[f][1] += m_hp4.update( m_tmp2[f][1], 1 ) * m_gain4;
-		}
-	}
-	
 	const float d = dryLevel();
 	const float w = wetLevel();
 

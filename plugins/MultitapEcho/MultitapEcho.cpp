@@ -24,6 +24,8 @@
  */
 
 #include "MultitapEcho.h"
+
+#include <algorithm>
 #include "embed.h"
 #include "LmmsTypes.h"
 #include "lmms_math.h"
@@ -71,6 +73,22 @@ MultitapEchoEffect::~MultitapEchoEffect()
 {
 	delete[] m_work;
 }
+
+
+void MultitapEchoEffect::applyPan(int tap, f_cnt_t frames)
+{
+	const float pan = m_pan[tap];
+	if (pan == 0.f) { return; }
+	const float left = std::min(1.f, 1.f - pan);
+	const float right = std::min(1.f, 1.f + pan);
+	for (f_cnt_t f = 0; f < frames; ++f)
+	{
+		m_work[f][0] *= left;
+		m_work[f][1] *= right;
+	}
+}
+
+
 
 
 void MultitapEchoEffect::updateFilters( int begin, int end )
@@ -126,6 +144,7 @@ Effect::ProcessStatus MultitapEchoEffect::processImpl(SampleFrame* buf, const f_
 			{
 				runFilter( m_work, buf, m_filter[i][s], frames );
 			}
+			applyPan(i, frames);
 			m_buffer.writeSwappedAddingMultiplied( m_work, offset, frames, m_amp[i] );
 			offset += stepLength;
 		}
@@ -139,6 +158,7 @@ Effect::ProcessStatus MultitapEchoEffect::processImpl(SampleFrame* buf, const f_
 			{
 				runFilter( m_work, buf, m_filter[i][s], frames );
 			}
+			applyPan(i, frames);
 			m_buffer.writeAddingMultiplied( m_work, offset, frames, m_amp[i] );
 			offset += stepLength;
 		}
@@ -146,6 +166,17 @@ Effect::ProcessStatus MultitapEchoEffect::processImpl(SampleFrame* buf, const f_
 	
 	// pop the buffer and mix it into output
 	m_buffer.pop( m_work );
+
+	// Feedback: send the output back in after the whole tap pattern, so the pattern repeats.
+	// The output can be the sum of all taps, so the loop gain is divided by their total gain,
+	// which keeps the loop stable for any tap levels.
+	const float feedback = m_controls.m_feedback.value() * 0.01f;
+	if (feedback > 0.f)
+	{
+		float patternGain = dryGain;
+		for (int i = 0; i < steps; ++i) { patternGain += m_amp[i]; }
+		m_buffer.writeAddingMultiplied(m_work, stepLength * (steps + 1), frames, feedback / std::max(1.f, patternGain));
+	}
 
 	for (auto f = std::size_t{0}; f < frames; ++f)
 	{

@@ -44,6 +44,7 @@ public:
 	~AmplifierControlDialog() override = default;
 };
 
+
 } // namespace gui
 
 } // namespace lmms

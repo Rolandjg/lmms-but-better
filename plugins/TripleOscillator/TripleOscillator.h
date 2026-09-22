@@ -31,6 +31,7 @@
 #include "Instrument.h"
 #include "InstrumentView.h"
 #include "AutomatableModel.h"
+#include "ComboBoxModel.h"
 #include "OscillatorConstants.h"
 #include "SampleBuffer.h"
 
@@ -46,6 +47,7 @@ namespace gui
 {
 class AutomatableButtonGroup;
 class Knob;
+class LcdSpinBox;
 class PixmapButton;
 class TripleOscillatorView;
 } // namespace gui
@@ -135,12 +137,14 @@ protected slots:
 private:
 	OscillatorObject * m_osc[NUM_OF_OSCILLATORS];
 
-	struct oscPtr
-	{
-		Oscillator * oscLeft;
-		Oscillator * oscRight;
-	} ;
+	//! Unison: every note plays several detuned, panned copies of the whole oscillator stack
+	static constexpr int MaxUnisonVoices = 8;
+	ComboBoxModel m_unisonVoicesModel;
+	FloatModel m_unisonDetuneModel;
+	FloatModel m_unisonSpreadModel;
 
+	struct UnisonVoice;
+	struct NoteData;
 
 	friend class gui::TripleOscillatorView;
 
@@ -151,12 +155,18 @@ namespace gui
 {
 
 
-class TripleOscillatorView : public InstrumentViewFixedSize
+class TripleOscillatorView : public InstrumentView
 {
 	Q_OBJECT
 public:
 	TripleOscillatorView( Instrument * _instrument, QWidget * _parent );
 	~TripleOscillatorView() override = default;
+
+	QSize sizeHint() const override { return QSize(250, UnisonStripY + UnisonStripHeight); }
+	QSize minimumSizeHint() const override { return sizeHint(); }
+
+protected:
+	void paintEvent(QPaintEvent*) override;
 
 
 private:
@@ -204,8 +214,14 @@ private:
 	} ;
 
 	OscillatorKnobs m_oscKnobs[NUM_OF_OSCILLATORS];
-} ;
 
+	//! The unison controls sit on a strip below the original 250x250 artwork
+	static constexpr int UnisonStripY = 250;
+	static constexpr int UnisonStripHeight = 42;
+	LcdSpinBox* m_unisonVoices;
+	Knob* m_unisonDetune;
+	Knob* m_unisonSpread;
+} ;
 
 } // namespace gui
 

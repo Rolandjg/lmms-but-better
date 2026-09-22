@@ -27,7 +27,11 @@
 #ifndef DYNPROC_H
 #define DYNPROC_H
 
+#include <atomic>
+#include <vector>
+
 #include "Effect.h"
+#include "SampleFrame.h"
 #include "DynamicsProcessorControls.h"
 
 namespace lmms
@@ -51,6 +55,9 @@ public:
 		return( &m_dpControls );
 	}
 
+	//! Detector level driving the curve lookup, for the graph indicator
+	std::atomic<float> m_detectorLevel{0.f};
+
 
 private:
 	void calcAttack();
@@ -66,6 +73,10 @@ private:
 	bool m_needsUpdate;
 	
 	RmsHelper * m_rms [2];
+
+	//! Delays the audio (not the detector) so gain changes land before the transients
+	std::vector<SampleFrame> m_lookaheadBuffer;
+	std::size_t m_lookaheadWrite = 0;
 
 	friend class DynProcControls;
 

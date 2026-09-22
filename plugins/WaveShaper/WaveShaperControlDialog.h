@@ -44,6 +44,11 @@ public:
 	WaveShaperControlDialog( WaveShaperControls * _controls );
 	~WaveShaperControlDialog() override = default;
 
+	//! Extra height added to the bottom panel for the oversampling row
+	static constexpr int ExtraHeight = 24;
+
+protected:
+	void paintEvent(QPaintEvent*) override;
 
 private:
 

@@ -45,6 +45,12 @@ public:
 	DynProcControlDialog( DynProcControls * _controls );
 	~DynProcControlDialog() override = default;
 
+	//! Extra height added to the bottom panel for the lookahead row
+	static constexpr int ExtraHeight = 24;
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+
 
 private:
 

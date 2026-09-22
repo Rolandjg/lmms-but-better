@@ -31,6 +31,7 @@
 #include <QWidget>
 
 #include "AutomatableModel.h"
+#include "EqControls.h"
 #include "EqCurve.h"
 
 
@@ -77,6 +78,10 @@ EqParameterWidget::EqParameterWidget( QWidget *parent, EqControls * controls ) :
 	{
 		// if the data of handle position has changed update the models
 		QObject::connect(m_handleList.at(i), SIGNAL(positionChanged()), this, SLOT(updateModels()));
+		QObject::connect(m_handleList.at(i), &EqHandle::soloRequested, this, [this](int band, bool solo)
+		{
+			m_controls->soloBandModel().setValue(solo ? band : -1);
+		});
 	}
 }
 

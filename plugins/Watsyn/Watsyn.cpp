@@ -24,7 +24,11 @@
 
 #include <QDomElement>
 
+#include <memory>
+#include <QPainter>
 #include "Watsyn.h"
+#include "FontHelper.h"
+#include "ModernDsp.h"
 #include "base64.h"
 #include "AudioEngine.h"
 #include "Engine.h"
@@ -236,9 +240,9 @@ void WatsynObject::renderOutput( f_cnt_t _frames )
 		// update phases
 		for( int i = 0; i < NUM_OSCS; i++ )
 		{
-			m_lphase[i] += ( static_cast<float>( WAVELEN ) / ( m_samplerate / ( m_nph->frequency() * m_parent->m_lfreq[i] ) ) );
+			m_lphase[i] += ( static_cast<float>( WAVELEN ) / ( m_samplerate / ( m_nph->frequency() * m_parent->m_lfreq[i] * m_detuneRatio ) ) );
 			m_lphase[i] = std::fmod(m_lphase[i], WAVELEN);
-			m_rphase[i] += ( static_cast<float>( WAVELEN ) / ( m_samplerate / ( m_nph->frequency() * m_parent->m_rfreq[i] ) ) );
+			m_rphase[i] += ( static_cast<float>( WAVELEN ) / ( m_samplerate / ( m_nph->frequency() * m_parent->m_rfreq[i] * m_detuneRatio ) ) );
 			m_rphase[i] = std::fmod(m_rphase[i], WAVELEN);
 		}
 	}
@@ -288,6 +292,9 @@ WatsynInstrument::WatsynInstrument( InstrumentTrack * _instrument_track ) :
 		m_envDec( 0.0f, 0.0f, 2000.0f, 1.0f, 2000.0f, this, tr( "A-B Mix envelope decay" ) ),
 
 		m_xtalk( 0.0f, 0.0f, 100.0f, 0.1f, this, tr( "A1-B2 Crosstalk" ) ),
+		m_unisonVoices(1.f, 1.f, 8.f, 1.f, this, tr("Unison voices")),
+		m_unisonDetune(15.f, 0.f, 100.f, 0.1f, this, tr("Unison detune")),
+		m_unisonSpread(60.f, 0.f, 100.f, 0.1f, this, tr("Unison stereo spread")),
 
 		m_amod( 0, 0, 3, this, tr( "A2-A1 modulation" ) ),
 		m_bmod( 0, 0, 3, this, tr( "B2-B1 modulation" ) ),
@@ -341,27 +348,95 @@ WatsynInstrument::WatsynInstrument( InstrumentTrack * _instrument_track ) :
 }
 
 
+void WatsynObject::setUnisonVoice(float detuneRatio, bool randomizePhases)
+{
+	m_detuneRatio = detuneRatio;
+	if (!randomizePhases) { return; }
+	// Start the voice at a random point in time rather than giving every oscillator its own random
+	// phase: each oscillator advances in proportion to its frequency multiplier, so the phase
+	// relationships inside the voice (which mixing, AM and PM depend on) are preserved
+	const float cycles = fastRand(1.f);
+	for (int i = 0; i < NUM_OSCS; ++i)
+	{
+		m_lphase[i] = std::fmod(cycles * m_parent->m_lfreq[i] * WAVELEN, static_cast<float>(WAVELEN));
+		m_rphase[i] = std::fmod(cycles * m_parent->m_rfreq[i] * WAVELEN, static_cast<float>(WAVELEN));
+	}
+}
+
+
+
+
+//! All voices of one note; with a single voice the object's own buffers are used directly
+struct WatsynInstrument::NoteData
+{
+	std::vector<std::unique_ptr<WatsynObject>> voices;
+	std::vector<dsp::UnisonVoice> layout;
+	std::vector<SampleFrame> a;
+	std::vector<SampleFrame> b;
+};
+
+
+
+
 void WatsynInstrument::playNote( NotePlayHandle * _n,
 						SampleFrame* _working_buffer )
 {
 	if (!_n->m_pluginData)
 	{
-		auto w = new WatsynObject(&A1_wave[0], &A2_wave[0], &B1_wave[0], &B2_wave[0], m_amod.value(), m_bmod.value(),
-			Engine::audioEngine()->outputSampleRate(), _n, Engine::audioEngine()->framesPerPeriod(), this);
-
-		_n->m_pluginData = w;
+		auto data = new NoteData;
+		const int voices = std::clamp(static_cast<int>(m_unisonVoices.value()), 1, 8);
+		const auto fpp = Engine::audioEngine()->framesPerPeriod();
+		for (int v = 0; v < voices; ++v)
+		{
+			auto voice = std::make_unique<WatsynObject>(&A1_wave[0], &A2_wave[0], &B1_wave[0], &B2_wave[0],
+				m_amod.value(), m_bmod.value(), Engine::audioEngine()->outputSampleRate(), _n, fpp, this);
+			const auto layout = dsp::unisonVoice(v, voices, m_unisonDetune.value(), m_unisonSpread.value() * 0.01f);
+			voice->setUnisonVoice(layout.detuneRatio, voices > 1);
+			data->layout.push_back(layout);
+			data->voices.push_back(std::move(voice));
+		}
+		if (voices > 1)
+		{
+			data->a.resize(fpp);
+			data->b.resize(fpp);
+		}
+		_n->m_pluginData = data;
 	}
 
 	const f_cnt_t frames = _n->framesLeftForCurrentPeriod();
 	const f_cnt_t offset = _n->noteOffset();
 	SampleFrame* buffer = _working_buffer + offset;
 
-	auto w = static_cast<WatsynObject*>(_n->m_pluginData);
+	auto data = static_cast<NoteData*>(_n->m_pluginData);
 
-	SampleFrame* abuf = w->abuf();
-	SampleFrame* bbuf = w->bbuf();
+	SampleFrame* abuf = data->voices.front()->abuf();
+	SampleFrame* bbuf = data->voices.front()->bbuf();
 
-	w-> renderOutput( frames );
+	const auto w = data->voices.front().get();
+
+	if (data->voices.size() == 1)
+	{
+		data->voices.front()->renderOutput(frames);
+	}
+	else
+	{
+		// Sum the A and B streams of every voice at its stereo position
+		std::fill_n(data->a.begin(), frames, SampleFrame());
+		std::fill_n(data->b.begin(), frames, SampleFrame());
+		for (std::size_t v = 0; v < data->voices.size(); ++v)
+		{
+			auto& voice = *data->voices[v];
+			const auto& layout = data->layout[v];
+			voice.renderOutput(frames);
+			for (f_cnt_t f = 0; f < frames; ++f)
+			{
+				data->a[f] += SampleFrame(voice.abuf()[f][0] * layout.gainLeft, voice.abuf()[f][1] * layout.gainRight);
+				data->b[f] += SampleFrame(voice.bbuf()[f][0] * layout.gainLeft, voice.bbuf()[f][1] * layout.gainRight);
+			}
+		}
+		abuf = data->a.data();
+		bbuf = data->b.data();
+	}
 
 	// envelope parameters
 	const float envAmt = m_envAmt.value();
@@ -465,7 +540,7 @@ void WatsynInstrument::playNote( NotePlayHandle * _n,
 
 void WatsynInstrument::deleteNotePluginData( NotePlayHandle * _n )
 {
-	delete static_cast<WatsynObject *>( _n->m_pluginData );
+	delete static_cast<NoteData*>( _n->m_pluginData );
 }
 
 
@@ -516,6 +591,9 @@ void WatsynInstrument::saveSettings( QDomDocument & _doc,
 	m_envDec.saveSettings( _doc, _this, "envDec" );
 
 	m_xtalk.saveSettings( _doc, _this, "xtalk" );
+	m_unisonVoices.saveSettings(_doc, _this, "unisonVoices");
+	m_unisonDetune.saveSettings(_doc, _this, "unisonDetune");
+	m_unisonSpread.saveSettings(_doc, _this, "unisonSpread");
 
 	m_amod.saveSettings( _doc, _this, "amod" );
 	m_bmod.saveSettings( _doc, _this, "bmod" );
@@ -573,6 +651,10 @@ void WatsynInstrument::loadSettings( const QDomElement & _this )
 	m_envDec.loadSettings( _this, "envDec" );
 
 	m_xtalk.loadSettings( _this, "xtalk" );
+	// Unison was added later; older presets load with a single voice
+	m_unisonVoices.loadSettings(_this, "unisonVoices");
+	m_unisonDetune.loadSettings(_this, "unisonDetune");
+	m_unisonSpread.loadSettings(_this, "unisonSpread");
 
 	m_amod.loadSettings( _this, "amod" );
 	m_bmod.loadSettings( _this, "bmod" );
@@ -674,13 +756,15 @@ namespace gui
 
 WatsynView::WatsynView( Instrument * _instrument,
 					QWidget * _parent ) :
-	InstrumentViewFixedSize( _instrument, _parent )
+	InstrumentView( _instrument, _parent )
 {
-	setAutoFillBackground( true );
+	setFixedSize(sizeHint());
 	QPalette pal;
 
-	pal.setBrush( backgroundRole(),	PLUGIN_NAME::getIconPixmap(	"artwork" ) );
-	setPalette( pal );
+	// Unison row below the graph, in the style of the mix envelope knobs
+	m_unisonVoicesKnob = makeKnob(66, 253, tr("Unison voices"), "", "mixenvKnob");
+	m_unisonDetuneKnob = makeKnob(126, 253, tr("Unison detune"), tr(" cents"), "mixenvKnob");
+	m_unisonSpreadKnob = makeKnob(186, 253, tr("Unison stereo spread"), "%", "mixenvKnob");
 
 // knobs... lots of em
 
@@ -1217,6 +1301,38 @@ void WatsynView::loadClicked()
 }
 
 
+void WatsynView::paintEvent(QPaintEvent*)
+{
+	static const auto artwork = PLUGIN_NAME::getIconPixmap("artwork");
+	QPainter p(this);
+	p.drawPixmap(0, 0, artwork);
+	// Continue the frosted texture below the original artwork
+	p.drawPixmap(QRect(0, 250, 250, UnisonStripHeight), artwork, QRect(0, 250 - UnisonStripHeight, 250, UnisonStripHeight));
+
+	// Separator and black knob wells like the ones printed in the artwork
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setPen(QPen(QColor(30, 40, 48, 120), 1));
+	p.drawLine(QPointF(4, 250.5), QPointF(246, 250.5));
+	p.setPen(Qt::NoPen);
+	p.setBrush(QColor(8, 8, 8));
+	for (auto knob : {m_unisonVoicesKnob, m_unisonDetuneKnob, m_unisonSpreadKnob})
+	{
+		p.drawEllipse(QRectF(knob->geometry()).adjusted(0.5, 0.5, -0.5, -0.5));
+	}
+
+	auto f = adjustedToPixelSize(font(), SMALL_FONT_SIZE);
+	f.setBold(true);
+	p.setFont(f);
+	p.setPen(QColor(20, 26, 32));
+	p.drawText(QRectF(6, 252, 58, 20), Qt::AlignLeft | Qt::AlignVCenter, tr("UNISON"));
+	p.drawText(QRectF(88, 252, 36, 20), Qt::AlignLeft | Qt::AlignVCenter, tr("VOX"));
+	p.drawText(QRectF(148, 252, 36, 20), Qt::AlignLeft | Qt::AlignVCenter, tr("DET"));
+	p.drawText(QRectF(208, 252, 40, 20), Qt::AlignLeft | Qt::AlignVCenter, tr("WIDE"));
+}
+
+
+
+
 void WatsynView::modelChanged()
 {
 	auto w = castModel<WatsynInstrument>();
@@ -1264,6 +1380,9 @@ void WatsynView::modelChanged()
 	m_envDecKnob -> setModel( &w -> m_envDec );
 
 	m_xtalkKnob -> setModel( &w -> m_xtalk );
+	m_unisonVoicesKnob->setModel(&w->m_unisonVoices);
+	m_unisonDetuneKnob->setModel(&w->m_unisonDetune);
+	m_unisonSpreadKnob->setModel(&w->m_unisonSpread);
 }
 
 

@@ -26,6 +26,7 @@
 #ifndef DYNPROC_CONTROLS_H
 #define DYNPROC_CONTROLS_H
 
+#include "ComboBoxModel.h"
 #include "EffectControls.h"
 #include "DynamicsProcessorControlDialog.h"
 #include "Graph.h"
@@ -61,7 +62,7 @@ public:
 
 	int controlCount() override
 	{
-		return( 6 );
+		return( 7 );
 	}
 
 	gui::EffectControlDialog * createView() override
@@ -89,6 +90,8 @@ private:
 	FloatModel m_releaseModel;
 	graphModel m_wavegraphModel;
 	IntModel m_stereomodeModel;
+	//! Lookahead in steps of LookaheadSteps (index 0 = off)
+	ComboBoxModel m_lookaheadModel;
 
 	friend class gui::DynProcControlDialog;
 	friend class DynProcEffect;

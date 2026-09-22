@@ -26,7 +26,10 @@
 #ifndef REVERBSC_H
 #define REVERBSC_H
 
+#include <array>
+
 #include "Effect.h"
+#include "ModernDsp.h"
 #include "ReverbSCControls.h"
 
 extern "C" {
@@ -61,6 +64,15 @@ private:
 	sp_revsc *revsc;
 	sp_dcblock *dcblk[2];
 	QMutex mutex;
+
+	std::array<dsp::DelayLine, 2> m_predelay;
+	std::array<dsp::TwoPole, 2> m_lowCut;
+	dsp::Smoother m_predelaySmoother;
+	dsp::Smoother m_freezeSmoother;
+	dsp::EnvelopeFollower m_duckEnvelope;
+	float m_sampleRate = 44100.f;
+
+	void setupHelpers();
 	friend class ReverbSCControls;
 } ;
 

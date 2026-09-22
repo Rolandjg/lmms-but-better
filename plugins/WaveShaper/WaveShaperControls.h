@@ -26,6 +26,7 @@
 #ifndef WAVESHAPER_CONTROLS_H
 #define WAVESHAPER_CONTROLS_H
 
+#include "ComboBoxModel.h"
 #include "EffectControls.h"
 #include "WaveShaperControlDialog.h"
 #include "Graph.h"
@@ -55,7 +56,7 @@ public:
 
 	int controlCount() override
 	{
-		return( 4 );
+		return( 5 );
 	}
 
 	gui::EffectControlDialog* createView() override
@@ -79,6 +80,8 @@ private:
 	FloatModel m_outputModel;
 	graphModel m_wavegraphModel;
 	BoolModel  m_clipModel;
+	//! 0 = off, n = 2^n times oversampling
+	ComboBoxModel m_oversampleModel;
 
 	friend class gui::WaveShaperControlDialog;
 	friend class WaveShaperEffect;

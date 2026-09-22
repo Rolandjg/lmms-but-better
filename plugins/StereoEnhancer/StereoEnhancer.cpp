@@ -25,6 +25,9 @@
 
 #include "StereoEnhancer.h"
 
+#include "AudioEngine.h"
+#include "Engine.h"
+
 #include "embed.h"
 #include "plugin_export.h"
 
@@ -87,13 +90,45 @@ Effect::ProcessStatus StereoEnhancerEffect::processImpl(SampleFrame* buf, const 
 	m_delayBufferCleared = false;
 	const float d = dryLevel();
 	const float w = wetLevel();
+	const float sr = Engine::audioEngine()->outputSampleRate();
+
+	auto& c = m_bbControls;
+	const float lowWidth = c.m_lowWidthModel.value() * 0.01f;
+	const float midWidth = c.m_midWidthModel.value() * 0.01f;
+	const float highWidth = c.m_highWidthModel.value() * 0.01f;
+	const bool multiband = lowWidth != 1.f || midWidth != 1.f || highWidth != 1.f;
+	for (auto ch = 0; ch < 2; ++ch)
+	{
+		m_lowSplit[ch].setCutoff(c.m_lowCrossoverModel.value(), sr);
+		m_highSplit[ch].setCutoff(c.m_highCrossoverModel.value(), sr);
+	}
+
+	SampleFrame peak;
 
 	for (f_cnt_t f = 0; f < frames; ++f)
 	{
+		auto in = std::array{buf[f][0], buf[f][1]};
+
+		if (multiband)
+		{
+			// Complementary three-band split (low + mid + high == input), each band gets its own width
+			std::array<float, 2> low, mid, high;
+			for (auto ch = 0; ch < 2; ++ch)
+			{
+				low[ch] = m_lowSplit[ch].lowpass(in[ch]);
+				const float rest = in[ch] - low[ch];
+				mid[ch] = m_highSplit[ch].lowpass(rest);
+				high[ch] = rest - mid[ch];
+			}
+			dsp::applyWidth(low[0], low[1], lowWidth);
+			dsp::applyWidth(mid[0], mid[1], midWidth);
+			dsp::applyWidth(high[0], high[1], highWidth);
+			in = {low[0] + mid[0] + high[0], low[1] + mid[1] + high[1]};
+		}
 
 		// copy samples into the delay buffer
-		m_delayBuffer[m_currFrame][0] = buf[f][0];
-		m_delayBuffer[m_currFrame][1] = buf[f][1];
+		m_delayBuffer[m_currFrame][0] = in[0];
+		m_delayBuffer[m_currFrame][1] = in[1];
 
 		// Get the width knob value from the Stereo Enhancer effect
 		float width = m_seFX.wideCoeff();
@@ -107,10 +142,12 @@ Effect::ProcessStatus StereoEnhancerEffect::processImpl(SampleFrame* buf, const 
 			frameIndex += DEFAULT_BUFFER_SIZE;
 		}
 
-		//sample_t s[2] = { buf[f][0], buf[f][1] };	//Vanilla
-		auto s = std::array{buf[f][0], m_delayBuffer[frameIndex][1]};	//Chocolate
+		auto s = std::array{in[0], m_delayBuffer[frameIndex][1]};
 
 		m_seFX.nextSample( s[0], s[1] );
+
+		peak = peak.absMax(SampleFrame(s[0], s[1]));
+		m_scope.push(s[0], s[1]);
 
 		buf[f][0] = d * buf[f][0] + w * s[0];
 		buf[f][1] = d * buf[f][1] + w * s[1];
@@ -119,6 +156,9 @@ Effect::ProcessStatus StereoEnhancerEffect::processImpl(SampleFrame* buf, const 
 		m_currFrame += 1;
 		m_currFrame %= DEFAULT_BUFFER_SIZE;
 	}
+
+	c.m_outPeakL = peak.left();
+	c.m_outPeakR = peak.right();
 
 	return ProcessStatus::ContinueIfNotQuiet;
 }

@@ -48,7 +48,7 @@ CrossoverEQControlDialog::CrossoverEQControlDialog(CrossoverEQControls *controls
 	QPalette pal;
 	pal.setBrush(backgroundRole(), PLUGIN_NAME::getIconPixmap("artwork"));
 	setPalette(pal);
-	setFixedSize(167, 218);
+	setFixedSize(167, 262);
 	auto layout = new QVBoxLayout(this);
 
 	auto knobsLayout = new QHBoxLayout();
@@ -107,6 +107,21 @@ CrossoverEQControlDialog::CrossoverEQControlDialog(CrossoverEQControls *controls
 	makeMuteBtn(&controls->m_mute2, tr("Mute band 2"), 1);
 	makeMuteBtn(&controls->m_mute3, tr("Mute band 3"), 2);
 	makeMuteBtn(&controls->m_mute4, tr("Mute band 4"), 3);
+
+	for (int i = 0; i < 4; ++i)
+	{
+		auto solo = new AutomatableButton(this, tr("Solo band %1").arg(i + 1));
+		solo->setCheckable(true);
+		solo->setModel(&controls->m_solo[i]);
+		solo->setToolTip(tr("Solo band %1").arg(i + 1));
+		solo->setObjectName("btn-solo");
+		bandsLayout->addWidget(solo, 2, i, Qt::AlignCenter);
+
+		auto width = new Knob(KnobType::Small17, tr("W"), SMALL_FONT_SIZE, this);
+		width->setModel(&controls->m_width[i]);
+		width->setHintText(tr("Band %1 stereo width:").arg(i + 1), "%");
+		bandsLayout->addWidget(width, 3, i, Qt::AlignCenter);
+	}
 }
 
 

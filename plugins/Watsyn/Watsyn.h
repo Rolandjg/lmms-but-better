@@ -95,6 +95,9 @@ public:
 		return m_samplerate;
 	}
 
+	//! Unison: pitch ratio applied to every oscillator of this voice, and randomized start phases
+	void setUnisonVoice(float detuneRatio, bool randomizePhases);
+
 private:
 	int m_amod;
 	int m_bmod;
@@ -103,6 +106,7 @@ private:
 	NotePlayHandle * m_nph;
 
 	f_cnt_t m_fpp;
+	float m_detuneRatio = 1.f;
 
 	WatsynInstrument * m_parent;
 
@@ -265,6 +269,12 @@ private:
 
 	FloatModel m_xtalk;
 
+	FloatModel m_unisonVoices;
+	FloatModel m_unisonDetune;
+	FloatModel m_unisonSpread;
+
+	struct NoteData;
+
 	IntModel m_amod;
 	IntModel m_bmod;
 
@@ -284,13 +294,21 @@ namespace gui
 {
 
 
-class WatsynView : public InstrumentViewFixedSize
+class WatsynView : public InstrumentView
 {
 	Q_OBJECT
 public:
 	WatsynView( Instrument * _instrument,
 					QWidget * _parent );
 	~WatsynView() override = default;
+
+	QSize sizeHint() const override { return QSize(250, 250 + UnisonStripHeight); }
+	QSize minimumSizeHint() const override { return sizeHint(); }
+
+	static constexpr int UnisonStripHeight = 26;
+
+protected:
+	void paintEvent(QPaintEvent*) override;
 
 protected slots:
 	void updateLayout();
@@ -323,6 +341,10 @@ private:
 	};
 
 // knobs
+	Knob * m_unisonVoicesKnob;
+	Knob * m_unisonDetuneKnob;
+	Knob * m_unisonSpreadKnob;
+
 	Knob * a1_volKnob;
 	Knob * a2_volKnob;
 	Knob * b1_volKnob;

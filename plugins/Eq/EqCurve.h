@@ -70,6 +70,7 @@ public:
 	bool isMouseHover();
 	void setMouseHover( bool d );
 	bool isActiveHandle();
+	bool isSoloing() const { return m_soloing; }
 	void setHandleActive( bool a );
 	bool mousePressed() const;
 	void sethp12();
@@ -81,6 +82,8 @@ public:
 
 signals:
 	void positionChanged();
+	//! Alt/Option-click on a handle auditions its band while the button is held
+	void soloRequested(int band, bool solo);
 
 protected:
 	void mousePressEvent( QGraphicsSceneMouseEvent *event ) override;
@@ -109,6 +112,7 @@ private:
 	float m_width, m_heigth;
 	float m_resonance;
 	bool m_mousePressed;
+	bool m_soloing = false;
 	bool m_active;
 	QPixmap m_circlePixmap;
 };

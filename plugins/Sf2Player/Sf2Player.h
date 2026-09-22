@@ -96,6 +96,8 @@ public slots:
 	void openFile( const QString & _sf2File, bool updateTrackName = true );
 	void updatePatch();
 	void reloadSynth();
+	//! Select the previous (-1) or next (+1) preset of the loaded SoundFonts, wrapping around
+	void stepPreset(int direction);
 	
 	// We can't really support sample-exact with the way IPH and FS work.
 	// So, sig/slots work just fine for the synth settings right now.

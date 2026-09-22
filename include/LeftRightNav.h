@@ -25,13 +25,16 @@
 #ifndef LMMS_GUI_LEFT_RIGHT_NAV_H
 #define LMMS_GUI_LEFT_RIGHT_NAV_H
 
+#include <QHBoxLayout>
 #include <QPushButton>
+
+#include "lmms_export.h"
 
 
 namespace lmms::gui
 {
 
-class LeftRightNav : public QWidget
+class LMMS_EXPORT LeftRightNav : public QWidget
 {
 	Q_OBJECT
 public:

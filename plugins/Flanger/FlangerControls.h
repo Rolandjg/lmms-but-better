@@ -25,6 +25,7 @@
 #ifndef FLANGERCONTROLS_H
 #define FLANGERCONTROLS_H
 
+#include "ComboBoxModel.h"
 #include "EffectControls.h"
 #include "FlangerControlsDialog.h"
 
@@ -48,8 +49,10 @@ public:
 	}
 	int controlCount() override
 	{
-		return 7;
+		return 9;
 	}
+
+	enum class Shape { Sine, Triangle };
 	gui::EffectControlDialog* createView() override
 	{
 		return new gui::FlangerControlsDialog( this );
@@ -68,8 +71,11 @@ private:
 	FloatModel m_feedbackModel;
 	FloatModel m_whiteNoiseAmountModel;
 	BoolModel m_invertFeedbackModel;
+	FloatModel m_mixModel;
+	ComboBoxModel m_shapeModel;
 
 	friend class gui::FlangerControlsDialog;
+	friend class gui::FlangerResponseDisplay;
 	friend class FlangerEffect;
 
 };

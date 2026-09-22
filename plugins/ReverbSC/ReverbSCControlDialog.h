@@ -47,6 +47,23 @@ public:
 } ;
 
 
+//! Plots the estimated decay envelope: low frequencies in the accent color,
+//! highs (shortened by the Color damping) on top, starting after the pre-delay
+class ReverbDecayDisplay : public QWidget
+{
+	Q_OBJECT
+public:
+	ReverbDecayDisplay(ReverbSCControls* controls, QWidget* parent);
+	QSize sizeHint() const override { return QSize(300, 96); }
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+
+private:
+	ReverbSCControls* m_controls;
+};
+
+
 } // namespace gui
 
 } // namespace lmms

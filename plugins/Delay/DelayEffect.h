@@ -1,5 +1,5 @@
 /*
- * delayeffect.h - declaration of DelayEffect class, the Delay plugin
+ * DelayEffect.h - declaration of DelayEffect class, the Delay plugin
  *
  * Copyright (c) 2014 David French <dave/dot/french3/at/googlemail/dot/com>
  *
@@ -25,20 +25,20 @@
 #ifndef DELAYEFFECT_H
 #define DELAYEFFECT_H
 
+#include <array>
+
 #include "Effect.h"
 #include "DelayControls.h"
+#include "ModernDsp.h"
 
 namespace lmms
 {
-
-class Lfo;
-class StereoDelay;
 
 class DelayEffect : public Effect
 {
 public:
 	DelayEffect(Model* parent , const Descriptor::SubPluginFeatures::Key* key );
-	~DelayEffect() override;
+	~DelayEffect() override = default;
 
 	ProcessStatus processImpl(SampleFrame* buf, const f_cnt_t frames) override;
 
@@ -48,12 +48,21 @@ public:
 	}
 	void changeSampleRate();
 
+	//! Longest delay the buffers can hold, in seconds (time + stereo offset + modulation)
+	static constexpr float MaxDelaySeconds = 8.5f;
+
 private:
 	DelayControls m_delayControls;
-	StereoDelay* m_delay;
-	Lfo* m_lfo;
-	float m_outGain;
-	float m_currentLength;
+
+	float m_sampleRate;
+	std::array<dsp::DelayLine, 2> m_lines;
+	std::array<dsp::Smoother, 2> m_timeSmoothers;
+	std::array<dsp::TwoPole, 2> m_lowCut;
+	std::array<dsp::TwoPole, 2> m_highCut;
+	dsp::Smoother m_freezeSmoother;
+	dsp::EnvelopeFollower m_duckEnvelope;
+	double m_lfoPhase = 0.0;
+	float m_outGain = 1.f;
 };
 
 

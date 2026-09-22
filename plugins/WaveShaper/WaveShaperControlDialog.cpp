@@ -33,6 +33,11 @@
 #include "Knob.h"
 #include "PixmapButton.h"
 #include "LedCheckBox.h"
+#include "ModernWidgets.h"
+#include "WaveShaper.h"
+
+#include <QLabel>
+#include <QPainter>
 
 namespace lmms::gui
 {
@@ -42,12 +47,8 @@ WaveShaperControlDialog::WaveShaperControlDialog(
 					WaveShaperControls * _controls ) :
 	EffectControlDialog( _controls )
 {
-	setAutoFillBackground( true );
+	setFixedSize(224, 274 + ExtraHeight);
 	QPalette pal;
-	pal.setBrush( backgroundRole(),
-				PLUGIN_NAME::getIconPixmap( "artwork" ) );
-	setPalette( pal );
-	setFixedSize( 224, 274 );
 
 	auto waveGraph = new Graph(this, Graph::Style::LinearNonCyclic, 204, 205);
 	waveGraph -> move( 10, 6 );
@@ -105,6 +106,21 @@ WaveShaperControlDialog::WaveShaperControlDialog(
 	clipInputToggle -> setModel( &_controls -> m_clipModel );
 	clipInputToggle->setToolTip(tr("Clip input signal to 0 dB"));
 
+	// Where the signal currently sits on the curve
+	auto indicator = new GraphLevelIndicator(this, &_controls->m_wavegraphModel, &_controls->m_effect->m_inputLevel,
+		QColor(85, 204, 145));
+	indicator->setGeometry(waveGraph->geometry().adjusted(2, 2, -2, -2));
+	indicator->raise();
+
+	auto oversampleLabel = new QLabel(tr("OVERSAMPLE"), this);
+	oversampleLabel->setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
+	oversampleLabel->move(26, 276);
+	auto oversample = new ModernSegmented(this);
+	oversample->setStyle(ModernSegmented::Style::Outline);
+	oversample->setModel(&_controls->m_oversampleModel);
+	oversample->setToolTip(tr("Process at a higher sample rate to reduce aliasing from hard shaping curves"));
+	oversample->setGeometry(100, 273, 104, 17);
+
 	connect( resetButton, SIGNAL (clicked () ),
 			_controls, SLOT ( resetClicked() ) );
 	connect( smoothButton, SIGNAL (clicked () ),
@@ -113,6 +129,18 @@ WaveShaperControlDialog::WaveShaperControlDialog(
 			_controls, SLOT( addOneClicked() ) );
 	connect( subOneButton, SIGNAL( clicked() ),
 			_controls, SLOT( subOneClicked() ) );
+}
+
+
+void WaveShaperControlDialog::paintEvent(QPaintEvent*)
+{
+	// Stretch the middle of the original bottom panel to make room for the oversampling row
+	static const auto artwork = PLUGIN_NAME::getIconPixmap("artwork");
+	constexpr int split = 250;
+	QPainter p(this);
+	p.drawPixmap(0, 0, artwork, 0, 0, 224, split);
+	p.drawPixmap(QRect(0, split, 224, ExtraHeight), artwork, QRect(0, split - 4, 224, 4));
+	p.drawPixmap(0, split + ExtraHeight, artwork, 0, split, 224, 274 - split);
 }
 
 

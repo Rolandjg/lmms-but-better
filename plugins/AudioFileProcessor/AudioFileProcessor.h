@@ -74,6 +74,12 @@ public:
 	IntModel & loopModel() { return m_loopModel; }
 	BoolModel & stutterModel() { return m_stutterModel; }
 	ComboBoxModel & interpolationModel() { return m_interpolationModel; }
+	BoolModel & warpModel() { return m_warpModel; }
+	IntModel & sampleTempoModel() { return m_sampleTempoModel; }
+	FloatModel & crossfadeModel() { return m_crossfadeModel; }
+
+	//! Guess the tempo of a loop from a "... 140 BPM" style file name or from its length
+	static int detectTempo(const QString& fileName, double seconds);
 
 
 public slots:
@@ -87,6 +93,8 @@ private slots:
 	void endPointChanged();
 	void pointChanged();
 	void stutterModelChanged();
+	//! Coalesces several parameter changes into one rebuild on the GUI thread
+	void scheduleRebuild();
 
 
 signals:
@@ -94,6 +102,16 @@ signals:
 	void sampleUpdated();
 
 private:
+	//! Derive the playback sample from the source: time-stretch to the song tempo (warp)
+	//! and bake the loop crossfade into the loop end
+	void rebuildPlaybackSample();
+	bool crossfadeActive() const;
+
+	std::shared_ptr<const SampleBuffer> m_sourceBuffer;
+	std::vector<SampleFrame> m_warpedFrames;
+	double m_warpedRatio = 0.0;
+	bool m_rebuildQueued = false;
+
 	Sample m_sample;
 
 	FloatModel m_ampModel;
@@ -104,6 +122,9 @@ private:
 	IntModel m_loopModel;
 	BoolModel m_stutterModel;
 	ComboBoxModel m_interpolationModel;
+	BoolModel m_warpModel;
+	IntModel m_sampleTempoModel;
+	FloatModel m_crossfadeModel;
 
 	f_cnt_t m_nextPlayStartPoint;
 	bool m_nextPlayBackwards;

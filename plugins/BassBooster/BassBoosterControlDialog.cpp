@@ -27,9 +27,12 @@
 #include <QVBoxLayout>
 
 #include "BassBoosterControlDialog.h"
+
+#include <QHBoxLayout>
+
 #include "BassBoosterControls.h"
-#include "embed.h"
 #include "Knob.h"
+#include "ModernWidgets.h"
 
 
 namespace lmms::gui
@@ -39,35 +42,17 @@ namespace lmms::gui
 BassBoosterControlDialog::BassBoosterControlDialog( BassBoosterControls* controls ) :
 	EffectControlDialog( controls )
 {
-	setAutoFillBackground( true );
-	QPalette pal;
-	pal.setBrush( backgroundRole(), PLUGIN_NAME::getIconPixmap( "artwork" ) );
-	setPalette( pal );
+	modern::applyWindowStyle(this);
 
-	auto tl = new QVBoxLayout(this);
-	tl->addSpacing( 4 );
+	auto layout = new QHBoxLayout(this);
+	layout->setContentsMargins(8, 8, 8, 8);
+	layout->setSizeConstraint(QLayout::SetFixedSize);
 
-	auto l = new QHBoxLayout;
-
-	auto freqKnob = new Knob(KnobType::Bright26, tr("FREQ"), this);
-	freqKnob->setModel( &controls->m_freqModel );
-	freqKnob->setHintText( tr( "Frequency:" ) , "Hz" );
-
-	auto gainKnob = new Knob(KnobType::Bright26, tr("GAIN"), this);
-	gainKnob->setModel( &controls->m_gainModel );
-	gainKnob->setHintText( tr( "Gain:" ) , "" );
-
-	auto ratioKnob = new Knob(KnobType::Bright26, tr("RATIO"), this);
-	ratioKnob->setModel( &controls->m_ratioModel );
-	ratioKnob->setHintText( tr( "Ratio:" ) , "" );
-
-	l->addWidget( freqKnob );
-	l->addWidget( gainKnob );
-	l->addWidget( ratioKnob );
-
-	tl->addLayout( l );
-	setLayout( tl );
-	tl->setSizeConstraint(QLayout::SetFixedSize);
+	auto section = new ModernSection(tr("Bass boost"), this);
+	section->grid()->addWidget(modern::makeKnob(this, &controls->m_freqModel, tr("FREQ"), tr("Frequency:"), " Hz"), 0, 0);
+	section->grid()->addWidget(modern::makeKnob(this, &controls->m_gainModel, tr("GAIN"), tr("Gain:"), ""), 0, 1);
+	section->grid()->addWidget(modern::makeKnob(this, &controls->m_ratioModel, tr("RATIO"), tr("Ratio:"), ""), 0, 2);
+	layout->addWidget(section);
 }
 
 

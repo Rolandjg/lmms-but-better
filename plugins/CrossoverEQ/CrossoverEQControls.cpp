@@ -44,8 +44,13 @@ CrossoverEQControls::CrossoverEQControls( CrossoverEQEffect * eff ) :
 	m_mute1( true, this, "Mute Band 1" ),
 	m_mute2( true, this, "Mute Band 2" ),
 	m_mute3( true, this, "Mute Band 3" ),
-	m_mute4( true, this, "Mute Band 4" )
+	m_mute4( true, this, "Mute Band 4" ),
+	m_solo{BoolModel(false, this, "Solo Band 1"), BoolModel(false, this, "Solo Band 2"),
+		BoolModel(false, this, "Solo Band 3"), BoolModel(false, this, "Solo Band 4")},
+	m_width{FloatModel(100.f, 0.f, 200.f, 0.1f, this, "Band 1 Width"), FloatModel(100.f, 0.f, 200.f, 0.1f, this, "Band 2 Width"),
+		FloatModel(100.f, 0.f, 200.f, 0.1f, this, "Band 3 Width"), FloatModel(100.f, 0.f, 200.f, 0.1f, this, "Band 4 Width")}
 {
+	for (auto& width : m_width) { width.setCenterValue(100.f); }
 	connect( Engine::audioEngine(), SIGNAL( sampleRateChanged() ), this, SLOT( sampleRateChanged() ) );
 	connect( &m_xover12, SIGNAL( dataChanged() ), this, SLOT( xover12Changed() ) );
 	connect( &m_xover23, SIGNAL( dataChanged() ), this, SLOT( xover23Changed() ) );
@@ -71,6 +76,12 @@ void CrossoverEQControls::saveSettings( QDomDocument & doc, QDomElement & elem )
 	m_mute2.saveSettings( doc, elem, "mute2" );
 	m_mute3.saveSettings( doc, elem, "mute3" );
 	m_mute4.saveSettings( doc, elem, "mute4" );
+
+	for (int i = 0; i < 4; ++i)
+	{
+		m_solo[i].saveSettings(doc, elem, QString("solo%1").arg(i + 1));
+		m_width[i].saveSettings(doc, elem, QString("width%1").arg(i + 1));
+	}
 }
 
 void CrossoverEQControls::loadSettings( const QDomElement & elem )
@@ -88,6 +99,12 @@ void CrossoverEQControls::loadSettings( const QDomElement & elem )
 	m_mute2.loadSettings( elem, "mute2" );
 	m_mute3.loadSettings( elem, "mute3" );
 	m_mute4.loadSettings( elem, "mute4" );
+
+	for (int i = 0; i < 4; ++i)
+	{
+		m_solo[i].loadSettings(elem, QString("solo%1").arg(i + 1));
+		m_width[i].loadSettings(elem, QString("width%1").arg(i + 1));
+	}
 	
 	m_effect->m_needsUpdate = true;
 	m_effect->clearFilterHistories();

@@ -26,7 +26,11 @@
 #ifndef LMMS_AMPLIFIER_H
 #define LMMS_AMPLIFIER_H
 
+#include <array>
+
 #include "Effect.h"
+#include "ModernDsp.h"
+#include "ModernWidgets.h"
 #include "AmplifierControls.h"
 
 namespace lmms
@@ -45,8 +49,12 @@ public:
 		return &m_ampControls;
 	}
 
+	ScopeBuffer m_scope;
+
 private:
 	AmplifierControls m_ampControls;
+	std::array<dsp::TwoPole, 2> m_bassSplit;
+	std::array<dsp::OnePole, 2> m_dcBlock;
 
 	friend class AmplifierControls;
 };

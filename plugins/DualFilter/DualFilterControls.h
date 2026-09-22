@@ -53,8 +53,10 @@ public:
 
 	int controlCount() override
 	{
-		return 11;
+		return 13;
 	}
+
+	enum class Routing { Parallel, Serial };
 
 	gui::EffectControlDialog* createView() override
 	{
@@ -82,7 +84,11 @@ private:
 	FloatModel m_res2Model;
 	FloatModel m_gain2Model;
 
+	ComboBoxModel m_routingModel;
+	FloatModel m_driveModel;
+
 	friend class gui::DualFilterControlDialog;
+	friend class gui::FilterResponseDisplay;
 	friend class DualFilterEffect;
 
 } ;

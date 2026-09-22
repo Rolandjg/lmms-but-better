@@ -25,6 +25,8 @@
 
 
 #include "WaveShaper.h"
+#include "AudioEngine.h"
+#include "Engine.h"
 #include "lmms_math.h"
 #include "embed.h"
 
@@ -67,9 +69,6 @@ WaveShaperEffect::WaveShaperEffect( Model * _parent,
 
 Effect::ProcessStatus WaveShaperEffect::processImpl(SampleFrame* buf, const f_cnt_t frames)
 {
-// variables for effect
-	int i = 0;
-
 	const float d = dryLevel();
 	const float w = wetLevel();
 	float input = m_wsControls.m_inputModel.value();
@@ -86,6 +85,35 @@ Effect::ProcessStatus WaveShaperEffect::processImpl(SampleFrame* buf, const f_cn
 	const float *inputPtr = inputBuffer ? &( inputBuffer->values()[ 0 ] ) : &input;
 	const float *outputPtr = outputBufer ? &( outputBufer->values()[ 0 ] ) : &output;
 
+	const int stages = std::clamp(m_wsControls.m_oversampleModel.value(), 0, MaxOversampleStages);
+	const float sampleRate = Engine::audioEngine()->outputSampleRate();
+	if (stages != m_stages || sampleRate != m_sampleRate)
+	{
+		m_stages = stages;
+		m_sampleRate = sampleRate;
+		if (stages > 0)
+		{
+			for (auto& up : m_upsamplers) { up.setup(stages, sampleRate); }
+			for (auto& down : m_downsamplers) { down.setup(stages, sampleRate); }
+		}
+	}
+	const int factor = 1 << stages;
+
+	// The drawn curve covers |x| in [0, 1] with 200 points and is mirrored for negative input
+	auto shape = [samples](float x)
+	{
+		const float magnitude = std::abs(x) * 200.0f;
+		const int lookup = static_cast<int>(magnitude);
+		const float frac = fraction(magnitude);
+		const float posneg = x < 0 ? -1.0f : 1.0f;
+		if (lookup < 1) { return frac * samples[0] * posneg; }
+		if (lookup < 200) { return std::lerp(samples[lookup - 1], samples[lookup], frac) * posneg; }
+		return x * samples[199];
+	};
+
+	float peak = 0.f;
+	std::array<float, 1 << MaxOversampleStages> oversampled;
+
 	for (f_cnt_t f = 0; f < frames; ++f)
 	{
 		auto s = std::array{buf[f][0], buf[f][1]};
@@ -101,26 +129,21 @@ Effect::ProcessStatus WaveShaperEffect::processImpl(SampleFrame* buf, const f_cn
 			s[1] = qBound( -1.0f, s[1], 1.0f );
 		}
 
+		peak = std::max({peak, std::abs(s[0]), std::abs(s[1])});
+
 // start effect
-
-		for( i=0; i <= 1; ++i )
+		for (int ch = 0; ch < 2; ++ch)
 		{
-			const int lookup = static_cast<int>( qAbs( s[i] ) * 200.0f );
-			const float frac = fraction( qAbs( s[i] ) * 200.0f );
-			const float posneg = s[i] < 0 ? -1.0f : 1.0f;
-
-			if( lookup < 1 )
+			if (stages == 0)
 			{
-				s[i] = frac * samples[0] * posneg;
+				s[ch] = shape(s[ch]);
+				continue;
 			}
-			else if( lookup < 200 )
-			{
-				s[i] = std::lerp(samples[lookup - 1], samples[lookup], frac) * posneg;
-			}
-			else
-			{
-				s[i] *= samples[199];
-			}
+			// Shaping creates harmonics above Nyquist; running it at a higher rate and filtering
+			// on the way down keeps them from folding back as inharmonic aliasing
+			m_upsamplers[ch].processSample(oversampled.data(), s[ch]);
+			for (int k = 0; k < factor; ++k) { oversampled[k] = shape(oversampled[k]); }
+			s[ch] = m_downsamplers[ch].processSample(oversampled.data());
 		}
 
 // apply output gain
@@ -135,9 +158,10 @@ Effect::ProcessStatus WaveShaperEffect::processImpl(SampleFrame* buf, const f_cn
 		inputPtr += inputInc;
 	}
 
+	m_inputLevel.store(peak, std::memory_order_relaxed);
+
 	return ProcessStatus::ContinueIfNotQuiet;
 }
-
 
 
 

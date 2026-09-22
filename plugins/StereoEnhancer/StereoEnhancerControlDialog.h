@@ -30,6 +30,8 @@
 namespace lmms
 {
 
+class FloatModel;
+
 class StereoEnhancerControls;
 
 
@@ -44,6 +46,34 @@ public:
 	StereoEnhancerControlDialog( StereoEnhancerControls * _controls );
 	~StereoEnhancerControlDialog() override = default;
 
+};
+
+
+//! Three stereo bands on a log frequency axis. Drag a band up/down to change its width,
+//! drag a crossover line sideways to move it, double-click a band to reset it.
+class ImagerBandDisplay : public QWidget
+{
+	Q_OBJECT
+public:
+	ImagerBandDisplay(StereoEnhancerControls* controls, QWidget* parent);
+	QSize sizeHint() const override { return QSize(300, 128); }
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+	void mousePressEvent(QMouseEvent*) override;
+	void mouseMoveEvent(QMouseEvent*) override;
+	void mouseReleaseEvent(QMouseEvent*) override;
+	void mouseDoubleClickEvent(QMouseEvent*) override;
+
+private:
+	float xToFreq(double x) const;
+	double freqToX(float freq) const;
+	FloatModel* bandAt(double x);
+
+	StereoEnhancerControls* m_controls;
+	FloatModel* m_dragModel = nullptr;
+	bool m_dragIsCrossover = false;
+	int m_lastY = 0;
 };
 
 } // namespace gui

@@ -45,8 +45,13 @@ WaveShaperControls::WaveShaperControls( WaveShaperEffect * _eff ) :
 	m_inputModel( 1.0f, 0.0f, 5.0f, 0.01f, this, tr( "Input gain" ) ),
 	m_outputModel( 1.0f, 0.0f, 5.0f, 0.01f, this, tr( "Output gain" ) ),
 	m_wavegraphModel( 0.0f, 1.0f, 200, this ),
-	m_clipModel( false, this )
+	m_clipModel( false, this ),
+	m_oversampleModel(this, tr("Oversampling"))
 {
+	for (const auto& item : {tr("1x"), tr("2x"), tr("4x"), tr("8x")}) { m_oversampleModel.addItem(item); }
+	// New instances oversample to keep hard shaping curves from aliasing
+	m_oversampleModel.setValue(1);
+
 	connect( &m_wavegraphModel, SIGNAL( samplesChanged( int, int ) ),
 			this, SLOT( samplesChanged( int, int ) ) );
 
@@ -72,6 +77,11 @@ void WaveShaperControls::loadSettings( const QDomElement & _this )
 
 	m_clipModel.loadSettings( _this, "clipInput" );
 
+	// Projects from before oversampling existed keep their exact sound
+	const bool hasOversampling = _this.hasAttribute("oversample") || !_this.firstChildElement("oversample").isNull();
+	if (hasOversampling) { m_oversampleModel.loadSettings(_this, "oversample"); }
+	else { m_oversampleModel.setValue(0); }
+
 //load waveshape
 	int size = 0;
 	char * dst = 0;
@@ -93,6 +103,7 @@ void WaveShaperControls::saveSettings( QDomDocument & _doc,
 	m_outputModel.saveSettings( _doc, _this, "outputGain" );
 
 	m_clipModel.saveSettings( _doc, _this, "clipInput" );
+	m_oversampleModel.saveSettings(_doc, _this, "oversample");
 
 //save waveshape
 	QString sampleString;

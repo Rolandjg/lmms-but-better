@@ -1,5 +1,5 @@
 /*
- * delaycontrolsdialog.h - declaration of DelayControlsDialog class.
+ * DelayControlsDialog.h - declaration of DelayControlsDialog class.
  *
  * Copyright (c) 2014 David French <dave/dot/french3/at/googlemail/dot/com>
  *
@@ -32,7 +32,6 @@ namespace lmms
 
 
 class DelayControls;
-class FloatModel;
 
 namespace gui
 {
@@ -45,23 +44,27 @@ public:
 	~DelayControlsDialog() override = default;
 };
 
-class XyPad : public QWidget
+
+//! Shows the echo pattern that the current settings produce.
+//! Drag horizontally to change the delay time and vertically to change the feedback.
+class DelayTapDisplay : public QWidget
 {
 	Q_OBJECT
 public:
-	XyPad( QWidget *parent = 0, FloatModel *xModel = 0, FloatModel *yModel = 0 );
-	~XyPad() override = default;
+	DelayTapDisplay(DelayControls* controls, QWidget* parent);
+
+	QSize sizeHint() const override { return QSize(320, 104); }
 
 protected:
-	void paintEvent ( QPaintEvent * event ) override;
-	void mousePressEvent(QMouseEvent * event ) override;
-	void mouseReleaseEvent(QMouseEvent * event) override;
-	void mouseMoveEvent(QMouseEvent * event) override;
+	void paintEvent(QPaintEvent* event) override;
+	void mousePressEvent(QMouseEvent* event) override;
+	void mouseMoveEvent(QMouseEvent* event) override;
+	void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
-	FloatModel *m_xModel;
-	FloatModel *m_yModel;
-	bool m_acceptInput;
+	DelayControls* m_controls;
+	QPoint m_lastPos;
+	bool m_dragging = false;
 };
 
 

@@ -55,7 +55,7 @@ public:
 
 	int controlCount() override
 	{
-		return( 5 );
+		return( 6 );
 	}
 
 	gui::EffectControlDialog* createView() override
@@ -69,6 +69,8 @@ private slots:
 	
 	void lpSamplesChanged( int, int );
 	void lpResetClicked();
+
+	void panSamplesChanged(int, int);
 	
 	void lengthChanged();
 	void sampleRateChanged();
@@ -84,6 +86,8 @@ private:
 	
 	graphModel m_ampGraph;
 	graphModel m_lpGraph;
+	graphModel m_panGraph;
+	FloatModel m_feedback;
 
 	friend class MultitapEchoEffect;
 	friend class gui::MultitapEchoControlDialog;

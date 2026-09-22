@@ -93,6 +93,9 @@ void Knob::initUi( const QString & _name )
 	case KnobType::Small17:
 	case KnobType::Bright26:
 	case KnobType::Dark28:
+	case KnobType::Modern:
+	case KnobType::ModernSmall:
+	case KnobType::ModernLarge:
 		m_lineActiveColor = QApplication::palette().color(QPalette::Active, QPalette::WindowText);
 		m_arcActiveColor = QColor(QApplication::palette().color(
 									QPalette::Active, QPalette::WindowText));
@@ -112,6 +115,21 @@ void Knob::initUi( const QString & _name )
 
 void Knob::onKnobNumUpdated()
 {
+	if (isModern())
+	{
+		// Modern knobs reuse the theme's standard knob artwork so they match native plugins
+		QPixmap pixmap = embed::getIconPixmap("knob02");
+		if (m_knobNum == KnobType::ModernLarge)
+		{
+			pixmap = pixmap.scaled(42, 42, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+		}
+		m_knobPixmap = std::make_unique<QPixmap>(pixmap);
+		if (!isEnabled()) { convertPixmapToGrayScale(*m_knobPixmap); }
+		m_cache = QImage();
+		updateFixedSize();
+		return;
+	}
+
 	if( m_knobNum != KnobType::Styled )
 	{
 		QString knobFilename;
@@ -130,6 +148,9 @@ void Knob::onKnobNumUpdated()
 			knobFilename = "knob05";
 			break;
 		case KnobType::Styled: // only here to stop the compiler from complaining
+		case KnobType::Modern:
+		case KnobType::ModernSmall:
+		case KnobType::ModernLarge:
 			break;
 		}
 
@@ -153,6 +174,7 @@ const QString& Knob::getLabel() const
 void Knob::setLabel(const QString& txt)
 {
 	m_label = txt;
+	m_cache = QImage();
 
 	updateFixedSize();
 
@@ -169,8 +191,24 @@ void Knob::setFixedFontSizeLabelRendering()
 	update();
 }
 
+int Knob::modernDiameter() const
+{
+	return m_knobPixmap ? m_knobPixmap->width() : 27;
+}
+
 void Knob::updateFixedSize()
 {
+	if (isModern())
+	{
+		const int diameter = modernDiameter();
+		const auto labelFont = adjustedToPixelSize(font(), SMALL_FONT_SIZE);
+		const auto fm = QFontMetrics(labelFont);
+		const int labelWidth = m_label.isEmpty() ? 0 : fm.horizontalAdvance(m_label) + 4;
+		const int labelHeight = m_label.isEmpty() ? 0 : fm.height() + 1;
+		setFixedSize(std::max(diameter + 4, labelWidth), diameter + 1 + labelHeight);
+		return;
+	}
+
 	if (fixedFontSizeLabelRendering())
 	{
 		if (m_knobPixmap)
@@ -347,6 +385,7 @@ void Knob::setTextColor( const QColor & c )
 
 
 
+
 QLineF Knob::calculateLine( const QPointF & _mid, float _radius, float _innerRadius ) const
 {
 	const float rarc = m_angle * std::numbers::pi_v<float> / 180.0;
@@ -383,7 +422,7 @@ void Knob::drawKnob( QPainter * _p )
 	QColor currentArcColor = enabled ? m_arcActiveColor : m_arcInactiveColor;
 	QColor currentLineColor = enabled ? m_lineActiveColor : m_lineInactiveColor;
 
-	if( updateAngle() == false && !m_cache.isNull() )
+	if( updateAngle() == false && !m_cache.isNull() && m_cache.size() == size() )
 	{
 		_p->drawImage( 0, 0, m_cache );
 		return;
@@ -395,6 +434,14 @@ void Knob::drawKnob( QPainter * _p )
 	QPainter p( &m_cache );
 
 	QPoint mid;
+
+	if (isModern())
+	{
+		drawModernKnob(p);
+		p.end();
+		_p->drawImage(0, 0, m_cache);
+		return;
+	}
 
 	if( m_knobNum == KnobType::Styled )
 	{
@@ -473,6 +520,9 @@ void Knob::drawKnob( QPainter * _p )
 			break;
 		}
 		case KnobType::Styled:
+		case KnobType::Modern:
+		case KnobType::ModernSmall:
+		case KnobType::ModernLarge:
 			break;
 	}
 
@@ -481,6 +531,48 @@ void Knob::drawKnob( QPainter * _p )
 	p.end();
 
 	_p->drawImage( 0, 0, m_cache );
+}
+
+void Knob::drawModernKnob(QPainter& p)
+{
+	const bool enabled = isEnabled();
+	const QColor arcColor = enabled ? m_arcActiveColor : m_arcInactiveColor;
+	const QColor lineColor = enabled ? m_lineActiveColor : m_lineInactiveColor;
+	const int diameter = modernDiameter();
+	const QPointF mid(width() / 2.0, diameter / 2.0);
+	const float radius = diameter / 2.0f - 1;
+
+	p.drawPixmap(static_cast<int>(width() / 2 - diameter / 2), 0, *m_knobPixmap);
+	p.setRenderHint(QPainter::Antialiasing);
+
+	// Same arc and pointer as the Bright26 knob, but bipolar ranges without
+	// an explicit center value grow from zero
+	float center = model() ? model()->centerValue() : 0.f;
+	if (model() && center == model()->minValue() && model()->minValue() < 0.f && model()->maxValue() > 0.f)
+	{
+		center = 0.f;
+	}
+	const int centerAngle = model()
+		? angleFromValue(model()->inverseScaledValue(center), model()->minValue(), model()->maxValue(), m_totalAngle)
+		: static_cast<int>(-m_totalAngle / 2);
+
+	const int arcLineWidth = m_knobNum == KnobType::ModernLarge ? 3 : 2;
+	const qreal arcSize = diameter - arcLineWidth;
+	const QRectF arcRect(mid.x() - arcSize / 2, arcLineWidth / 2.0, arcSize, arcSize);
+
+	p.setPen(QPen(arcColor, arcLineWidth));
+	p.drawArc(arcRect, 315 * 16, static_cast<int>(16 * m_totalAngle));
+
+	p.setPen(QPen(lineColor, arcLineWidth));
+	p.drawLine(calculateLine(mid, radius - (m_knobNum == KnobType::ModernLarge ? 8 : 5)));
+	p.drawArc(arcRect, (90 - centerAngle) * 16, -16 * (m_angle - centerAngle));
+
+	if (!m_label.isEmpty())
+	{
+		p.setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
+		p.setPen(textColor());
+		p.drawText(QRectF(0, diameter + 1, width(), height() - diameter - 1), Qt::AlignHCenter | Qt::AlignTop, m_label);
+	}
 }
 
 void Knob::drawLabel(QPainter& p)
@@ -506,7 +598,7 @@ void Knob::paintEvent(QPaintEvent*)
 	QPainter p(this);
 
 	drawKnob(&p);
-	drawLabel(p);
+	if (!isModern()) { drawLabel(p); }
 }
 
 void Knob::changeEvent(QEvent * ev)

@@ -26,6 +26,7 @@
 #ifndef LMMS_AMPLIFIER_CONTROLS_H
 #define LMMS_AMPLIFIER_CONTROLS_H
 
+#include "ComboBoxModel.h"
 #include "EffectControls.h"
 #include "AmplifierControlDialog.h"
 
@@ -51,7 +52,12 @@ public:
 	{
 		return new gui::AmplifierControlDialog(this);
 	}
-	int controlCount() override { return 4; }
+	int controlCount() override { return 11; }
+
+	enum class ChannelMode { Stereo, Left, Right, Swap };
+
+	float m_outPeakL = 0.f;
+	float m_outPeakR = 0.f;
 
 private:
 	AmplifierEffect* m_effect;
@@ -59,6 +65,13 @@ private:
 	FloatModel m_panModel;
 	FloatModel m_leftModel;
 	FloatModel m_rightModel;
+	ComboBoxModel m_channelModeModel;
+	BoolModel m_invertLeftModel;
+	BoolModel m_invertRightModel;
+	FloatModel m_widthModel;
+	BoolModel m_bassMonoModel;
+	FloatModel m_bassMonoFreqModel;
+	BoolModel m_dcFilterModel;
 
 	friend class gui::AmplifierControlDialog;
 	friend class AmplifierEffect;

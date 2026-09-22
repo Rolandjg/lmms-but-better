@@ -27,8 +27,6 @@
 #include <numbers>
 
 #include "Engine.h"
-#include "MonoDelay.h"
-#include "QuadratureLfo.h"
 
 #include "embed.h"
 #include "lmms_math.h"
@@ -45,7 +43,7 @@ Plugin::Descriptor PLUGIN_EXPORT flanger_plugin_descriptor =
 {
 	LMMS_STRINGIFY( PLUGIN_NAME ),
 	"Flanger",
-	QT_TRANSLATE_NOOP( "PluginBrowser", "A native flanger plugin" ),
+	QT_TRANSLATE_NOOP( "PluginBrowser", "Smooth stereo flanger with sine / triangle sweep and mix" ),
 	"Dave French <contact/dot/dave/dot/french3/at/googlemail/dot/com>",
 	0x0100,
 	Plugin::Type::Effect,
@@ -61,28 +59,7 @@ FlangerEffect::FlangerEffect( Model *parent, const Plugin::Descriptor::SubPlugin
 	Effect( &flanger_plugin_descriptor, parent, key ),
 	m_flangerControls( this )
 {
-	m_lfo = new QuadratureLfo( Engine::audioEngine()->outputSampleRate() );
-	m_lDelay = new MonoDelay( 1, Engine::audioEngine()->outputSampleRate() );
-	m_rDelay = new MonoDelay( 1, Engine::audioEngine()->outputSampleRate() );
-}
-
-
-
-
-FlangerEffect::~FlangerEffect()
-{
-	if(m_lDelay )
-	{
-		delete m_lDelay;
-	}
-	if( m_rDelay )
-	{
-		delete m_rDelay;
-	}
-	if( m_lfo )
-	{
-		delete m_lfo;
-	}
+	changeSampleRate();
 }
 
 
@@ -90,42 +67,64 @@ FlangerEffect::~FlangerEffect()
 
 Effect::ProcessStatus FlangerEffect::processImpl(SampleFrame* buf, const f_cnt_t frames)
 {
+	auto& c = m_flangerControls;
 	const float d = dryLevel();
 	const float w = wetLevel();
-	const float length = m_flangerControls.m_delayTimeModel.value() * Engine::audioEngine()->outputSampleRate();
-	const float noise = m_flangerControls.m_whiteNoiseAmountModel.value();
-	float amplitude = m_flangerControls.m_lfoAmountModel.value() * Engine::audioEngine()->outputSampleRate();
-	bool invertFeedback = m_flangerControls.m_invertFeedbackModel.value();
-	m_lfo->setFrequency(  1.0/m_flangerControls.m_lfoFrequencyModel.value() );
-	m_lfo->setOffset(m_flangerControls.m_lfoPhaseModel.value() / 180 * std::numbers::pi);
-	m_lDelay->setFeedback( m_flangerControls.m_feedbackModel.value() );
-	m_rDelay->setFeedback( m_flangerControls.m_feedbackModel.value() );
-	auto dryS = std::array<sample_t, 2>{};
+	const float sr = m_sampleRate;
+	const float length = c.m_delayTimeModel.value() * sr;
+	const float noise = c.m_whiteNoiseAmountModel.value();
+	const float amplitude = c.m_lfoAmountModel.value() * sr;
+	const bool cross = c.m_invertFeedbackModel.value();
+	const float feedback = c.m_feedbackModel.value();
+	const float mix = c.m_mixModel.value() * 0.01f;
+	const auto shape = static_cast<FlangerControls::Shape>(c.m_shapeModel.value());
+	const double increment = 1.0 / (std::max(c.m_lfoFrequencyModel.value(), 0.0001f) * sr);
+	const double stereoOffset = c.m_lfoPhaseModel.value() / 360.0;
+
+	// Unipolar LFO in [0, 1]; phase is in cycles
+	auto lfo = [shape](double phase)
+	{
+		phase -= std::floor(phase);
+		return shape == FlangerControls::Shape::Sine
+			? 0.5f + 0.5f * static_cast<float>(std::sin(2.0 * std::numbers::pi * phase))
+			: static_cast<float>(1.0 - 2.0 * std::abs(phase - 0.5));
+	};
+
 	for( f_cnt_t f = 0; f < frames; ++f )
 	{
-		float leftLfo;
-		float rightLfo;
+		std::array<float, 2> in = {
+			buf[f][0] + fastRandInc(-1.f, 1.f) * noise,
+			buf[f][1] + fastRandInc(-1.f, 1.f) * noise
+		};
+		const auto dry = in;
 
-		buf[f][0] += fastRandInc(-1.f, 1.f) * noise;
-		buf[f][1] += fastRandInc(-1.f, 1.f) * noise;
-		dryS[0] = buf[f][0];
-		dryS[1] = buf[f][1];
-		m_lfo->tick(&leftLfo, &rightLfo);
-		m_lDelay->setLength( ( float )length + amplitude * (leftLfo+1.0)  );
-		m_rDelay->setLength( ( float )length + amplitude * (rightLfo+1.0)  );
-		if(invertFeedback)
+		m_lfoPhase += increment;
+		if (m_lfoPhase >= 1.0) { m_lfoPhase -= 1.0; }
+		const std::array<float, 2> times = {
+			length + 2.f * amplitude * lfo(m_lfoPhase),
+			length + 2.f * amplitude * lfo(m_lfoPhase + stereoOffset)
+		};
+
+		// "Invert" crosses the channels: each delay line is fed by the opposite input
+		if (cross) { std::swap(in[0], in[1]); }
+
+		std::array<float, 2> wet;
+		for (auto ch = 0; ch < 2; ++ch)
 		{
-			m_lDelay->tick( &buf[f][1] );
-			m_rDelay->tick(&buf[f][0] );
-		} else
-		{
-			m_lDelay->tick( &buf[f][0] );
-			m_rDelay->tick( &buf[f][1] );
+			// Fractional reads keep the sweep smooth instead of stepping sample by sample
+			wet[ch] = m_delays[ch].read(std::max(times[ch], 1.f));
+			m_delays[ch].write(in[ch] + std::clamp(wet[ch] * feedback, -4.f, 4.f));
 		}
 
-		buf[f][0] = ( d * dryS[0] ) + ( w * buf[f][0] );
-		buf[f][1] = ( d * dryS[1] ) + ( w * buf[f][1] );
+		// Summing dry and delayed signal produces the comb notches that define flanging
+		const float outL = dry[0] * (1.f - mix) + wet[0] * mix;
+		const float outR = dry[1] * (1.f - mix) + wet[1] * mix;
+
+		buf[f][0] = d * dry[0] + w * outL;
+		buf[f][1] = d * dry[1] + w * outR;
 	}
+
+	m_currentDelay.store(length / sr + 2.f * c.m_lfoAmountModel.value() * lfo(m_lfoPhase), std::memory_order_relaxed);
 
 	return ProcessStatus::ContinueIfNotQuiet;
 }
@@ -135,9 +134,9 @@ Effect::ProcessStatus FlangerEffect::processImpl(SampleFrame* buf, const f_cnt_t
 
 void FlangerEffect::changeSampleRate()
 {
-	m_lfo->setSampleRate( Engine::audioEngine()->outputSampleRate() );
-	m_lDelay->setSampleRate( Engine::audioEngine()->outputSampleRate() );
-	m_rDelay->setSampleRate( Engine::audioEngine()->outputSampleRate() );
+	m_sampleRate = Engine::audioEngine()->outputSampleRate();
+	// Base delay (50 ms) + two times the maximum sweep depth
+	for (auto& line : m_delays) { line.resize(static_cast<std::size_t>(0.06f * m_sampleRate) + 8); }
 }
 
 
@@ -145,7 +144,7 @@ void FlangerEffect::changeSampleRate()
 
 void FlangerEffect::restartLFO()
 {
-	m_lfo->restart();
+	m_lfoPhase = 0.0;
 }
 
 

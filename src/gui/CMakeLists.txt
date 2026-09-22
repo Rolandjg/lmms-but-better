@@ -118,6 +118,7 @@ SET(LMMS_SRCS
 	gui/widgets/LeftRightNav.cpp
 	gui/widgets/MeterDialog.cpp
 	gui/widgets/MixerChannelLcdSpinBox.cpp
+	gui/widgets/ModernWidgets.cpp
 	gui/widgets/NStateButton.cpp
 	gui/widgets/Oscilloscope.cpp
 	gui/widgets/PeakIndicator.cpp

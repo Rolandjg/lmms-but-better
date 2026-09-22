@@ -25,6 +25,12 @@
 
 #include "Sf2Player.h"
 
+#include <QPainter>
+#include <QPushButton>
+
+#include <algorithm>
+#include <vector>
+
 #include <fluidsynth.h>
 #include <QDebug>
 #include <QDomElement>
@@ -453,6 +459,49 @@ void Sf2Instrument::updatePatch()
 		fluid_synth_program_select( m_synth, m_channel, m_fontId,
 				m_bankNum.value(), m_patchNum.value() );
 	}
+}
+
+
+
+
+void Sf2Instrument::stepPreset(int direction)
+{
+	// Collect every (bank, program) pair of the loaded fonts in order
+	std::vector<std::pair<int, int>> presets;
+	for (int i = 0; i < ::fluid_synth_sfcount(m_synth); ++i)
+	{
+		fluid_sfont_t* font = ::fluid_synth_get_sfont(m_synth, i);
+		if (!font) { continue; }
+#ifdef CONFIG_FLUID_BANK_OFFSET
+		const int bankOffset = ::fluid_synth_get_bank_offset(m_synth, fluid_sfont_get_id(font));
+#else
+		const int bankOffset = 0;
+#endif
+		fluid_sfont_iteration_start(font);
+		while (fluid_preset_t* preset = fluid_sfont_iteration_next(font))
+		{
+			presets.emplace_back(fluid_preset_get_banknum(preset) + bankOffset, fluid_preset_get_num(preset));
+		}
+	}
+	if (presets.empty()) { return; }
+	std::sort(presets.begin(), presets.end());
+	presets.erase(std::unique(presets.begin(), presets.end()), presets.end());
+
+	const auto current = std::make_pair(m_bankNum.value(), m_patchNum.value());
+	auto it = std::lower_bound(presets.begin(), presets.end(), current);
+	std::ptrdiff_t index = it - presets.begin();
+	if (direction > 0)
+	{
+		index = (it != presets.end() && *it == current) ? index + 1 : index;
+		if (index >= static_cast<std::ptrdiff_t>(presets.size())) { index = 0; }
+	}
+	else
+	{
+		index = index - 1;
+		if (index < 0) { index = static_cast<std::ptrdiff_t>(presets.size()) - 1; }
+	}
+	m_bankNum.setValue(presets[index].first);
+	m_patchNum.setValue(presets[index].second);
 }
 
 
@@ -933,6 +982,47 @@ public:
 
 
 
+namespace
+{
+
+class Sf2ArrowButton : public QPushButton
+{
+public:
+	Sf2ArrowButton(int direction, QWidget* parent) :
+		QPushButton(parent),
+		m_direction(direction)
+	{
+		setCursor(Qt::PointingHandCursor);
+		setFocusPolicy(Qt::NoFocus);
+	}
+
+protected:
+	void paintEvent(QPaintEvent*) override
+	{
+		QPainter p(this);
+		p.setRenderHint(QPainter::Antialiasing);
+		p.setPen(Qt::NoPen);
+		p.setBrush(isDown() ? QColor(255, 120, 245) : (underMouse() ? QColor(255, 60, 240) : QColor(255, 0, 234)));
+		const QPointF c = QRectF(rect()).center();
+		const double s = 4.0;
+		QPolygonF triangle;
+		triangle << QPointF(c.x() + m_direction * s, c.y()) << QPointF(c.x() - m_direction * s, c.y() - s)
+			<< QPointF(c.x() - m_direction * s, c.y() + s);
+		p.drawPolygon(triangle);
+	}
+
+	void enterEvent(QEvent*) override { update(); }
+	void leaveEvent(QEvent*) override { update(); }
+
+private:
+	int m_direction;
+};
+
+} // namespace
+
+
+
+
 Sf2InstrumentView::Sf2InstrumentView( Instrument * _instrument, QWidget * _parent ) :
 	InstrumentViewFixedSize( _instrument, _parent )
 {
@@ -992,7 +1082,17 @@ Sf2InstrumentView::Sf2InstrumentView( Instrument * _instrument, QWidget * _paren
 	m_filenameLabel = new QLabel( this );
 	m_filenameLabel->setGeometry( 58, 109, 156, 11 );
 	m_patchLabel = new QLabel( this );
-	m_patchLabel->setGeometry( 58, 127, 156, 11 );
+	m_patchLabel->setGeometry( 58, 127, 118, 11 );
+
+	// Step through presets without opening the patch dialog: two small arrows in the
+	// patch field, drawn in the plugin's magenta
+	for (const int direction : {-1, 1})
+	{
+		auto arrow = new Sf2ArrowButton(direction, this);
+		arrow->setGeometry(direction < 0 ? 180 : 197, 125, 16, 13);
+		arrow->setToolTip(direction < 0 ? tr("Previous preset") : tr("Next preset"));
+		connect(arrow, &QPushButton::clicked, this, [this, direction] { castModel<Sf2Instrument>()->stepPreset(direction); });
+	}
 
 	//hl->addWidget( m_filenameLabel );
 //	vl->addLayout( hl );

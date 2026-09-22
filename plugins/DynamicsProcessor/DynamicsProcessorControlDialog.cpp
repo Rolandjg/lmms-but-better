@@ -32,6 +32,11 @@
 #include "Graph.h"
 #include "Knob.h"
 #include "PixmapButton.h"
+#include "DynamicsProcessor.h"
+#include "ModernWidgets.h"
+
+#include <QLabel>
+#include <QPainter>
 
 namespace lmms::gui
 {
@@ -41,12 +46,8 @@ DynProcControlDialog::DynProcControlDialog(
 					DynProcControls * _controls ) :
 	EffectControlDialog( _controls )
 {
-	setAutoFillBackground( true );
+	setFixedSize(224, 319 + ExtraHeight);
 	QPalette pal;
-	pal.setBrush( backgroundRole(),
-				PLUGIN_NAME::getIconPixmap( "artwork" ) );
-	setPalette( pal );
-	setFixedSize( 224, 319 );
 
 	auto waveGraph = new Graph(this, Graph::Style::LinearNonCyclic, 204, 205);
 	waveGraph -> move( 10, 6 );
@@ -139,6 +140,21 @@ DynProcControlDialog::DynProcControlDialog(
 	smGroup -> addButton( smUnlButton );
 	smGroup -> setModel( &_controls -> m_stereomodeModel );
 
+	// Where the detector level currently sits on the curve
+	auto indicator = new GraphLevelIndicator(this, &_controls->m_wavegraphModel, &_controls->m_effect->m_detectorLevel,
+		QColor(85, 204, 145));
+	indicator->setGeometry(waveGraph->geometry().adjusted(2, 2, -2, -2));
+	indicator->raise();
+
+	auto lookaheadLabel = new QLabel(tr("LOOKAHEAD ms"), this);
+	lookaheadLabel->setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
+	lookaheadLabel->move(14, 316);
+	auto lookahead = new ModernSegmented(this);
+	lookahead->setStyle(ModernSegmented::Style::Outline);
+	lookahead->setModel(&_controls->m_lookaheadModel);
+	lookahead->setToolTip(tr("Delay the audio so the gain reacts before transients arrive (adds latency)"));
+	lookahead->setGeometry(104, 313, 106, 17);
+
 	connect( resetButton, SIGNAL (clicked () ),
 			_controls, SLOT ( resetClicked() ) );
 	connect( smoothButton, SIGNAL (clicked () ),
@@ -147,6 +163,18 @@ DynProcControlDialog::DynProcControlDialog(
 			_controls, SLOT( addOneClicked() ) );
 	connect( subOneButton, SIGNAL( clicked() ),
 			_controls, SLOT( subOneClicked() ) );
+}
+
+
+void DynProcControlDialog::paintEvent(QPaintEvent*)
+{
+	// Stretch the bottom of the original control panel to make room for the lookahead row
+	static const auto artwork = PLUGIN_NAME::getIconPixmap("artwork");
+	constexpr int split = 309;
+	QPainter p(this);
+	p.drawPixmap(0, 0, artwork, 0, 0, 224, split);
+	p.drawPixmap(QRect(0, split, 224, ExtraHeight), artwork, QRect(0, split - 2, 224, 2));
+	p.drawPixmap(0, split + ExtraHeight, artwork, 0, split, 224, 319 - split);
 }
 
 
