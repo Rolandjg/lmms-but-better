@@ -1,10 +1,11 @@
 **What this fork changes**
 --------------
-* Windows native VST3 support through [yabridge](https://github.com/robbert-vdh/yabridge)
-* MPE pitch gliding support in the piano roll
-* Piano roll UX changes
-  	- Better note duplication with CTRL+D
-  	- Better pitch bending directly in the piano roll
+* Windows native VST3 support through [yabridge.](https://github.com/robbert-vdh/yabridge)
+* MPE pitch gliding support in the piano roll.
+* An option to bounce a track to audio, creating a sample track below the original.
+* Piano roll UX changes: 
+  	- Better note duplication with CTRL+D.
+  	- Better pitch bending directly in the piano roll.
 
 **Contributing to THIS fork**
 --------------
