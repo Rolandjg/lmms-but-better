@@ -337,7 +337,7 @@ public slots:
 	void togglePause();
 	void stop();
 
-	void startExport();
+	void startExport(TimePos begin = TimePos{-1}, TimePos end = TimePos{-1});
 	void stopExport();
 
 

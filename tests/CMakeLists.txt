@@ -12,6 +12,7 @@ set(LMMS_TESTS
 	src/core/ProjectVersionTest.cpp
 	src/core/RelativePathsTest.cpp
 	src/core/TimelineTest.cpp
+	src/core/SongExportTest.cpp
 	src/tracks/AutomationTrackTest.cpp
 )
 

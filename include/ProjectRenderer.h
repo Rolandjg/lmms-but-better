@@ -28,6 +28,7 @@
 #include "AudioFileDevice.h"
 #include "AudioEngine.h"
 #include "OutputSettings.h"
+#include "TimePos.h"
 
 #include "lmms_export.h"
 
@@ -59,7 +60,8 @@ public:
 		AudioFileDeviceInstantiaton m_getDevInst;
 	} ;
 
-	ProjectRenderer(const OutputSettings& _os, ExportFileFormat _file_format, const QString& _out_file);
+	ProjectRenderer(const OutputSettings& _os, ExportFileFormat _file_format, const QString& _out_file,
+		TimePos begin = TimePos{-1}, TimePos end = TimePos{-1});
 	~ProjectRenderer() override = default;
 
 	bool isReady() const
@@ -89,6 +91,8 @@ private:
 	void run() override;
 
 	AudioFileDevice * m_fileDev;
+	TimePos m_begin;
+	TimePos m_end;
 
 	volatile int m_progress;
 	volatile bool m_abort;

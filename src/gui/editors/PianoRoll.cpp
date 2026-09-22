@@ -86,8 +86,8 @@ namespace gui
 {
 
 // some constants...
-const int INITIAL_PIANOROLL_WIDTH = 1470;
-const int INITIAL_PIANOROLL_HEIGHT = 685;
+const int INITIAL_PIANOROLL_WIDTH = 1970;
+const int INITIAL_PIANOROLL_HEIGHT = 885;
 
 const int SCROLLBAR_SIZE = 12;
 const int PIANO_X = 0;

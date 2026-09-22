@@ -713,7 +713,7 @@ void Song::stop()
 
 
 
-void Song::startExport()
+void Song::startExport(TimePos begin, TimePos end)
 {
 	stop();
 
@@ -722,7 +722,13 @@ void Song::startExport()
 
 	auto& timeline = getTimeline(PlayMode::Song);
 
-	if (m_renderBetweenMarkers)
+	if (begin >= 0 && end > begin)
+	{
+		m_exportSongBegin = m_exportLoopBegin = m_exportLoopEnd = begin;
+		m_exportSongEnd = end;
+		timeline.setTicks(begin.getTicks());
+	}
+	else if (m_renderBetweenMarkers)
 	{
 		m_exportSongBegin = m_exportLoopBegin = timeline.loopBegin();
 		m_exportSongEnd = m_exportLoopEnd = timeline.loopEnd();
@@ -755,7 +761,7 @@ void Song::startExport()
 
 	m_exportEffectiveLength = (m_exportLoopBegin - m_exportSongBegin) + (m_exportLoopEnd - m_exportLoopBegin) 
 		* m_loopRenderCount + (m_exportSongEnd - m_exportLoopEnd);
-	m_loopRenderRemaining = m_loopRenderCount;
+	m_loopRenderRemaining = begin >= 0 && end > begin ? 1 : m_loopRenderCount;
 
 	playSong();
 

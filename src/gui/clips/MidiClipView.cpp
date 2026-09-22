@@ -31,6 +31,8 @@
 #include <QApplication>
 #include <QInputDialog>
 #include <QMenu>
+
+#include "BounceToAudio.h"
 #include <QPainter>
 #include <set>
 
@@ -224,6 +226,12 @@ void MidiClipView::transposeSelection()
 void MidiClipView::constructContextMenu( QMenu * _cm )
 {
 	bool isBeat = m_clip->type() == MidiClip::Type::BeatClip;
+	if (m_clip->getTrack()->trackContainer() == Engine::getSong())
+	{
+		_cm->addAction(tr("Bounce to audio"), this,
+			[this] { bounceToAudio(getTrackView(), m_clip); });
+	}
+
 
 	auto a = new QAction(embed::getIconPixmap("piano"), tr("Open in piano-roll"), _cm);
 	_cm->insertAction( _cm->actions()[0], a );

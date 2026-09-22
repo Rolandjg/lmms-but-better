@@ -1,6 +1,7 @@
 SET(LMMS_SRCS
 	${LMMS_SRCS}
 	gui/ActionGroup.cpp
+	gui/BounceToAudio.cpp
 	gui/AudioAlsaSetupWidget.cpp
 	gui/AudioDeviceSetupWidget.cpp
 	gui/AutomatableModelView.cpp

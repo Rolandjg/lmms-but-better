@@ -27,6 +27,8 @@
 #include <QCheckBox>
 #include <QHBoxLayout>
 #include <QMenu>
+
+#include "BounceToAudio.h"
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
@@ -275,6 +277,14 @@ void TrackOperationsWidget::updateMenu()
 {
 	QMenu * toMenu = m_trackOps->menu();
 	toMenu->clear();
+	auto track = m_trackView->getTrack();
+	if (track->trackContainer() == Engine::getSong()
+		&& (track->type() == Track::Type::Instrument || track->type() == Track::Type::Sample
+			|| track->type() == Track::Type::Pattern))
+	{
+		toMenu->addAction(tr("Bounce to audio"), this, [this] { bounceToAudio(m_trackView); });
+	}
+
 	toMenu->addAction( embed::getIconPixmap( "edit_copy", 16, 16 ),
 						tr( "Clone this track" ),
 						this, SLOT(cloneTrack()));

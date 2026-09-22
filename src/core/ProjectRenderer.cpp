@@ -76,9 +76,12 @@ const std::array<ProjectRenderer::FileEncodeDevice, 5> ProjectRenderer::fileEnco
 } ;
 
 ProjectRenderer::ProjectRenderer(
-	const OutputSettings& outputSettings, ExportFileFormat exportFileFormat, const QString& outputFilename)
+	const OutputSettings& outputSettings, ExportFileFormat exportFileFormat, const QString& outputFilename,
+	TimePos begin, TimePos end)
 	: QThread(Engine::audioEngine())
 	, m_fileDev(nullptr)
+	, m_begin(begin)
+	, m_end(end)
 	, m_progress(0)
 	, m_abort(false)
 {
@@ -155,7 +158,7 @@ void ProjectRenderer::run()
 {
 	PerfLogTimer perfLog("Project Render");
 
-	Engine::getSong()->startExport();
+	Engine::getSong()->startExport(m_begin, m_end);
 	// Skip first empty buffer.
 	Engine::audioEngine()->renderNextPeriod();
 
