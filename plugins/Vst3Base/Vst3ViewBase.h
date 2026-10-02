@@ -172,6 +172,7 @@ private:
 	bool m_showEditorControl = true;
 	Vst3EditorWindow* m_editorWindow = nullptr;
 	QPushButton* m_toggleUiButton = nullptr;
+	QLabel* m_pluginErrorLabel = nullptr;
 	QLabel* m_editorErrorLabel = nullptr;
 
 	QLineEdit* m_filterEdit = nullptr;

@@ -242,6 +242,16 @@ private slots:
 			QCOMPARE(classes.size(), std::size_t{1});
 			Model parent{nullptr};
 			Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+			QSignalSpy refreshes{&plugin, &Vst3Plugin::pluginModelChanged};
+			for (int i = 0; i < 100; ++i)
+			{
+				plugin.componentRestartRequested(Steinberg::Vst::kParamValuesChanged);
+			}
+			QCoreApplication::processEvents();
+			QCOMPARE(refreshes.size(), 1);
+			plugin.componentRestartRequested(Steinberg::Vst::kParamValuesChanged);
+			QCoreApplication::processEvents();
+			QCOMPARE(refreshes.size(), 2);
 			std::vector<SampleFrame> input(32, SampleFrame{1.f, .5f}), output(32);
 			plugin.process(input.data(), output.data(), 32);
 			QCOMPARE(output[0].left(), .5f);
@@ -275,6 +285,52 @@ private slots:
 			QVERIFY(defaultState.firstChildElement("params").hasAttribute("param7"));
 		}
 
+	}
+
+	void processFailureDisablesInstance()
+	{
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		for (const QByteArray& mode : {QByteArray{"throw"}, QByteArray{"error"}})
+		{
+			Model parent{nullptr};
+			Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+			QSignalSpy failure{&plugin, &Vst3Plugin::pluginFailed};
+			QDomDocument doc;
+			auto before = doc.createElement("vst3");
+			plugin.saveSettings(doc, before);
+			std::vector<SampleFrame> input(32, SampleFrame{1.f, .5f});
+			std::vector<SampleFrame> output(32, SampleFrame{1.f, 1.f});
+			qputenv("LMMS_TEST_VST3_PROCESS_FAILURE", mode);
+			plugin.process(input.data(), output.data(), 32);
+			qunsetenv("LMMS_TEST_VST3_PROCESS_FAILURE");
+			QVERIFY(plugin.hasFailed());
+			QCOMPARE(output[0].left(), 0.f);
+			QCOMPARE(output[0].right(), 0.f);
+			QTRY_COMPARE(failure.size(), 1);
+			output[0] = SampleFrame{1.f, 1.f};
+			plugin.process(input.data(), output.data(), 32);
+			QCOMPARE(output[0].left(), 0.f);
+			QCOMPARE(failure.size(), 1);
+			auto state = doc.createElement("vst3");
+			plugin.saveSettings(doc, state);
+			QCOMPARE(state.attribute("uid"), classes[0].uid);
+			QCOMPARE(state.attribute("chunk"), before.attribute("chunk"));
+		}
+	}
+
+	void rejectsInvalidBusCount()
+	{
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		qputenv("LMMS_TEST_VST3_INVALID_BUSES", "1");
+		bool rejected = false;
+		try { Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE}; }
+		catch (const std::runtime_error&) { rejected = true; }
+		qunsetenv("LMMS_TEST_VST3_INVALID_BUSES");
+		QVERIFY(rejected);
 	}
 
 	void lmmsInstrumentAndEffect()

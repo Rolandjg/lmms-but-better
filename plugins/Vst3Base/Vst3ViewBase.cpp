@@ -592,6 +592,24 @@ void Vst3PluginWidget::buildUi()
 		headerLayout->addWidget(m_toggleUiButton);
 	}
 	layout->addWidget(header);
+	m_pluginErrorLabel = new QLabel(this);
+	m_pluginErrorLabel->setObjectName("vst3PluginError");
+	m_pluginErrorLabel->setWordWrap(true);
+	m_pluginErrorLabel->hide();
+	layout->addWidget(m_pluginErrorLabel);
+	connect(m_plugin, &vst3::Vst3Plugin::pluginFailed, this,
+		[this](const QString& reason)
+		{
+			m_pluginErrorLabel->setText(tr("Plugin disabled after an error: %1").arg(reason));
+			m_pluginErrorLabel->show();
+			if (m_toggleUiButton) { m_toggleUiButton->setEnabled(false); }
+		});
+	if (m_plugin->hasFailed())
+	{
+		m_pluginErrorLabel->setText(tr("Plugin disabled after an error."));
+		m_pluginErrorLabel->show();
+		if (m_toggleUiButton) { m_toggleUiButton->setEnabled(false); }
+	}
 	if (m_showEditorControl)
 	{
 		m_editorErrorLabel = new QLabel(this);

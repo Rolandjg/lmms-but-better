@@ -28,9 +28,11 @@
 #include <bit>
 #include <cstring>
 #include <stdexcept>
+#include <unordered_map>
 
 #include <QDomDocument>
 #include <QDomElement>
+#include <QDebug>
 #include <QTimer>
 
 #include "pluginterfaces/vst/ivstmessage.h"
@@ -64,6 +66,8 @@ bool iidEqual(const TUID a, const TUID b)
 //! for - generous enough for heavyweight synths (Vital exposes ~3000),
 //! it only guards against pathological plugins
 constexpr std::size_t MaxParamModels = 32768;
+constexpr int32 MaxBuses = 64;
+constexpr int32 MaxChannels = 64;
 
 } // namespace
 
@@ -155,13 +159,12 @@ public:
 	Vst::IParamValueQueue* PLUGIN_API addParameterData(const Vst::ParamID& id,
 		int32& index) override
 	{
-		for (int32 i = 0; i < m_used; ++i)
+		// A preset can update thousands of parameters in one process block.
+		const auto existing = m_indices.find(id);
+		if (existing != m_indices.end())
 		{
-			if (m_queues[i]->id == id)
-			{
-				index = i;
-				return m_queues[i].get();
-			}
+			index = existing->second;
+			return m_queues[index].get();
 		}
 		if (m_used == static_cast<int32>(m_queues.size()))
 		{
@@ -171,14 +174,16 @@ public:
 		queue->id = id;
 		queue->points.clear();
 		index = m_used;
+		m_indices.emplace(id, index);
 		++m_used;
 		return queue;
 	}
 
-	void clear() { m_used = 0; }
+	void clear() { m_used = 0; m_indices.clear(); }
 
 private:
 	std::vector<std::unique_ptr<Vst3ParamQueue>> m_queues;
+	std::unordered_map<Vst::ParamID, int32> m_indices;
 	int32 m_used = 0;
 };
 
@@ -293,19 +298,27 @@ Vst3Plugin::Vst3Plugin(Model* model, const QString& uid, const QString& fileHint
 	}
 	m_classInfo = *info;
 
-	QString error;
-	m_module = Vst3Module::open(m_classInfo.modulePath, &error);
-	if (!m_module)
+	try
 	{
-		throw std::runtime_error(
-			QString("could not load VST3 module: %1").arg(error).toStdString());
+		QString error;
+		m_module = Vst3Module::open(m_classInfo.modulePath, &error);
+		if (!m_module)
+		{
+			throw std::runtime_error(
+				QString("could not load VST3 module: %1").arg(error).toStdString());
+		}
+		initialize();
 	}
-
-	try { initialize(); }
+	catch (const std::exception& e)
+	{
+		cleanup();
+		throw std::runtime_error(QString("VST3 plugin initialization failed: %1")
+			.arg(QString::fromUtf8(e.what())).toStdString());
+	}
 	catch (...)
 	{
 		cleanup();
-		throw;
+		throw std::runtime_error("VST3 plugin initialization threw an unknown exception");
 	}
 }
 
@@ -445,26 +458,53 @@ Vst3Plugin::~Vst3Plugin()
 }
 
 
+void Vst3Plugin::fail(const QString& reason)
+{
+	// This contains C++ failures from in-process plugins. Native faults
+	// (SIGSEGV, abort) need a separate plugin process to contain them.
+	if (m_failed.exchange(true)) { return; }
+	// process() can call this on the audio thread. Deliver UI work on the
+	// object's thread, and report this instance only once.
+	QMetaObject::invokeMethod(this, [this, reason]()
+	{
+		qWarning().noquote() << "VST3 plugin" << m_classInfo.name << "disabled:" << reason;
+		emit pluginFailed(reason);
+	}, Qt::QueuedConnection);
+}
+
+
 void Vst3Plugin::cleanup()
 {
 	if (m_controllerSyncTimer) { m_controllerSyncTimer->stop(); }
+	const auto teardown = [this](const char* operation, auto&& callback)
+	{
+		try { callback(); }
+		catch (const std::exception& e)
+		{
+			qWarning() << "VST3 plugin" << m_classInfo.name << operation << "threw:" << e.what();
+		}
+		catch (...) { qWarning() << "VST3 plugin" << m_classInfo.name << operation << "threw"; }
+	};
 	{
 		std::lock_guard<std::mutex> lock{m_processMutex};
-		deactivate();
+		teardown("deactivation", [this]() { deactivate(); });
 	}
 
 	if (m_componentCP && m_controllerCP)
 	{
-		m_componentCP->disconnect(m_controllerCP);
-		m_controllerCP->disconnect(m_componentCP);
+		teardown("component disconnection", [this]() { m_componentCP->disconnect(m_controllerCP); });
+		teardown("controller disconnection", [this]() { m_controllerCP->disconnect(m_componentCP); });
 		m_componentCP = nullptr;
 		m_controllerCP = nullptr;
 	}
 
 	if (m_controller)
 	{
-		m_controller->setComponentHandler(nullptr);
-		if (!m_singleComponent) { m_controller->terminate(); }
+		teardown("handler removal", [this]() { m_controller->setComponentHandler(nullptr); });
+		if (!m_singleComponent)
+		{
+			teardown("controller termination", [this]() { m_controller->terminate(); });
+		}
 	}
 	if (m_handler)
 	{
@@ -477,7 +517,10 @@ void Vst3Plugin::cleanup()
 	m_processor = nullptr;
 	m_controller = nullptr;
 
-	if (m_component && m_componentInitialized) { m_component->terminate(); }
+	if (m_component && m_componentInitialized)
+	{
+		teardown("component termination", [this]() { m_component->terminate(); });
+	}
 	m_component = nullptr;
 	m_module = nullptr;
 
@@ -537,14 +580,19 @@ void Vst3Plugin::onModelChanged(Param* param)
 
 void Vst3Plugin::syncControllerFromModels()
 {
-	if (!m_controller) { return; }
-	for (const auto& param : m_params)
+	if (!m_controller || m_failed) { return; }
+	try
 	{
-		if (param->controllerDirty.exchange(false))
+		for (const auto& param : m_params)
 		{
-			m_controller->setParamNormalized(param->id, param->model->value());
+			if (param->controllerDirty.exchange(false))
+			{
+				m_controller->setParamNormalized(param->id, param->model->value());
+			}
 		}
 	}
+	catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+	catch (...) { fail(QStringLiteral("controller callback threw an unknown exception")); }
 }
 
 
@@ -552,6 +600,7 @@ void Vst3Plugin::syncControllerFromModels()
 
 void Vst3Plugin::parameterEditedByGui(Vst::ParamID id, double normalized)
 {
+	if (m_failed) { return; }
 	const auto it = m_paramById.find(id);
 	if (it == m_paramById.end())
 	{
@@ -576,10 +625,16 @@ void Vst3Plugin::parameterEditedByGui(Vst::ParamID id, double normalized)
 
 void Vst3Plugin::componentRestartRequested(int32 flags)
 {
-	if (flags & Vst::kParamValuesChanged)
+	// Some plugins send a burst of restart notifications while loading a
+	// preset. One controller scan is enough until the queued scan runs.
+	if ((flags & Vst::kParamValuesChanged) && !m_paramRefreshQueued.exchange(true))
 	{
 		QMetaObject::invokeMethod(this,
-			[this]() { refreshModelsFromController(true); }, Qt::QueuedConnection);
+			[this]()
+			{
+				m_paramRefreshQueued = false;
+				refreshModelsFromController(true);
+			}, Qt::QueuedConnection);
 	}
 	// kLatencyChanged, kIoChanged etc. are not handled yet
 }
@@ -589,20 +644,25 @@ void Vst3Plugin::componentRestartRequested(int32 flags)
 
 void Vst3Plugin::refreshModelsFromController(bool pushToProcessor)
 {
-	if (!m_controller) { return; }
-	for (const auto& param : m_params)
+	if (!m_controller || m_failed) { return; }
+	try
 	{
-		const auto value = static_cast<float>(m_controller->getParamNormalized(param->id));
-		m_settingFromController = true;
-		param->model->setValue(value);
-		m_settingFromController = false;
-		if (!pushToProcessor)
+		for (const auto& param : m_params)
 		{
-			param->pendingValue = value;
-			param->dirty = false;
+			const auto value = static_cast<float>(m_controller->getParamNormalized(param->id));
+			m_settingFromController = true;
+			param->model->setValue(value);
+			m_settingFromController = false;
+			if (!pushToProcessor)
+			{
+				param->pendingValue = value;
+				param->dirty = false;
+			}
 		}
+		emit pluginModelChanged();
 	}
-	emit pluginModelChanged();
+	catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+	catch (...) { fail(QStringLiteral("controller callback threw an unknown exception")); }
 }
 
 
@@ -619,12 +679,17 @@ void Vst3Plugin::setupBuses()
 			case 0: return 0;
 			case 1: return SpeakerArr::kMono;
 			case 2: return SpeakerArr::kStereo;
-			default: return (SpeakerArrangement{1} << channels) - 1;
+			default: return channels == 64 ? ~SpeakerArrangement{0}
+				: (SpeakerArrangement{1} << channels) - 1;
 		}
 	};
 
 	const int32 numIn = m_component->getBusCount(kAudio, kInput);
 	const int32 numOut = m_component->getBusCount(kAudio, kOutput);
+	if (numIn < 0 || numOut < 0 || numIn > MaxBuses || numOut > MaxBuses)
+	{
+		throw std::runtime_error("VST3 plugin reported an invalid audio bus count");
+	}
 
 	std::vector<SpeakerArrangement> inArr(numIn);
 	std::vector<SpeakerArrangement> outArr(numOut);
@@ -633,14 +698,28 @@ void Vst3Plugin::setupBuses()
 	for (int32 i = 0; i < numIn; ++i)
 	{
 		BusInfo busInfo = {};
-		m_component->getBusInfo(kAudio, kInput, i, busInfo);
+		if (m_component->getBusInfo(kAudio, kInput, i, busInfo) != kResultOk)
+		{
+			throw std::runtime_error("VST3 plugin could not describe an input bus");
+		}
+		if (busInfo.channelCount < 0 || busInfo.channelCount > MaxChannels)
+		{
+			throw std::runtime_error("VST3 plugin reported an invalid input channel count");
+		}
 		inMain[i] = busInfo.busType == kMain;
 		inArr[i] = inMain[i] ? SpeakerArr::kStereo : arrangementFor(busInfo.channelCount);
 	}
 	for (int32 i = 0; i < numOut; ++i)
 	{
 		BusInfo busInfo = {};
-		m_component->getBusInfo(kAudio, kOutput, i, busInfo);
+		if (m_component->getBusInfo(kAudio, kOutput, i, busInfo) != kResultOk)
+		{
+			throw std::runtime_error("VST3 plugin could not describe an output bus");
+		}
+		if (busInfo.channelCount < 0 || busInfo.channelCount > MaxChannels)
+		{
+			throw std::runtime_error("VST3 plugin reported an invalid output channel count");
+		}
 		outMain[i] = busInfo.busType == kMain;
 		outArr[i] = outMain[i] ? SpeakerArr::kStereo : arrangementFor(busInfo.channelCount);
 	}
@@ -657,11 +736,19 @@ void Vst3Plugin::setupBuses()
 	{
 		SpeakerArrangement arr;
 		if (m_processor->getBusArrangement(kInput, i, arr) == kResultOk) { inArr[i] = arr; }
+		if (std::popcount(static_cast<uint64>(inArr[i])) > MaxChannels)
+		{
+			throw std::runtime_error("VST3 plugin reported too many input channels");
+		}
 	}
 	for (int32 i = 0; i < numOut; ++i)
 	{
 		SpeakerArrangement arr;
 		if (m_processor->getBusArrangement(kOutput, i, arr) == kResultOk) { outArr[i] = arr; }
+		if (std::popcount(static_cast<uint64>(outArr[i])) > MaxChannels)
+		{
+			throw std::runtime_error("VST3 plugin reported too many output channels");
+		}
 	}
 
 	m_inBuses.clear();
@@ -708,7 +795,10 @@ void Vst3Plugin::setupProcessing()
 	setup.symbolicSampleSize = Vst::kSample32;
 	setup.maxSamplesPerBlock = m_blockSize;
 	setup.sampleRate = m_sampleRate;
-	m_processor->setupProcessing(setup);
+	if (m_processor->setupProcessing(setup) != kResultOk)
+	{
+		throw std::runtime_error("VST3 plugin could not set up audio processing");
+	}
 }
 
 
@@ -743,8 +833,15 @@ void Vst3Plugin::allocateBuffers()
 void Vst3Plugin::activate()
 {
 	if (m_processing) { return; }
-	m_component->setActive(true);
-	m_processor->setProcessing(true);
+	if (m_component->setActive(true) != kResultOk)
+	{
+		throw std::runtime_error("VST3 plugin could not be activated");
+	}
+	if (m_processor->setProcessing(true) != kResultOk)
+	{
+		m_component->setActive(false);
+		throw std::runtime_error("VST3 plugin could not start processing");
+	}
 	m_processing = true;
 }
 
@@ -765,12 +862,18 @@ void Vst3Plugin::deactivate()
 void Vst3Plugin::reconfigure()
 {
 	std::lock_guard<std::mutex> lock{m_processMutex};
-	deactivate();
-	m_sampleRate = Engine::audioEngine()->outputSampleRate();
-	m_blockSize = Engine::audioEngine()->framesPerPeriod();
-	setupProcessing();
-	allocateBuffers();
-	activate();
+	if (m_failed) { return; }
+	try
+	{
+		deactivate();
+		m_sampleRate = Engine::audioEngine()->outputSampleRate();
+		m_blockSize = Engine::audioEngine()->framesPerPeriod();
+		setupProcessing();
+		allocateBuffers();
+		activate();
+	}
+	catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+	catch (...) { fail(QStringLiteral("reconfiguration callback threw an unknown exception")); }
 }
 
 
@@ -778,6 +881,7 @@ void Vst3Plugin::reconfigure()
 
 void Vst3Plugin::handleMidiInputEvent(const MidiEvent& event, const TimePos&, f_cnt_t offset)
 {
+	if (m_failed) { return; }
 	using namespace Vst;
 	if (event.type() == MidiEventTypes::MidiNoteOn && event.velocity() == 0)
 	{
@@ -838,11 +942,20 @@ void Vst3Plugin::handleMidiInputEvent(const MidiEvent& event, const TimePos&, f_
 
 void Vst3Plugin::queueMidiCc(int channel, int cc, double value, f_cnt_t offset)
 {
-	if (!m_midiMapping) { return; }
+	if (!m_midiMapping || m_failed) { return; }
 
 	Vst::ParamID id = Vst::kNoParamId;
-	if (m_midiMapping->getMidiControllerAssignment(0, static_cast<int16>(channel),
-			static_cast<Vst::CtrlNumber>(cc), id) != kResultOk || id == Vst::kNoParamId)
+	try
+	{
+		if (m_midiMapping->getMidiControllerAssignment(0, static_cast<int16>(channel),
+				static_cast<Vst::CtrlNumber>(cc), id) != kResultOk || id == Vst::kNoParamId)
+		{
+			return;
+		}
+	}
+	catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); return; }
+	catch (...) { fail(QStringLiteral("MIDI callback threw an unknown exception")); return; }
+	if (m_failed)
 	{
 		return;
 	}
@@ -881,7 +994,7 @@ void Vst3Plugin::updateProcessContext(f_cnt_t frames)
 void Vst3Plugin::process(const SampleFrame* in, SampleFrame* out, f_cnt_t frames)
 {
 	std::unique_lock<std::mutex> lock{m_processMutex, std::try_to_lock};
-	if (!lock.owns_lock() || !m_processing || frames == 0 || frames > static_cast<f_cnt_t>(m_blockSize))
+	if (!lock.owns_lock() || m_failed || !m_processing || frames == 0 || frames > static_cast<f_cnt_t>(m_blockSize))
 	{
 		if (out) { zeroSampleFrames(out, frames); }
 		return;
@@ -961,7 +1074,8 @@ void Vst3Plugin::process(const SampleFrame* in, SampleFrame* out, f_cnt_t frames
 			{
 				std::memset(bus.pointers[ch], 0, frames * sizeof(float));
 			}
-			m_inBusBuffers[m_mainIn].silenceFlags = (uint64{1} << bus.channels) - 1;
+			m_inBusBuffers[m_mainIn].silenceFlags = bus.channels == 64
+				? ~uint64{0} : (uint64{1} << bus.channels) - 1;
 		}
 	}
 
@@ -983,7 +1097,14 @@ void Vst3Plugin::process(const SampleFrame* in, SampleFrame* out, f_cnt_t frames
 	data.outputEvents = m_outEvents.get();
 	data.processContext = &m_context;
 
-	const tresult result = m_processor->process(data);
+	tresult result = kResultFalse;
+	try { result = m_processor->process(data); }
+	catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+	catch (...) { fail(QStringLiteral("audio callback threw an unknown exception")); }
+	if (result != kResultOk && !m_failed)
+	{
+		fail(QStringLiteral("audio callback returned an error"));
+	}
 
 	if (out)
 	{
@@ -1016,23 +1137,43 @@ void Vst3Plugin::saveSettings(QDomDocument& doc, QDomElement& elem)
 	elem.setAttribute("uid", m_classInfo.uid);
 	elem.setAttribute("plugin-file", m_classInfo.modulePath);
 
-	auto stream = owned(new MemoryStream());
-	if (m_component->getState(stream) == kResultOk && !stream->data().isEmpty())
+	if (!m_failed)
+	{
+		try
+		{
+			auto stream = owned(new MemoryStream());
+			if (m_component->getState(stream) == kResultOk)
+			{
+				m_lastComponentState = stream->data();
+			}
+		}
+		catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+		catch (...) { fail(QStringLiteral("state callback threw an unknown exception")); }
+	}
+	if (!m_lastComponentState.isEmpty())
 	{
 		QString b64;
-		base64::encode(stream->data().constData(), stream->data().size(), b64);
+		base64::encode(m_lastComponentState.constData(), m_lastComponentState.size(), b64);
 		elem.setAttribute("chunk", b64);
 	}
-
-	if (m_controller)
+	if (m_controller && !m_failed)
 	{
-		auto ctrlStream = owned(new MemoryStream());
-		if (m_controller->getState(ctrlStream) == kResultOk && !ctrlStream->data().isEmpty())
+		try
 		{
-			QString b64;
-			base64::encode(ctrlStream->data().constData(), ctrlStream->data().size(), b64);
-			elem.setAttribute("ctrlchunk", b64);
+			auto stream = owned(new MemoryStream());
+			if (m_controller->getState(stream) == kResultOk)
+			{
+				m_lastControllerState = stream->data();
+			}
 		}
+		catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+		catch (...) { fail(QStringLiteral("controller state callback threw an unknown exception")); }
+	}
+	if (!m_lastControllerState.isEmpty())
+	{
+		QString b64;
+		base64::encode(m_lastControllerState.constData(), m_lastControllerState.size(), b64);
+		elem.setAttribute("ctrlchunk", b64);
 	}
 
 	// save models of automated / changed parameters so automation targets
@@ -1058,14 +1199,23 @@ void Vst3Plugin::loadSettings(const QDomElement& elem)
 	if (!chunk.isEmpty())
 	{
 		const QByteArray data = QByteArray::fromBase64(chunk.toUtf8());
+		m_lastComponentState = data;
 		auto stream = owned(new MemoryStream(data));
 
 		std::lock_guard<std::mutex> lock{m_processMutex};
-		m_component->setState(stream);
-		if (m_controller)
+		if (!m_failed)
 		{
-			stream->rewind();
-			m_controller->setComponentState(stream);
+			try
+			{
+				m_component->setState(stream);
+				if (m_controller)
+				{
+					stream->rewind();
+					m_controller->setComponentState(stream);
+				}
+			}
+			catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+			catch (...) { fail(QStringLiteral("state callback threw an unknown exception")); }
 		}
 	}
 
@@ -1073,8 +1223,17 @@ void Vst3Plugin::loadSettings(const QDomElement& elem)
 	if (!ctrlChunk.isEmpty() && m_controller)
 	{
 		const QByteArray data = QByteArray::fromBase64(ctrlChunk.toUtf8());
-		auto stream = owned(new MemoryStream(data));
-		m_controller->setState(stream);
+		m_lastControllerState = data;
+		if (!m_failed)
+		{
+			try
+			{
+				auto stream = owned(new MemoryStream(data));
+				m_controller->setState(stream);
+			}
+			catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+			catch (...) { fail(QStringLiteral("controller state callback threw an unknown exception")); }
+		}
 	}
 
 	refreshModelsFromController(false);
@@ -1100,6 +1259,7 @@ void Vst3Plugin::loadSettings(const QDomElement& elem)
 
 bool Vst3Plugin::hasEditor()
 {
+	if (m_failed) { return false; }
 	if (m_hasEditorCached < 0)
 	{
 		auto view = createEditorView();
@@ -1113,8 +1273,11 @@ bool Vst3Plugin::hasEditor()
 
 IPtr<IPlugView> Vst3Plugin::createEditorView()
 {
-	if (!m_controller) { return nullptr; }
-	return owned(m_controller->createView(Vst::ViewType::kEditor));
+	if (!m_controller || m_failed) { return nullptr; }
+	try { return owned(m_controller->createView(Vst::ViewType::kEditor)); }
+	catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+	catch (...) { fail(QStringLiteral("editor callback threw an unknown exception")); }
+	return nullptr;
 }
 
 

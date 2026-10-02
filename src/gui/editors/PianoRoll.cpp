@@ -37,6 +37,7 @@
 #include <QMargins>
 #include <QMessageBox>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPointer>
 #include <QPushButton>
 #include <QScrollBar>
@@ -1199,107 +1200,69 @@ void PianoRoll::drawNoteRect( QPainter & p, int x, int y,
 void PianoRoll::drawDetuningInfo( QPainter & _p, const Note * _n, int _x,
 								int _y ) const
 {
-	int middle_y = _y + m_keyLineHeight / 2;
-	_p.setBrush(QBrush(m_noteColor));
-	_p.setPen(m_noteColor);
-	_p.setClipRect(
-		m_whiteKeyWidth,
-		PR_TOP_MARGIN,
-		width() - m_whiteKeyWidth,
-		keyAreaBottom() - PR_TOP_MARGIN);
+	_p.save();
+	_p.setClipRect(QRect(m_whiteKeyWidth, keyAreaTop(),
+		noteEditRight() - m_whiteKeyWidth, keyAreaBottom() - keyAreaTop()), Qt::IntersectClip);
+	_p.setPen(QPen(m_noteColor, 1));
+	_p.setBrush(Qt::NoBrush);
 
-	// Draw the actual interpolation, including curved segments and discrete jumps.
-	int old_x = 0;
-	int old_y = 0;
-
-	timeMap & map = _n->detuning()->automationClip()->getTimeMap();
-	for (timeMap::const_iterator it = map.begin(); it != map.end(); ++it)
+	const qreal middle_y = _y + m_keyLineHeight / 2.0;
+	const qreal pixelsPerTick = static_cast<qreal>(m_ppb) / TimePos::ticksPerBar();
+	const auto* curve = _n->detuning()->automationClip();
+	const auto& map = curve->getTimeMap();
+	auto nodePoint = [&](int tick, float level)
 	{
-		// Current node values
-		int cur_ticks = POS(it);
-		int cur_x = _x + cur_ticks * m_ppb / TimePos::ticksPerBar();
-		const float cur_level = INVAL(it);
-		int cur_y = middle_y - cur_level * m_keyLineHeight;
+		return QPointF(_x + tick * pixelsPerTick, middle_y - level * m_keyLineHeight);
+	};
 
-		// First line to represent the inValue of the first node
-		if (it == map.begin())
+	// Draw open paths so bends cannot fill the area between their endpoints.
+	// Hermite tangents are in semitones per tick; their equivalent Bezier
+	// control points preserve the curve without rounding samples to whole ticks.
+	for (auto it = map.cbegin(); it != map.cend(); ++it)
+	{
+		const QPointF in = nodePoint(POS(it), INVAL(it));
+		const QPointF out = nodePoint(POS(it), OUTVAL(it));
+		if (it == map.cbegin())
 		{
-			_p.drawLine(cur_x - 1, cur_y, cur_x + 1, cur_y);
-			_p.drawLine(cur_x, cur_y - 1, cur_x, cur_y + 1);
+			_p.drawLine(in - QPointF(1, 0), in + QPointF(1, 0));
+			_p.drawLine(in - QPointF(0, 1), in + QPointF(0, 1));
 		}
-		// All subsequent lines will take the outValue of the previous node
-		// and the inValue of the current node. It will also draw a vertical
-		// line if there was a discrete jump (from old_x,old_y to pre_x,pre_y)
-		else
+		if (in != out) { _p.drawLine(in, out); }
+
+		const auto next = std::next(it);
+		if (next == map.cend()) { continue; }
+		const QPointF end = nodePoint(POS(next), INVAL(next));
+		// Skip segments outside the viewport, including their control points.
+		if (end.x() < m_whiteKeyWidth || out.x() > noteEditRight()) { continue; }
+
+		QPainterPath path(out);
+		switch (curve->progressionType())
 		{
-			// Previous node values (based on outValue). We just calculate
-			// the y level because the x will be the same as old_x.
-			const auto pit = std::prev(it);
-			const auto nit = std::next(it);
-
-			const float pre_level = OUTVAL(pit);
-			int pre_y = middle_y - pre_level * m_keyLineHeight;
-
-			// Draws the line representing the discrete jump if there's one
-			if (old_y != pre_y)
+			case AutomationClip::ProgressionType::Discrete:
+				path.lineTo(end.x(), out.y());
+				path.lineTo(end);
+				break;
+			case AutomationClip::ProgressionType::Linear:
+				path.lineTo(end);
+				break;
+			case AutomationClip::ProgressionType::CubicHermite:
 			{
-				_p.drawLine(old_x, old_y, old_x, pre_y);
-			}
-
-			// Now draw the lines representing the actual progression from one
-			// node to the other
-			switch (_n->detuning()->automationClip()->progressionType())
-			{
-				case AutomationClip::ProgressionType::Discrete:
-					_p.drawLine(old_x, pre_y, cur_x, pre_y);
-					_p.drawLine(cur_x, pre_y, cur_x, cur_y);
-					break;
-				case AutomationClip::ProgressionType::CubicHermite:
-				{
-					// Sample only the visible part, with at most one sample per pixel.
-					const int left = std::max(old_x, m_whiteKeyWidth);
-					const int right = std::min(cur_x, width());
-					QPointF previous;
-					for (int x = left; x <= right; ++x)
-					{
-						const int tick = std::clamp((x - _x) * TimePos::ticksPerBar() / m_ppb, POS(pit), cur_ticks);
-						const float level = tick == cur_ticks ? cur_level
-							: _n->detuning()->automationClip()->valueAt(tick);
-						const QPointF point(x, middle_y - level * m_keyLineHeight);
-						if (x > left) { _p.drawLine(previous, point); }
-						previous = point;
-					}
-					break;
-				}
-				case AutomationClip::ProgressionType::Linear:
-					_p.drawLine(old_x, pre_y, cur_x, cur_y);
-					break;
-			}
-
-			// If we are in the last node and there's a discrete jump, we draw a
-			// vertical line representing it
-			if (nit == map.end())
-			{
-				const float last_level = OUTVAL(it);
-				if (cur_level != last_level)
-				{
-					int last_y = middle_y - last_level * m_keyLineHeight;
-					_p.drawLine(cur_x, cur_y, cur_x, last_y);
-				}
+				const qreal ticks = POS(next) - POS(it);
+				const qreal dx = (end.x() - out.x()) / 3;
+				const qreal tangentScale = ticks * curve->getTension() * m_keyLineHeight / 3;
+				path.cubicTo(out + QPointF(dx, -OUTTAN(it) * tangentScale),
+					end + QPointF(-dx, INTAN(next) * tangentScale), end);
+				break;
 			}
 		}
-
-		old_x = cur_x;
-		old_y = cur_y;
+		_p.drawPath(path);
 	}
 
 	if (m_editMode == EditMode::Detuning && _n->selected())
 	{
-		const float pixelsPerTick = static_cast<float>(m_ppb) / TimePos::ticksPerBar();
-
 		for (auto it = map.cbegin(); it != map.cend(); it++)
 		{
-			const int nodeX = _x + POS(it) * m_ppb / TimePos::ticksPerBar();
+			const qreal nodeX = _x + POS(it) * pixelsPerTick;
 			const bool locked = LOCKEDTAN(it);
 
 			QColor tangentColor = m_noteColor.lighter(locked ? 150 : 120);
@@ -1309,20 +1272,20 @@ void PianoRoll::drawDetuningInfo( QPainter & _p, const Note * _n, int _x,
 
 			if (it != map.cbegin())
 			{
-				const int nodeY = middle_y - INVAL(it) * m_keyLineHeight;
-				const QPoint handle(nodeX - DETUNING_TANGENT_HANDLE_LENGTH,
+				const qreal nodeY = middle_y - INVAL(it) * m_keyLineHeight;
+				const QPointF handle(nodeX - DETUNING_TANGENT_HANDLE_LENGTH,
 					nodeY + DETUNING_TANGENT_HANDLE_LENGTH * INTAN(it) * m_keyLineHeight / pixelsPerTick);
 
-				_p.drawLine(QPoint(nodeX, nodeY), handle);
+				_p.drawLine(QPointF(nodeX, nodeY), handle);
 				_p.drawEllipse(handle, DETUNING_TANGENT_HANDLE_RADIUS, DETUNING_TANGENT_HANDLE_RADIUS);
 			}
 			if (std::next(it) != map.cend())
 			{
-				const int nodeY = middle_y - OUTVAL(it) * m_keyLineHeight;
-				const QPoint handle(nodeX + DETUNING_TANGENT_HANDLE_LENGTH,
+				const qreal nodeY = middle_y - OUTVAL(it) * m_keyLineHeight;
+				const QPointF handle(nodeX + DETUNING_TANGENT_HANDLE_LENGTH,
 					nodeY - DETUNING_TANGENT_HANDLE_LENGTH * OUTTAN(it) * m_keyLineHeight / pixelsPerTick);
 
-				_p.drawLine(QPoint(nodeX, nodeY), handle);
+				_p.drawLine(QPointF(nodeX, nodeY), handle);
 				_p.drawEllipse(handle, DETUNING_TANGENT_HANDLE_RADIUS, DETUNING_TANGENT_HANDLE_RADIUS);
 			}
 		}
@@ -1332,18 +1295,11 @@ void PianoRoll::drawDetuningInfo( QPainter & _p, const Note * _n, int _x,
 
 		for (timeMap::const_iterator it = map.begin(); it != map.end(); ++it)
 		{
-			int curTicks = POS(it);
-			int curX = _x + curTicks * m_ppb / TimePos::ticksPerBar();
-			const float curLevel = INVAL(it);
-			int curY = middle_y - curLevel * m_keyLineHeight;
-
-			_p.drawEllipse(
-				curX - DETUNING_HANDLE_RADIUS,
-				curY - DETUNING_HANDLE_RADIUS,
-				2 * DETUNING_HANDLE_RADIUS,
-				2 * DETUNING_HANDLE_RADIUS);
+			_p.drawEllipse(nodePoint(POS(it), INVAL(it)),
+				DETUNING_HANDLE_RADIUS, DETUNING_HANDLE_RADIUS);
 		}
 	}
+	_p.restore();
 }
 
 
@@ -2683,6 +2639,8 @@ void PianoRoll::mouseMoveEvent( QMouseEvent * me )
 	if (m_editMode == EditMode::Detuning && me->buttons() == Qt::NoButton)
 	{
 		setCursor(parameterTangentUnderMouse(pos) ? Qt::CrossCursor : Qt::ArrowCursor);
+		// Hover feedback must refresh even when no note or playback event repaints us.
+		update();
 		return;
 	}
 
@@ -4068,6 +4026,7 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		const int bottomKey = topKey - m_pianoKeysVisible;
 
 		QPolygonF editHandles;
+		std::vector<const Note*> bentNotes;
 
 		// Return a note's Y position on the grid
 		auto noteYPos = [&](const int key)
@@ -4204,13 +4163,15 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 
 			if( note->hasDetuningInfo() )
 			{
-				drawDetuningInfo(p, note, x + m_whiteKeyWidth, noteYPos(note->key()));
-				p.setClipRect(
-					m_whiteKeyWidth,
-					PR_TOP_MARGIN,
-					width() - m_whiteKeyWidth,
-					height() - PR_TOP_MARGIN);
+				bentNotes.push_back(note);
 			}
+		}
+
+		// Draw bends above all note bodies, independent of their order in the clip.
+		for (const Note* note : bentNotes)
+		{
+			const int x = xCoordOfTick(note->pos());
+			drawDetuningInfo(p, note, x, noteYPos(note->key()));
 		}
 
 		// draw clip bounds

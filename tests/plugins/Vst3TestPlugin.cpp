@@ -3,6 +3,7 @@
  */
 #include <cstring>
 #include <cstdlib>
+#include <stdexcept>
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #endif
@@ -47,6 +48,7 @@ public:
 	tresult PLUGIN_API setIoMode(IoMode) override { return kResultOk; }
 	int32 PLUGIN_API getBusCount(MediaType type, BusDirection dir) override
 	{
+		if (std::getenv("LMMS_TEST_VST3_INVALID_BUSES")) { return 1000000; }
 		return type == kAudio || dir == kInput ? 1 : 0;
 	}
 	tresult PLUGIN_API getBusInfo(MediaType type, BusDirection dir, int32 index, BusInfo& bus) override
@@ -75,6 +77,11 @@ public:
 	uint32 PLUGIN_API getTailSamples() override { return 0; }
 	tresult PLUGIN_API process(ProcessData& data) override
 	{
+		if (const char* failure = std::getenv("LMMS_TEST_VST3_PROCESS_FAILURE"))
+		{
+			if (std::strcmp(failure, "throw") == 0) { throw std::runtime_error("test plugin process exception"); }
+			if (std::strcmp(failure, "error") == 0) { return kResultFalse; }
+		}
 		if (data.inputParameterChanges)
 		{
 			for (int i = 0; i < data.inputParameterChanges->getParameterCount(); ++i)

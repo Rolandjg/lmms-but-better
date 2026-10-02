@@ -13,6 +13,7 @@ set(LMMS_TESTS
 	src/core/RelativePathsTest.cpp
 	src/core/TimelineTest.cpp
 	src/core/SongExportTest.cpp
+	src/gui/PianoRollRenderingTest.cpp
 	src/tracks/AutomationTrackTest.cpp
 )
 
@@ -35,6 +36,11 @@ foreach(LMMS_TEST_SRC IN LISTS LMMS_TESTS)
 	target_compile_features(${LMMS_TEST_NAME} PRIVATE cxx_std_20)
 	target_compile_definitions(${LMMS_TEST_NAME} PRIVATE LMMS_TESTING)
 endforeach()
+
+set_target_properties(PianoRollRenderingTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(PianoRollRenderingTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
 
 if(TARGET vst3base)
 	add_library(Vst3TestPlugin MODULE plugins/Vst3TestPlugin.cpp

@@ -26,6 +26,7 @@
 #define LMMS_VST3_PLUGIN_H
 
 #include <QObject>
+#include <QByteArray>
 #include <QString>
 #include <atomic>
 #include <map>
@@ -101,6 +102,7 @@ public:
 	const Vst3ClassInfo& classInfo() const { return m_classInfo; }
 	const QString& name() const { return m_classInfo.name; }
 	bool hasNoteInput() const { return m_hasEventInput; }
+	bool hasFailed() const { return m_failed.load(); }
 
 	/*
 		realtime functions (audio thread)
@@ -141,6 +143,7 @@ public:
 
 signals:
 	void pluginModelChanged();
+	void pluginFailed(const QString& reason);
 
 private:
 	void initialize();
@@ -156,6 +159,7 @@ private:
 	void queueMidiCc(int channel, int cc, double value, f_cnt_t offset);
 	void onModelChanged(Param* param);
 	void syncControllerFromModels();
+	void fail(const QString& reason);
 
 	Model* m_model;
 	Vst3ClassInfo m_classInfo;
@@ -170,11 +174,14 @@ private:
 	Vst3ComponentHandler* m_handler = nullptr;
 	bool m_singleComponent = false;
 	bool m_componentInitialized = false;
+	QByteArray m_lastComponentState;
+	QByteArray m_lastControllerState;
 
 	// parameters
 	std::vector<std::unique_ptr<Param>> m_params;
 	std::map<Steinberg::Vst::ParamID, Param*> m_paramById;
 	bool m_settingFromController = false;
+	std::atomic<bool> m_paramRefreshQueued{false};
 	QTimer* m_controllerSyncTimer = nullptr;
 
 	// audio buses
@@ -214,6 +221,7 @@ private:
 	double m_sampleRate = 44100.;
 	int m_blockSize = 256;
 	bool m_processing = false;
+	std::atomic<bool> m_failed{false};
 	Steinberg::Vst::ProcessContext m_context = {};
 	Steinberg::uint64 m_continuousSamples = 0;
 
