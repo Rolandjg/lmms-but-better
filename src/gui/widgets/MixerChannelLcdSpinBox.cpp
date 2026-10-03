@@ -30,6 +30,8 @@
 #include "CaptionMenu.h"
 #include "MixerView.h"
 #include "GuiApplication.h"
+#include "InstrumentTrackView.h"
+#include "SampleTrackView.h"
 #include "TrackView.h"
 
 namespace lmms::gui
@@ -41,8 +43,37 @@ void MixerChannelLcdSpinBox::setTrackView(TrackView * tv)
 	m_tv = tv;
 }
 
+void MixerChannelLcdSpinBox::mousePressEvent(QMouseEvent* event)
+{
+	if (event->button() == Qt::LeftButton && (event->modifiers() & Qt::AltModifier))
+	{
+		if (auto* instrumentTrackView = qobject_cast<InstrumentTrackView*>(m_tv))
+		{
+			instrumentTrackView->createMixerLine();
+			event->accept();
+			return;
+		}
+		if (auto* sampleTrackView = qobject_cast<SampleTrackView*>(m_tv))
+		{
+			sampleTrackView->createMixerLine();
+			event->accept();
+			return;
+		}
+	}
+
+	LcdSpinBox::mousePressEvent(event);
+}
+
 void MixerChannelLcdSpinBox::mouseDoubleClickEvent(QMouseEvent* event)
 {
+	// An Alt-click already created the channel on the first press.
+	if (event->button() == Qt::LeftButton && (event->modifiers() & Qt::AltModifier)
+		&& (qobject_cast<InstrumentTrackView*>(m_tv) || qobject_cast<SampleTrackView*>(m_tv)))
+	{
+		event->accept();
+		return;
+	}
+
 	if (!(event->modifiers() & Qt::ShiftModifier) &&
 		!(event->modifiers() & Qt::ControlModifier))
 	{

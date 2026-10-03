@@ -136,6 +136,7 @@ SampleTrackWindow::SampleTrackWindow(SampleTrackView* stv)
 
 	// setup spinbox for selecting Mixer-channel
 	m_mixerChannelNumber = new MixerChannelLcdSpinBox(2, nullptr, tr("Mixer channel"), m_stv);
+	m_mixerChannelNumber->setToolTip(tr("Alt+left-click to create and assign a new mixer channel"));
 
 	basicControlsLayout->addWidget(m_mixerChannelNumber, 0, 4);
 	basicControlsLayout->setAlignment(m_mixerChannelNumber, widgetAlignment);

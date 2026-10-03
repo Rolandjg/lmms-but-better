@@ -71,6 +71,8 @@ public slots:
 	void showEffects();
 	void updateIndicator();
 
+	//! @brief Create and assign a new mixer Channel for this track.
+	void createMixerLine();
 
 protected:
 	void modelChanged() override;
@@ -86,8 +88,6 @@ private slots:
 	//! @brief Assign a specific mixer Channel for this track.
 	void assignMixerLine(int channelIndex);
 
-	//! @brief Create and assign a new mixer Channel for this track.
-	void createMixerLine();
 	void corruptStateUpdate();
 
 

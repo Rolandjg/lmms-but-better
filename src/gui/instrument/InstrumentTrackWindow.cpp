@@ -204,6 +204,7 @@ InstrumentTrackWindow::InstrumentTrackWindow( InstrumentTrackView * _itv ) :
 
 	// setup spinbox for selecting Mixer-channel
 	m_mixerChannelNumber = new MixerChannelLcdSpinBox(2, nullptr, tr("Mixer channel"), m_itv);
+	m_mixerChannelNumber->setToolTip(tr("Alt+left-click to create and assign a new mixer channel"));
 
 	basicControlsLayout->addWidget(m_mixerChannelNumber, 0, 7);
 	basicControlsLayout->setAlignment( m_mixerChannelNumber, widgetAlignment );

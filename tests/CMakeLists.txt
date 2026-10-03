@@ -14,6 +14,7 @@ set(LMMS_TESTS
 	src/core/TimelineTest.cpp
 	src/core/SongExportTest.cpp
 	src/gui/PianoRollRenderingTest.cpp
+	src/gui/MixerChannelLcdSpinBoxTest.cpp
 	src/tracks/AutomationTrackTest.cpp
 )
 
@@ -39,6 +40,11 @@ endforeach()
 
 set_target_properties(PianoRollRenderingTest PROPERTIES ENABLE_EXPORTS ON)
 set_tests_properties(PianoRollRenderingTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
+
+set_target_properties(MixerChannelLcdSpinBoxTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(MixerChannelLcdSpinBoxTest PROPERTIES
 	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
 	TIMEOUT 60)
 

@@ -71,6 +71,9 @@ public:
 	// Create a menu for assigning/creating channels for this track
 	QMenu * createMixerMenu( QString title, QString newMixerLabel ) override;
 
+public slots:
+	//! @brief Create and assign a new mixer Channel for this track
+	void createMixerLine();
 
 protected:
 	void modelChanged() override;
@@ -90,9 +93,6 @@ private slots:
 
 	//! @brief Assign a specific mixer Channel for this track
 	void assignMixerLine(int channelIndex);
-
-	//! @brief Create and assign a new mixer Channel for this track
-	void createMixerLine();
 
 	void handleConfigChange(QString cls, QString attr, QString value);
 	
