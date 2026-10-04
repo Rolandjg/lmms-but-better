@@ -41,8 +41,8 @@ QString VST3BASE_EXPORT tuidToString(const Steinberg::TUID tuid);
 //! Parse a 32 char hex string into a 16 byte class id; returns false on error
 bool VST3BASE_EXPORT tuidFromString(const QString& str, Steinberg::TUID tuid);
 
-//! Convert a null-terminated UTF-16 VST3 string into a QString
-QString VST3BASE_EXPORT fromVstString(const Steinberg::Vst::TChar* str);
+//! Convert a fixed-size UTF-16 VST3 String128, bounded even without a terminator.
+QString VST3BASE_EXPORT fromVstString(const Steinberg::Vst::TChar (&str)[128]);
 
 //! Copy a QString into a null-terminated UTF-16 String128
 void VST3BASE_EXPORT toVstString(Steinberg::Vst::String128 dst, const QString& src);

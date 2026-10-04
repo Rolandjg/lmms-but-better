@@ -4,6 +4,9 @@
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
+#include <limits>
+#include <thread>
+#include "pluginterfaces/gui/iplugview.h"
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #endif
@@ -19,12 +22,83 @@ using namespace Steinberg;
 using namespace Steinberg::Vst;
 namespace
 {
+int stats[8]{};
+// active-on, active-off, processing-off, parameter queries, mapping queries,
+// editor destruction, editor removal, timer callbacks
 const FUID classId{0x15B2E311, 0xDFBC4BE2, 0x951D0921, 0x106501AB};
 bool equal(const char* a, const FUID& b) { return std::memcmp(a, b, 16) == 0; }
 
-class TestPlugin : public IComponent, public IAudioProcessor, public IEditController, public IMidiMapping
+class TestView final : public IPlugView, public Linux::ITimerHandler
 {
 	uint32 refs = 1;
+public:
+	~TestView() { ++stats[5]; }
+	tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
+	{
+		*obj = nullptr;
+		if (equal(iid, IPlugView::iid) || equal(iid, FUnknown::iid)) { *obj = static_cast<IPlugView*>(this); }
+		else if (equal(iid, Linux::ITimerHandler::iid)) { *obj = static_cast<Linux::ITimerHandler*>(this); }
+		if (!*obj) { return kNoInterface; }
+		addRef(); return kResultOk;
+	}
+	uint32 PLUGIN_API addRef() override { return ++refs; }
+	uint32 PLUGIN_API release() override { auto n = --refs; if (!n) { delete this; } return n; }
+	tresult PLUGIN_API isPlatformTypeSupported(FIDString) override { return kResultTrue; }
+	tresult PLUGIN_API attached(void*, FIDString) override
+	{
+		if (std::getenv("LMMS_TEST_VST3_ATTACH_THROW")) { throw std::runtime_error("editor attachment threw"); }
+		if (std::getenv("LMMS_TEST_VST3_ATTACH_FAIL")) { return kResultFalse; }
+		return kResultOk;
+	}
+	tresult PLUGIN_API removed() override
+	{
+		++stats[6];
+		if (std::getenv("LMMS_TEST_VST3_REMOVE_THROW")) { throw std::runtime_error("editor removal failed"); }
+		return kResultOk;
+	}
+	tresult PLUGIN_API onWheel(float) override { return kResultOk; }
+	tresult PLUGIN_API onKeyDown(char16, int16, int16) override { return kResultOk; }
+	tresult PLUGIN_API onKeyUp(char16, int16, int16) override { return kResultOk; }
+	tresult PLUGIN_API getSize(ViewRect* r) override
+	{
+		if (std::getenv("LMMS_TEST_VST3_SIZE_THROW")) { throw std::runtime_error("editor size threw"); }
+		*r = {0, 0, 200, 100}; return kResultOk;
+	}
+	tresult PLUGIN_API onSize(ViewRect*) override
+	{
+		if (std::getenv("LMMS_TEST_VST3_RESIZE_THROW")) { throw std::runtime_error("editor resize threw"); }
+		return kResultOk;
+	}
+	tresult PLUGIN_API onFocus(TBool) override { return kResultOk; }
+	tresult PLUGIN_API setFrame(IPlugFrame* frame) override
+	{
+#ifndef __APPLE__
+		if (frame)
+		{
+			Linux::IRunLoop* loop = nullptr;
+			if (frame->queryInterface(Linux::IRunLoop::iid, reinterpret_cast<void**>(&loop)) == kResultOk)
+			{
+				loop->registerTimer(this, 1);
+				loop->release();
+			}
+		}
+#endif
+		// Deliberately leave cleanup to the host, including on failed attach.
+		return kResultOk;
+	}
+	tresult PLUGIN_API canResize() override { return kResultTrue; }
+	tresult PLUGIN_API checkSizeConstraint(ViewRect*) override { return kResultTrue; }
+	void PLUGIN_API onTimer() override
+	{
+		++stats[7];
+		if (std::getenv("LMMS_TEST_VST3_TIMER_THROW")) { throw std::runtime_error("editor timer failed"); }
+	}
+};
+
+class TestPlugin final : public IComponent, public IAudioProcessor, public IEditController, public IMidiMapping
+{
+	uint32 refs = 1;
+	std::thread::id uiThread;
 	double gain = .5;
 	bool note = false;
 	double pitchBend = 8192. / 16383.;
@@ -42,7 +116,7 @@ public:
 	}
 	uint32 PLUGIN_API addRef() override { return ++refs; }
 	uint32 PLUGIN_API release() override { const auto n = --refs; if (!n) { delete this; } return n; }
-	tresult PLUGIN_API initialize(FUnknown*) override { return kResultOk; }
+	tresult PLUGIN_API initialize(FUnknown*) override { uiThread = std::this_thread::get_id(); return kResultOk; }
 	tresult PLUGIN_API terminate() override { return kResultOk; }
 	tresult PLUGIN_API getControllerClassId(TUID) override { return kResultFalse; }
 	tresult PLUGIN_API setIoMode(IoMode) override { return kResultOk; }
@@ -63,17 +137,29 @@ public:
 		return kResultOk;
 	}
 	tresult PLUGIN_API getRoutingInfo(RoutingInfo&, RoutingInfo&) override { return kNotImplemented; }
-	tresult PLUGIN_API activateBus(MediaType, BusDirection, int32, TBool) override { return kResultOk; }
-	tresult PLUGIN_API setActive(TBool) override { return kResultOk; }
+	tresult PLUGIN_API activateBus(MediaType, BusDirection, int32, TBool) override
+	{ return std::getenv("LMMS_TEST_VST3_BUS_ACTIVATION_FAIL") ? kResultFalse : kResultOk; }
+	tresult PLUGIN_API setActive(TBool active) override { ++stats[active ? 0 : 1]; return kResultOk; }
 	tresult PLUGIN_API setState(IBStream* stream) override { return stream->read(&gain, sizeof(gain)); }
 	tresult PLUGIN_API getState(IBStream* stream) override { return stream->write(&gain, sizeof(gain)); }
 	tresult PLUGIN_API setComponentState(IBStream* stream) override { return setState(stream); }
-	tresult PLUGIN_API setBusArrangements(SpeakerArrangement*, int32, SpeakerArrangement*, int32) override { return kResultOk; }
-	tresult PLUGIN_API getBusArrangement(BusDirection, int32, SpeakerArrangement& arr) override { arr = SpeakerArr::kStereo; return kResultOk; }
+	tresult PLUGIN_API setBusArrangements(SpeakerArrangement*, int32, SpeakerArrangement*, int32) override
+	{ return std::getenv("LMMS_TEST_VST3_ARRANGEMENT_FAIL") ? kResultFalse : kResultOk; }
+	tresult PLUGIN_API getBusArrangement(BusDirection, int32, SpeakerArrangement& arr) override
+	{
+		if (std::getenv("LMMS_TEST_VST3_ARRANGEMENT_FAIL")) { return kResultFalse; }
+		arr = SpeakerArr::kStereo; return kResultOk;
+	}
 	tresult PLUGIN_API canProcessSampleSize(int32 size) override { return size == kSample32 ? kResultOk : kResultFalse; }
 	uint32 PLUGIN_API getLatencySamples() override { return 0; }
 	tresult PLUGIN_API setupProcessing(ProcessSetup&) override { return kResultOk; }
-	tresult PLUGIN_API setProcessing(TBool) override { return kResultOk; }
+	tresult PLUGIN_API setProcessing(TBool processing) override
+	{
+		if (!processing) { ++stats[2]; }
+		if (std::getenv(processing ? "LMMS_TEST_VST3_START_THROW" : "LMMS_TEST_VST3_STOP_THROW"))
+		{ throw std::runtime_error("processing transition failed"); }
+		return kResultOk;
+	}
 	uint32 PLUGIN_API getTailSamples() override { return 0; }
 	tresult PLUGIN_API process(ProcessData& data) override
 	{
@@ -133,31 +219,38 @@ public:
 		}
 		return kResultOk;
 	}
-	int32 PLUGIN_API getParameterCount() override { return 1; }
+	int32 PLUGIN_API getParameterCount() override { return std::getenv("LMMS_TEST_VST3_HUGE_PARAMS") ? 1000000000 : 1; }
 	tresult PLUGIN_API getMidiControllerAssignment(int32, int16, CtrlNumber controller, ParamID& id) override
 	{
+		++stats[4];
+		if (std::this_thread::get_id() != uiThread || std::getenv("LMMS_TEST_VST3_MAPPING_FORBIDDEN"))
+		{ throw std::runtime_error("mapping queried during MIDI delivery"); }
 		if (controller != kPitchBend) { return kResultFalse; }
-		id = 8;
+		id = std::getenv("LMMS_TEST_VST3_MAPPING_CHANGED") ? 7 : 8;
 		return kResultOk;
 	}
 	tresult PLUGIN_API getParameterInfo(int32 index, ParameterInfo& info) override
 	{
+		++stats[3];
 		if (index) { return kInvalidArgument; }
 		info = {};
 		info.id = 7;
 		info.defaultNormalizedValue = .5;
 		info.flags = ParameterInfo::kCanAutomate;
 		std::memcpy(info.title, u"Gain", sizeof(u"Gain"));
+		if (std::getenv("LMMS_TEST_VST3_UNTERMINATED_TITLE"))
+		{ for (auto& c : info.title) { c = u'X'; } }
 		return kResultOk;
 	}
 	tresult PLUGIN_API getParamStringByValue(ParamID, ParamValue, String128) override { return kNotImplemented; }
 	tresult PLUGIN_API getParamValueByString(ParamID, TChar*, ParamValue&) override { return kNotImplemented; }
 	ParamValue PLUGIN_API normalizedParamToPlain(ParamID, ParamValue v) override { return v; }
 	ParamValue PLUGIN_API plainParamToNormalized(ParamID, ParamValue v) override { return v; }
-	ParamValue PLUGIN_API getParamNormalized(ParamID) override { return gain; }
+	ParamValue PLUGIN_API getParamNormalized(ParamID) override
+	{ return std::getenv("LMMS_TEST_VST3_NAN_PARAM") ? std::numeric_limits<double>::quiet_NaN() : gain; }
 	tresult PLUGIN_API setParamNormalized(ParamID, ParamValue v) override { gain = v; return kResultOk; }
 	tresult PLUGIN_API setComponentHandler(IComponentHandler*) override { return kResultOk; }
-	IPlugView* PLUGIN_API createView(FIDString) override { return nullptr; }
+	IPlugView* PLUGIN_API createView(FIDString) override { return std::getenv("LMMS_TEST_VST3_EDITOR") ? new TestView : nullptr; }
 };
 
 class Factory : public IPluginFactory2
@@ -218,3 +311,8 @@ extern "C" __attribute__((visibility("default"))) bool bundleEntry(CFBundleRef b
 }
 extern "C" __attribute__((visibility("default"))) bool bundleExit() { return ModuleExit(); }
 #endif
+
+extern "C" __attribute__((visibility("default"))) int LMMS_TestVst3Stat(int index)
+{ return stats[index]; }
+extern "C" __attribute__((visibility("default"))) void LMMS_TestVst3ResetStats()
+{ for (auto& value : stats) { value = 0; } }

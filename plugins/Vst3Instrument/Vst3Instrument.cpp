@@ -381,6 +381,14 @@ void Vst3InsView::toggleEditor(bool show)
 	if (!m_editorWindow)
 	{
 		m_editorWindow = new Vst3EditorWindow(plugin);
+		connect(m_editorWindow, &Vst3EditorWindow::editorFailed, this, [this](const QString& reason)
+		{
+			const QSignalBlocker blocker{m_toggleUiButton};
+			m_toggleUiButton->setChecked(false);
+			m_toggleUiButton->setText(tr("Show GUI"));
+			m_errorLabel->setText(tr("Plugin editor error: %1").arg(reason));
+			m_errorLabel->show();
+		});
 		connect(m_editorWindow, &Vst3EditorWindow::closed, this, [this]()
 		{
 			const QSignalBlocker blocker{m_toggleUiButton};

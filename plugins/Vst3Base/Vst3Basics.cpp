@@ -25,6 +25,7 @@
 #include "Vst3Basics.h"
 
 #include <cstring>
+#include <algorithm>
 
 namespace lmms::vst3
 {
@@ -59,10 +60,10 @@ bool tuidFromString(const QString& str, Steinberg::TUID tuid)
 
 
 
-QString fromVstString(const Steinberg::Vst::TChar* str)
+QString fromVstString(const Steinberg::Vst::TChar (&str)[128])
 {
-	if (!str) { return QString(); }
-	return QString::fromUtf16(reinterpret_cast<const char16_t*>(str));
+	const auto end = std::find(str, str + 128, Steinberg::Vst::TChar{0});
+	return QString::fromUtf16(reinterpret_cast<const char16_t*>(str), static_cast<int>(end - str));
 }
 
 

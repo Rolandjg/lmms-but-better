@@ -27,6 +27,10 @@
 #include <cmath>
 #include <cstring>
 #include <optional>
+#include <limits>
+#include <stdexcept>
+#include <utility>
+#include <QDebug>
 
 #include <QCloseEvent>
 #include <QEvent>
@@ -180,6 +184,31 @@ QSize Vst3EditorWindow::logicalToPhysical(const QSize& size) const
 
 
 
+bool Vst3EditorWindow::tryPluginCall(const char* operation, const std::function<void()>& callback)
+{
+	QString reason;
+	try { callback(); return true; }
+	catch (const std::exception& e) { reason = QString::fromUtf8(e.what()); }
+	catch (...) { reason = QStringLiteral("unknown exception"); }
+	reason = QStringLiteral("%1: %2").arg(QString::fromLatin1(operation), reason);
+	qWarning().noquote() << "VST3 editor:" << reason;
+	// Defer cleanup/UI work: callbacks may unregister themselves or run
+	// during destruction. Qt cancels this work if the window is deleted.
+	if (!m_detaching && !m_failureQueued)
+	{
+		m_failureQueued = true;
+		QMetaObject::invokeMethod(this, [this, reason]()
+		{
+			detachView();
+			hide();
+			m_failureQueued = false;
+			emit editorFailed(reason);
+		}, Qt::QueuedConnection);
+	}
+	return false;
+}
+
+
 bool Vst3EditorWindow::attachView()
 {
 #ifdef Q_OS_MACOS
@@ -187,62 +216,48 @@ bool Vst3EditorWindow::attachView()
 #else
 	if (QGuiApplication::platformName() != QStringLiteral("xcb")) { return false; }
 #endif
+	if (m_detaching || m_failureQueued) { return false; }
 	if (m_view) { return true; }
-
 	m_view = m_plugin->createEditorView();
 	if (!m_view) { return false; }
-
-	if (m_view->isPlatformTypeSupported(EditorPlatform) != kResultTrue)
+	bool supported = false;
+	const bool success = tryPluginCall("editor setup", [this, &supported]()
 	{
-		m_view = nullptr;
-		return false;
-	}
-
-	m_view->setFrame(this);
-
+		supported = m_view->isPlatformTypeSupported(EditorPlatform) == kResultTrue;
+		if (!supported) { return; }
+		if (m_view->setFrame(this) != kResultOk)
+		{ throw std::runtime_error("plugin rejected its editor frame"); }
 #ifndef Q_OS_MACOS
-	if (const auto scale = contentScaleOverride(this))
-	{
-		IPlugViewContentScaleSupport* scaleSupport = nullptr;
-		if (m_view->queryInterface(IPlugViewContentScaleSupport::iid,
-				reinterpret_cast<void**>(&scaleSupport)) == kResultOk && scaleSupport)
+		if (const auto scale = contentScaleOverride(this))
 		{
-			scaleSupport->setContentScaleFactor(
-				static_cast<IPlugViewContentScaleSupport::ScaleFactor>(*scale));
-			scaleSupport->release();
+			IPlugViewContentScaleSupport* raw = nullptr;
+			if (m_view->queryInterface(IPlugViewContentScaleSupport::iid,
+				reinterpret_cast<void**>(&raw)) == kResultOk && raw)
+			{
+				auto support = owned(raw);
+				support->setContentScaleFactor(
+					static_cast<IPlugViewContentScaleSupport::ScaleFactor>(*scale));
+			}
 		}
-	}
-
 #endif
-	// VST3 view coordinates on X11 are physical pixels, Qt widget geometry
-	// is logical (scaled) pixels - convert, or the window ends up
-	// devicePixelRatio times too big and mouse hit testing is off
-	ViewRect size;
-	if (m_view->getSize(&size) == kResultOk)
-	{
+		ViewRect size{};
+		if (m_view->getSize(&size) != kResultOk || size.getWidth() <= 0 || size.getHeight() <= 0)
+		{ throw std::runtime_error("plugin reported an invalid editor size"); }
 		m_resizingFromPlugin = true;
 		m_viewSize = QSize(size.getWidth(), size.getHeight());
 		resize(physicalToLogical(m_viewSize));
 		m_resizingFromPlugin = false;
-	}
-
+	});
+	if (!success || !supported) { detachView(); return false; }
 #ifdef Q_OS_MACOS
 	completeAttach();
 	return m_attached;
 #else
-	// attach only once the window is mapped and placed: many plugin
-	// toolkits cache their screen position at attach time and translate
-	// mouse coordinates against it - attaching at the pre-placement
-	// position (the origin) leaves their clicks offset by exactly the
-	// window position (and "fullscreen", i.e. a window at the origin,
-	// would appear to fix it)
 	m_attachPending = true;
 	maybeCompleteAttach(false);
-
 	return true;
 #endif
 }
-
 
 
 
@@ -277,20 +292,15 @@ void Vst3EditorWindow::maybeCompleteAttach(bool wmPlaced)
 void Vst3EditorWindow::completeAttach()
 {
 	if (!m_view || m_attached) { return; }
-
-	if (m_view->attached(reinterpret_cast<void*>(winId()), EditorPlatform)
-		!= kResultOk)
+	const bool success = tryPluginCall("editor attachment", [this]()
 	{
-		m_view->setFrame(nullptr);
-		m_view = nullptr;
-		return;
-	}
-	m_attached = true;
-
-	if (m_view->canResize() != kResultTrue)
-	{
-		setFixedSize(physicalToLogical(m_viewSize));
-	}
+		if (m_view->attached(reinterpret_cast<void*>(winId()), EditorPlatform) != kResultOk)
+		{ throw std::runtime_error("plugin rejected editor attachment"); }
+		m_attached = true;
+		if (m_view->canResize() != kResultTrue)
+		{ setFixedSize(physicalToLogical(m_viewSize)); }
+	});
+	if (!success) { detachView(); return; }
 
 #ifndef Q_OS_MACOS
 	// belt and braces for toolkits that update their cached position from
@@ -333,21 +343,29 @@ bool Vst3EditorWindow::eventFilter(QObject* watched, QEvent* event)
 
 void Vst3EditorWindow::detachView()
 {
-	if (!m_view) { return; }
-
+	if (m_detaching) { return; }
+	m_detaching = true;
 	m_attachPending = false;
+	m_resizingFromPlugin = false;
 	if (m_positionRefreshTimer) { m_positionRefreshTimer->stop(); }
-	if (m_attached)
-	{
-		m_view->removed();
-		m_attached = false;
-	}
-	m_view->setFrame(nullptr);
-	m_view = nullptr;
-
 #ifndef Q_OS_MACOS
-	// plugins are supposed to unregister everything in removed(), but
-	// don't rely on it
+	// Stop callbacks first, but retain their objects until removed() has
+	// had a chance to unregister them. Cleanup also runs without a view.
+	for (auto& entry : m_eventHandlers)
+	{
+		entry.readNotifier->setEnabled(false);
+		entry.writeNotifier->setEnabled(false);
+	}
+	for (auto& entry : m_timers) { entry.timer->stop(); }
+#endif
+	const bool attached = std::exchange(m_attached, false);
+	auto view = std::move(m_view);
+	if (view)
+	{
+		if (attached) { tryPluginCall("editor removal", [&]() { view->removed(); }); }
+		tryPluginCall("editor frame removal", [&]() { view->setFrame(nullptr); });
+	}
+#ifndef Q_OS_MACOS
 	for (auto& entry : m_eventHandlers)
 	{
 		delete entry.readNotifier;
@@ -357,32 +375,30 @@ void Vst3EditorWindow::detachView()
 	for (auto& entry : m_timers) { delete entry.timer; }
 	m_timers.clear();
 #endif
+	if (auto raw = view.take())
+	{ tryPluginCall("editor release", [raw]() { raw->release(); }); }
+	m_detaching = false;
 }
-
 
 
 
 tresult PLUGIN_API Vst3EditorWindow::resizeView(IPlugView* view, ViewRect* newSize)
 {
-	if (!view || !newSize) { return kInvalidArgument; }
-
-	// newSize is in physical pixels
+	if (!view || view != m_view.get() || !newSize || newSize->getWidth() <= 0
+		|| newSize->getHeight() <= 0 || m_detaching) { return kInvalidArgument; }
+	if (m_resizingFromPlugin) { return kResultFalse; }
 	m_resizingFromPlugin = true;
-	m_viewSize = QSize(newSize->getWidth(), newSize->getHeight());
-	const QSize logical = physicalToLogical(m_viewSize);
-	if (m_view && m_view->canResize() != kResultTrue)
+	const bool success = tryPluginCall("editor resize", [&]()
 	{
-		setFixedSize(logical);
-	}
-	else
-	{
-		resize(logical);
-	}
-	view->onSize(newSize);
+		m_viewSize = QSize(newSize->getWidth(), newSize->getHeight());
+		const QSize logical = physicalToLogical(m_viewSize);
+		if (m_view->canResize() != kResultTrue) { setFixedSize(logical); }
+		else { resize(logical); }
+		view->onSize(newSize);
+	});
 	m_resizingFromPlugin = false;
-	return kResultTrue;
+	return success ? kResultTrue : kResultFalse;
 }
-
 
 
 
@@ -429,24 +445,27 @@ void Vst3EditorWindow::resizeEvent(QResizeEvent* event)
 #endif
 	if (!m_view || !m_attached || m_resizingFromPlugin) { return; }
 
-	// only forward real size changes; echoing WM configure events (or
-	// fractional-scale rounding drift) back as onSize() makes plugins
-	// stretch their editor slightly, which breaks their mouse hit testing
-	const QSize physical = logicalToPhysical(size());
-	const QSize diff = physical - m_viewSize;
-	if ((std::abs(diff.width()) <= 2 && std::abs(diff.height()) <= 2)
-		|| m_view->canResize() != kResultTrue)
+	tryPluginCall("editor resize", [this]()
 	{
-		return;
-	}
+		// only forward real size changes; echoing WM configure events (or
+		// fractional-scale rounding drift) back as onSize() makes plugins
+		// stretch their editor slightly, which breaks their mouse hit testing
+		const QSize physical = logicalToPhysical(size());
+		const QSize diff = physical - m_viewSize;
+		if ((std::abs(diff.width()) <= 2 && std::abs(diff.height()) <= 2)
+			|| m_view->canResize() != kResultTrue)
+		{
+			return;
+		}
 
-	ViewRect rect{0, 0, physical.width(), physical.height()};
-	if (m_view->checkSizeConstraint(&rect) == kResultTrue
-		|| (rect.getWidth() > 0 && rect.getHeight() > 0))
-	{
-		m_viewSize = QSize(rect.getWidth(), rect.getHeight());
-		m_view->onSize(&rect);
-	}
+		ViewRect rect{0, 0, physical.width(), physical.height()};
+		if (m_view->checkSizeConstraint(&rect) == kResultTrue
+			|| (rect.getWidth() > 0 && rect.getHeight() > 0))
+		{
+			m_viewSize = QSize(rect.getWidth(), rect.getHeight());
+			m_view->onSize(&rect);
+		}
+	});
 }
 
 
@@ -466,16 +485,27 @@ void Vst3EditorWindow::closeEvent(QCloseEvent* event)
 tresult PLUGIN_API Vst3EditorWindow::registerEventHandler(
 	Linux::IEventHandler* handler, Linux::FileDescriptor fd)
 {
-	if (!handler) { return kInvalidArgument; }
+	if (!handler || m_detaching) { return kInvalidArgument; }
 
+	if (fd < 0 || std::any_of(m_eventHandlers.begin(), m_eventHandlers.end(),
+		[fd](const auto& entry) { return entry.fd == fd; })) { return kInvalidArgument; }
 	EventHandlerEntry entry;
 	entry.handler = handler;
+	entry.fd = fd;
 	entry.readNotifier = new QSocketNotifier(fd, QSocketNotifier::Read, this);
 	connect(entry.readNotifier, &QSocketNotifier::activated,
-		this, [handler, fd]() { handler->onFDIsSet(fd); });
+		this, [this, retained = entry.handler, fd]()
+		{
+			auto handler = retained; // keep alive if it unregisters itself
+			tryPluginCall("editor FD callback", [&]() { handler->onFDIsSet(fd); });
+		});
 	entry.writeNotifier = new QSocketNotifier(fd, QSocketNotifier::Write, this);
 	connect(entry.writeNotifier, &QSocketNotifier::activated,
-		this, [handler, fd]() { handler->onFDIsSet(fd); });
+		this, [this, retained = entry.handler, fd]()
+		{
+			auto handler = retained; // keep alive if it unregisters itself
+			tryPluginCall("editor FD callback", [&]() { handler->onFDIsSet(fd); });
+		});
 	// write readiness is almost always true which would busy-loop; only
 	// deliver read events by default like other hosts do
 	entry.writeNotifier->setEnabled(false);
@@ -508,13 +538,19 @@ tresult PLUGIN_API Vst3EditorWindow::unregisterEventHandler(Linux::IEventHandler
 tresult PLUGIN_API Vst3EditorWindow::registerTimer(
 	Linux::ITimerHandler* handler, Linux::TimerInterval milliseconds)
 {
-	if (!handler) { return kInvalidArgument; }
+	if (!handler || m_detaching) { return kInvalidArgument; }
 
+	if (milliseconds == 0 || milliseconds > static_cast<Linux::TimerInterval>(std::numeric_limits<int>::max()))
+	{ return kInvalidArgument; }
 	TimerEntry entry;
 	entry.handler = handler;
 	entry.timer = new QTimer(this);
 	entry.timer->setInterval(static_cast<int>(std::max<Linux::TimerInterval>(1, milliseconds)));
-	connect(entry.timer, &QTimer::timeout, this, [handler]() { handler->onTimer(); });
+	connect(entry.timer, &QTimer::timeout, this, [this, retained = entry.handler]()
+	{
+		auto handler = retained; // keep alive if it unregisters itself
+		tryPluginCall("editor timer callback", [&]() { handler->onTimer(); });
+	});
 	entry.timer->start();
 
 	m_timers.push_back(entry);
@@ -761,6 +797,14 @@ void Vst3PluginWidget::toggleEditor(bool show)
 		if (!m_editorWindow)
 		{
 			m_editorWindow = new Vst3EditorWindow(m_plugin);
+			connect(m_editorWindow, &Vst3EditorWindow::editorFailed, this, [this](const QString& reason)
+			{
+				const QSignalBlocker blocker{m_toggleUiButton};
+				m_toggleUiButton->setChecked(false);
+				m_toggleUiButton->setText(tr("Show GUI"));
+				m_editorErrorLabel->setText(tr("Plugin editor error: %1").arg(reason));
+				m_editorErrorLabel->show();
+			});
 			connect(m_editorWindow, &Vst3EditorWindow::closed, this, [this]()
 			{
 				if (m_toggleUiButton)

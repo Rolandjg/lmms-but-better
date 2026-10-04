@@ -27,6 +27,8 @@
 #include <algorithm>
 #include <bit>
 #include <cstring>
+#include <cmath>
+#include <exception>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -66,6 +68,7 @@ bool iidEqual(const TUID a, const TUID b)
 //! for - generous enough for heavyweight synths (Vital exposes ~3000),
 //! it only guards against pathological plugins
 constexpr std::size_t MaxParamModels = 32768;
+constexpr int32 MaxParamEnumeration = 32768;
 constexpr int32 MaxBuses = 64;
 constexpr int32 MaxChannels = 64;
 
@@ -436,6 +439,7 @@ void Vst3Plugin::initialize()
 	}
 
 	setupBuses();
+	refreshMidiMapping();
 	setupProcessing();
 	allocateBuffers();
 	activate();
@@ -535,6 +539,10 @@ void Vst3Plugin::cleanup()
 void Vst3Plugin::initParameters()
 {
 	const int32 count = m_controller->getParameterCount();
+	if (count < 0 || count > MaxParamEnumeration)
+	{
+		throw std::runtime_error("VST3 plugin reported an invalid parameter count");
+	}
 	for (int32 i = 0; i < count && m_params.size() < MaxParamModels; ++i)
 	{
 		Vst::ParameterInfo info = {};
@@ -549,10 +557,19 @@ void Vst3Plugin::initParameters()
 		param->shortTitle = fromVstString(info.shortTitle);
 		if (param->shortTitle.isEmpty()) { param->shortTitle = param->title; }
 		param->unit = fromVstString(info.units);
-		param->defaultNormalized = info.defaultNormalizedValue;
+		if (!std::isfinite(info.defaultNormalizedValue))
+		{
+			throw std::runtime_error("VST3 plugin reported a non-finite parameter default");
+		}
+		param->defaultNormalized = std::clamp(info.defaultNormalizedValue, 0., 1.);
 
 		const float step = info.stepCount > 0 ? 1.f / info.stepCount : 0.00001f;
-		const auto value = static_cast<float>(m_controller->getParamNormalized(info.id));
+		const double normalized = m_controller->getParamNormalized(info.id);
+		if (!std::isfinite(normalized))
+		{
+			throw std::runtime_error("VST3 plugin reported a non-finite parameter value");
+		}
+		const auto value = static_cast<float>(std::clamp(normalized, 0., 1.));
 		param->model = new FloatModel(value, 0.f, 1.f, step, m_model, param->title);
 		param->pendingValue = value;
 
@@ -570,7 +587,13 @@ void Vst3Plugin::initParameters()
 
 void Vst3Plugin::onModelChanged(Param* param)
 {
-	param->pendingValue = param->model->value();
+	const double value = param->model->value();
+	if (!std::isfinite(value))
+	{
+		fail(QStringLiteral("parameter model contains a non-finite value"));
+		return;
+	}
+	param->pendingValue = std::clamp(value, 0., 1.);
 	param->dirty = true;
 	if (!m_settingFromController) { param->controllerDirty = true; }
 }
@@ -600,7 +623,8 @@ void Vst3Plugin::syncControllerFromModels()
 
 void Vst3Plugin::parameterEditedByGui(Vst::ParamID id, double normalized)
 {
-	if (m_failed) { return; }
+	if (m_failed || !std::isfinite(normalized)) { return; }
+	normalized = std::clamp(normalized, 0., 1.);
 	const auto it = m_paramById.find(id);
 	if (it == m_paramById.end())
 	{
@@ -636,6 +660,17 @@ void Vst3Plugin::componentRestartRequested(int32 flags)
 				refreshModelsFromController(true);
 			}, Qt::QueuedConnection);
 	}
+	if ((flags & Vst::kMidiCCAssignmentChanged) && !m_mappingRefreshQueued.exchange(true))
+	{
+		QMetaObject::invokeMethod(this, [this]()
+		{
+			m_mappingRefreshQueued = false;
+			if (m_failed) { return; }
+			try { refreshMidiMapping(); }
+			catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+			catch (...) { fail(QStringLiteral("MIDI mapping refresh threw an unknown exception")); }
+		}, Qt::QueuedConnection);
+	}
 	// kLatencyChanged, kIoChanged etc. are not handled yet
 }
 
@@ -649,7 +684,13 @@ void Vst3Plugin::refreshModelsFromController(bool pushToProcessor)
 	{
 		for (const auto& param : m_params)
 		{
-			const auto value = static_cast<float>(m_controller->getParamNormalized(param->id));
+			const double normalized = m_controller->getParamNormalized(param->id);
+			if (!std::isfinite(normalized))
+			{
+				fail(QStringLiteral("controller reported a non-finite parameter value"));
+				return;
+			}
+			const auto value = static_cast<float>(std::clamp(normalized, 0., 1.));
 			m_settingFromController = true;
 			param->model->setValue(value);
 			m_settingFromController = false;
@@ -735,7 +776,9 @@ void Vst3Plugin::setupBuses()
 	for (int32 i = 0; i < numIn; ++i)
 	{
 		SpeakerArrangement arr;
-		if (m_processor->getBusArrangement(kInput, i, arr) == kResultOk) { inArr[i] = arr; }
+		if (m_processor->getBusArrangement(kInput, i, arr) != kResultOk)
+		{ throw std::runtime_error("VST3 plugin could not verify its input arrangement"); }
+		inArr[i] = arr;
 		if (std::popcount(static_cast<uint64>(inArr[i])) > MaxChannels)
 		{
 			throw std::runtime_error("VST3 plugin reported too many input channels");
@@ -744,7 +787,9 @@ void Vst3Plugin::setupBuses()
 	for (int32 i = 0; i < numOut; ++i)
 	{
 		SpeakerArrangement arr;
-		if (m_processor->getBusArrangement(kOutput, i, arr) == kResultOk) { outArr[i] = arr; }
+		if (m_processor->getBusArrangement(kOutput, i, arr) != kResultOk)
+		{ throw std::runtime_error("VST3 plugin could not verify its output arrangement"); }
+		outArr[i] = arr;
 		if (std::popcount(static_cast<uint64>(outArr[i])) > MaxChannels)
 		{
 			throw std::runtime_error("VST3 plugin reported too many output channels");
@@ -763,7 +808,8 @@ void Vst3Plugin::setupBuses()
 		bus.isMain = inMain[i];
 		if (bus.isMain && m_mainIn < 0) { m_mainIn = i; }
 		m_inBuses.push_back(std::move(bus));
-		m_component->activateBus(kAudio, kInput, i, true);
+		if (m_component->activateBus(kAudio, kInput, i, true) != kResultOk)
+		{ throw std::runtime_error("VST3 plugin could not activate an audio bus"); }
 	}
 	if (m_mainIn < 0 && numIn > 0) { m_mainIn = 0; }
 
@@ -774,13 +820,15 @@ void Vst3Plugin::setupBuses()
 		bus.isMain = outMain[i];
 		if (bus.isMain && m_mainOut < 0) { m_mainOut = i; }
 		m_outBuses.push_back(std::move(bus));
-		m_component->activateBus(kAudio, kOutput, i, true);
+		if (m_component->activateBus(kAudio, kOutput, i, true) != kResultOk)
+		{ throw std::runtime_error("VST3 plugin could not activate an audio bus"); }
 	}
 	if (m_mainOut < 0 && numOut > 0) { m_mainOut = 0; }
 
 	if (m_component->getBusCount(kEvent, kInput) > 0)
 	{
-		m_component->activateBus(kEvent, kInput, 0, true);
+		if (m_component->activateBus(kEvent, kInput, 0, true) != kResultOk)
+		{ throw std::runtime_error("VST3 plugin could not activate its event bus"); }
 		m_hasEventInput = true;
 	}
 }
@@ -837,12 +885,14 @@ void Vst3Plugin::activate()
 	{
 		throw std::runtime_error("VST3 plugin could not be activated");
 	}
+	m_componentActive = true;
+	// A throwing start may already have changed plugin state. Attempt
+	// the matching stop during cleanup in that case as well.
+	m_processing = true;
 	if (m_processor->setProcessing(true) != kResultOk)
 	{
-		m_component->setActive(false);
 		throw std::runtime_error("VST3 plugin could not start processing");
 	}
-	m_processing = true;
 }
 
 
@@ -850,10 +900,20 @@ void Vst3Plugin::activate()
 
 void Vst3Plugin::deactivate()
 {
-	if (!m_processing) { return; }
-	m_processor->setProcessing(false);
-	m_component->setActive(false);
-	m_processing = false;
+	std::exception_ptr error;
+	if (m_processing)
+	{
+		m_processing = false;
+		try { m_processor->setProcessing(false); }
+		catch (...) { error = std::current_exception(); }
+	}
+	if (m_componentActive)
+	{
+		m_componentActive = false;
+		try { m_component->setActive(false); }
+		catch (...) { if (!error) { error = std::current_exception(); } }
+	}
+	if (error) { std::rethrow_exception(error); }
 }
 
 
@@ -940,30 +1000,38 @@ void Vst3Plugin::handleMidiInputEvent(const MidiEvent& event, const TimePos&, f_
 
 
 
-void Vst3Plugin::queueMidiCc(int channel, int cc, double value, f_cnt_t offset)
+void Vst3Plugin::refreshMidiMapping()
 {
-	if (!m_midiMapping || m_failed) { return; }
-
-	Vst::ParamID id = Vst::kNoParamId;
-	try
+	// Controller interfaces belong to the UI thread. Publish a complete
+	// snapshot so MIDI delivery never calls into the controller.
+	MidiMappingCache cache;
+	for (auto& channel : cache) { channel.fill(Vst::kNoParamId); }
+	if (m_midiMapping && m_hasEventInput)
 	{
-		if (m_midiMapping->getMidiControllerAssignment(0, static_cast<int16>(channel),
-				static_cast<Vst::CtrlNumber>(cc), id) != kResultOk || id == Vst::kNoParamId)
+		for (int channel = 0; channel < 16; ++channel)
 		{
-			return;
+			for (int cc = 0; cc < Vst::kCountCtrlNumber; ++cc)
+			{
+				Vst::ParamID id = Vst::kNoParamId;
+				if (m_midiMapping->getMidiControllerAssignment(0, channel, cc, id) == kResultOk)
+				{ cache[channel][cc] = id; }
+			}
 		}
 	}
-	catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); return; }
-	catch (...) { fail(QStringLiteral("MIDI callback threw an unknown exception")); return; }
-	if (m_failed)
-	{
-		return;
-	}
-
 	std::lock_guard<std::mutex> lock{m_midiMutex};
-	m_pendingCc.push_back({id, value, offset});
+	m_midiMappingCache = cache;
 }
 
+
+void Vst3Plugin::queueMidiCc(int channel, int cc, double value, f_cnt_t offset)
+{
+	if (m_failed || channel < 0 || channel >= 16 || cc < 0 || cc >= Vst::kCountCtrlNumber
+		|| !std::isfinite(value)) { return; }
+	std::lock_guard<std::mutex> lock{m_midiMutex};
+	const auto id = m_midiMappingCache[channel][cc];
+	if (id != Vst::kNoParamId)
+	{ m_pendingCc.push_back({id, std::clamp(value, 0., 1.), offset}); }
+}
 
 
 
@@ -1236,6 +1304,12 @@ void Vst3Plugin::loadSettings(const QDomElement& elem)
 		}
 	}
 
+	if (!m_failed)
+	{
+		try { refreshMidiMapping(); }
+		catch (const std::exception& e) { fail(QString::fromUtf8(e.what())); }
+		catch (...) { fail(QStringLiteral("MIDI mapping refresh threw an unknown exception")); }
+	}
 	refreshModelsFromController(false);
 
 	// only load models that were actually saved - loadSettings() resets

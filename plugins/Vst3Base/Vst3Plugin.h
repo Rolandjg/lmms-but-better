@@ -26,6 +26,7 @@
 #define LMMS_VST3_PLUGIN_H
 
 #include <QObject>
+#include <array>
 #include <QByteArray>
 #include <QString>
 #include <atomic>
@@ -156,6 +157,7 @@ private:
 	void deactivate();
 	void updateProcessContext(f_cnt_t frames);
 	void refreshModelsFromController(bool pushToProcessor);
+	void refreshMidiMapping();
 	void queueMidiCc(int channel, int cc, double value, f_cnt_t offset);
 	void onModelChanged(Param* param);
 	void syncControllerFromModels();
@@ -182,6 +184,9 @@ private:
 	std::map<Steinberg::Vst::ParamID, Param*> m_paramById;
 	bool m_settingFromController = false;
 	std::atomic<bool> m_paramRefreshQueued{false};
+	std::atomic<bool> m_mappingRefreshQueued{false};
+	using MidiMappingCache = std::array<std::array<Steinberg::Vst::ParamID, Steinberg::Vst::kCountCtrlNumber>, 16>;
+	MidiMappingCache m_midiMappingCache{};
 	QTimer* m_controllerSyncTimer = nullptr;
 
 	// audio buses
@@ -220,6 +225,7 @@ private:
 	std::mutex m_processMutex;
 	double m_sampleRate = 44100.;
 	int m_blockSize = 256;
+	bool m_componentActive = false;
 	bool m_processing = false;
 	std::atomic<bool> m_failed{false};
 	Steinberg::Vst::ProcessContext m_context = {};

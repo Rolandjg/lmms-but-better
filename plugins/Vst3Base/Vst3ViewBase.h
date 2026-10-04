@@ -28,6 +28,7 @@
 #include "lmmsconfig.h"
 #include <QWidget>
 #include <vector>
+#include <functional>
 
 #include "pluginterfaces/base/smartpointer.h"
 #include "pluginterfaces/gui/iplugview.h"
@@ -100,6 +101,7 @@ public:
 
 signals:
 	void closed();
+	void editorFailed(const QString& reason);
 
 protected:
 	void closeEvent(QCloseEvent* event) override;
@@ -114,6 +116,7 @@ private:
 	QSize logicalToPhysical(const QSize& size) const;
 
 	//! Attach the view to the (now mapped and placed) window
+	bool tryPluginCall(const char* operation, const std::function<void()>& callback);
 	void completeAttach();
 	//! Complete a pending attach if the window is ready. @p wmPlaced is
 	//! true when triggered by a move event (i.e. the WM has really placed
@@ -124,6 +127,8 @@ private:
 	vst3::Vst3Plugin* m_plugin;
 	Steinberg::IPtr<Steinberg::IPlugView> m_view;
 	bool m_attached = false;
+	bool m_detaching = false;
+	bool m_failureQueued = false;
 	bool m_attachPending = false;
 	bool m_resizingFromPlugin = false;
 	QTimer* m_positionRefreshTimer = nullptr;
@@ -132,13 +137,14 @@ private:
 #ifndef LMMS_BUILD_APPLE
 	struct EventHandlerEntry
 	{
-		Steinberg::Linux::IEventHandler* handler;
+		Steinberg::IPtr<Steinberg::Linux::IEventHandler> handler;
+		Steinberg::Linux::FileDescriptor fd;
 		QSocketNotifier* readNotifier;
 		QSocketNotifier* writeNotifier;
 	};
 	struct TimerEntry
 	{
-		Steinberg::Linux::ITimerHandler* handler;
+		Steinberg::IPtr<Steinberg::Linux::ITimerHandler> handler;
 		QTimer* timer;
 	};
 	std::vector<EventHandlerEntry> m_eventHandlers;

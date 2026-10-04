@@ -7,9 +7,14 @@
 #include <QPainter>
 #include <QMenu>
 #include <QProcess>
+#include <QLibrary>
+#include <limits>
+#include <thread>
+#include <stdexcept>
 #include <QToolButton>
 #ifndef Q_OS_MACOS
 #include <xcb/xcb.h>
+#include <unistd.h>
 #endif
 #include <cstdlib>
 #include <cmath>
@@ -44,6 +49,61 @@ using namespace lmms::vst3;
 
 namespace
 {
+
+class ScopedEnv
+{
+	QByteArray key, old;
+	bool existed;
+public:
+	explicit ScopedEnv(const char* name, const QByteArray& value = "1") :
+		key(name), old(qgetenv(name)), existed(qEnvironmentVariableIsSet(name)) { qputenv(name, value); }
+	~ScopedEnv() { if (existed) { qputenv(key.constData(), old); } else { qunsetenv(key.constData()); } }
+};
+
+#ifndef Q_OS_MACOS
+class TestTimerHandler final : public Steinberg::Linux::ITimerHandler
+{
+	unsigned refs = 1;
+	int& calls;
+	bool& destroyed;
+	bool throws;
+public:
+	TestTimerHandler(int& calls, bool& destroyed, bool throws = false) :
+		calls(calls), destroyed(destroyed), throws(throws) {}
+	~TestTimerHandler() { destroyed = true; }
+	Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void** obj) override
+	{ *obj = nullptr; return Steinberg::kNoInterface; }
+	Steinberg::uint32 PLUGIN_API addRef() override { return ++refs; }
+	Steinberg::uint32 PLUGIN_API release() override
+	{ const auto n = --refs; if (!n) { delete this; } return n; }
+	void PLUGIN_API onTimer() override
+	{
+		++calls;
+		if (throws) { throw std::runtime_error("timer failure"); }
+	}
+};
+class TestFdHandler final : public Steinberg::Linux::IEventHandler
+{
+	unsigned refs = 1;
+	int& calls;
+	bool& destroyed;
+public:
+	TestFdHandler(int& calls, bool& destroyed) : calls(calls), destroyed(destroyed) {}
+	~TestFdHandler() { destroyed = true; }
+	Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void** obj) override
+	{ *obj = nullptr; return Steinberg::kNoInterface; }
+	Steinberg::uint32 PLUGIN_API addRef() override { return ++refs; }
+	Steinberg::uint32 PLUGIN_API release() override
+	{ const auto n = --refs; if (!n) { delete this; } return n; }
+	void PLUGIN_API onFDIsSet(Steinberg::Linux::FileDescriptor fd) override
+	{
+		char byte;
+		if (::read(fd, &byte, 1) == 1) { ++calls; }
+		throw std::runtime_error("FD callback failure");
+	}
+};
+
+#endif
 
 // QScreen::grabWindow captures the root window, which is black on XWayland.
 // Read the editor's own X11 drawables, including its embedded child windows.
@@ -94,10 +154,20 @@ class Vst3HostTest : public QObject
 	Q_OBJECT
 	QTemporaryDir m_configDir;
 	std::unique_ptr<gui::GuiApplication> m_gui;
+	QLibrary m_fixture;
+	using Stat = int (*)(int);
+	using ResetStats = void (*)();
+	Stat stat = nullptr;
+	ResetStats resetStats = nullptr;
 private slots:
 	void initTestCase()
 	{
 		NotePlayHandleManager::init();
+		m_fixture.setFileName(Vst3Module::resolveModulePath(VST3_TEST_MODULE));
+		QVERIFY2(m_fixture.load(), qPrintable(m_fixture.errorString()));
+		stat = reinterpret_cast<Stat>(m_fixture.resolve("LMMS_TestVst3Stat"));
+		resetStats = reinterpret_cast<ResetStats>(m_fixture.resolve("LMMS_TestVst3ResetStats"));
+		QVERIFY(stat && resetStats);
 		QVERIFY(m_configDir.isValid());
 		const QString config = m_configDir.path() + "/lmmsrc.xml";
 		const QString userConfig = QDir::homePath() + "/.lmmsrc.xml";
@@ -331,6 +401,232 @@ private slots:
 		catch (const std::runtime_error&) { rejected = true; }
 		qunsetenv("LMMS_TEST_VST3_INVALID_BUSES");
 		QVERIFY(rejected);
+	}
+
+	void rejectsUnsafePluginMetadata_data()
+	{
+		QTest::addColumn<QByteArray>("flag");
+		QTest::newRow("unverified buses") << QByteArray{"LMMS_TEST_VST3_ARRANGEMENT_FAIL"};
+		QTest::newRow("bus activation") << QByteArray{"LMMS_TEST_VST3_BUS_ACTIVATION_FAIL"};
+		QTest::newRow("huge parameter count") << QByteArray{"LMMS_TEST_VST3_HUGE_PARAMS"};
+		QTest::newRow("non-finite parameter") << QByteArray{"LMMS_TEST_VST3_NAN_PARAM"};
+	}
+
+	void rejectsUnsafePluginMetadata()
+	{
+		QFETCH(QByteArray, flag);
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		resetStats();
+		ScopedEnv failure{flag.constData()};
+		bool rejected = false;
+		try { Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE}; }
+		catch (const std::runtime_error&) { rejected = true; }
+		QVERIFY(rejected);
+		if (flag == "LMMS_TEST_VST3_HUGE_PARAMS") { QCOMPARE(stat(3), 0); }
+	}
+
+	void boundedMetadataAndGuiValues()
+	{
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		ScopedEnv title{"LMMS_TEST_VST3_UNTERMINATED_TITLE"};
+		Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+		QCOMPARE(plugin.param(0)->title, QString(128, 'X'));
+		plugin.parameterEditedByGui(7, std::numeric_limits<double>::quiet_NaN());
+		plugin.parameterEditedByGui(7, std::numeric_limits<double>::infinity());
+		QCOMPARE(plugin.param(0)->model->value(), .5f);
+		plugin.parameterEditedByGui(7, 2.);
+		QCOMPARE(plugin.param(0)->model->value(), 1.f);
+		std::vector<SampleFrame> input(32, SampleFrame{1.f, .5f}), output(32);
+		plugin.process(input.data(), output.data(), 32);
+		QCOMPARE(output[0].left(), 1.f);
+		QSignalSpy failed{&plugin, &Vst3Plugin::pluginFailed};
+		ScopedEnv badRead{"LMMS_TEST_VST3_NAN_PARAM"};
+		plugin.componentRestartRequested(Steinberg::Vst::kParamValuesChanged);
+		QTRY_COMPARE(failed.size(), 1);
+		QCOMPARE(plugin.param(0)->model->value(), 1.f);
+	}
+
+	void activationCleanupAfterExceptions()
+	{
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		resetStats();
+		{
+			ScopedEnv failure{"LMMS_TEST_VST3_START_THROW"};
+			bool rejected = false;
+			try { Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE}; }
+			catch (const std::runtime_error&) { rejected = true; }
+			QVERIFY(rejected);
+		}
+		QCOMPARE(stat(0), 1);
+		QCOMPARE(stat(1), 1);
+		resetStats();
+		{
+			ScopedEnv failure{"LMMS_TEST_VST3_STOP_THROW"};
+			Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+		}
+		QCOMPARE(stat(2), 1);
+		QCOMPARE(stat(1), 1);
+	}
+
+	void midiMappingsAreCachedAndRefreshed()
+	{
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+		const int queries = stat(4);
+		{
+			ScopedEnv forbidden{"LMMS_TEST_VST3_MAPPING_FORBIDDEN"};
+			std::thread worker{[&]()
+			{
+				plugin.handleMidiInputEvent(MidiEvent{MidiEventTypes::MidiPitchBend, 0, 8192, 0}, {}, 0);
+			}};
+			worker.join();
+		}
+		QCOMPARE(stat(4), queries);
+		QVERIFY(!plugin.hasFailed());
+		ScopedEnv changed{"LMMS_TEST_VST3_MAPPING_CHANGED"};
+		for (int i = 0; i < 10; ++i)
+		{ plugin.componentRestartRequested(Steinberg::Vst::kMidiCCAssignmentChanged); }
+		QCoreApplication::processEvents();
+		QCOMPARE(stat(4) - queries, 16 * int(Steinberg::Vst::kCountCtrlNumber));
+		plugin.handleMidiInputEvent(MidiEvent{MidiEventTypes::MidiPitchBend, 0, 4096, 0}, {}, 0);
+		std::vector<SampleFrame> input(32, SampleFrame{1.f, .5f}), output(32);
+		plugin.process(input.data(), output.data(), 32);
+		QVERIFY(std::abs(output[0].left() - 4096. / 16383.) < 1.e-6);
+	}
+
+	void editorRunLoopRetainsAndClearsHandlers()
+	{
+		if (!Engine::audioEngine()) { Engine::init(true); }
+#ifndef Q_OS_MACOS
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+		gui::Vst3EditorWindow window{&plugin};
+		int calls = 0;
+		bool destroyed = false;
+		auto handler = new TestTimerHandler(calls, destroyed);
+		QCOMPARE(window.registerTimer(handler, 0), Steinberg::kInvalidArgument);
+		QCOMPARE(window.registerTimer(handler, 1), Steinberg::kResultTrue);
+		handler->release();
+		QVERIFY(!destroyed);
+		QTRY_VERIFY(calls > 0);
+		window.detachView(); // must clear handlers even when there is no view
+		QVERIFY(destroyed);
+		const int previous = calls;
+		QTest::qWait(10);
+		QCOMPARE(calls, previous);
+
+		destroyed = false;
+		handler = new TestTimerHandler(calls, destroyed, true);
+		QSignalSpy failure{&window, &gui::Vst3EditorWindow::editorFailed};
+		QCOMPARE(window.registerTimer(handler, 1), Steinberg::kResultTrue);
+		handler->release();
+		QTRY_COMPARE(failure.size(), 1);
+		QVERIFY(destroyed);
+#else
+		QSKIP("Linux run loop");
+#endif
+	}
+
+	void editorFdCallbacksAreRetainedAndGuarded()
+	{
+#ifndef Q_OS_MACOS
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+		gui::Vst3EditorWindow window{&plugin};
+		int descriptors[2];
+		QVERIFY(::pipe(descriptors) == 0);
+		struct ClosePipe
+		{
+			int* descriptors;
+			~ClosePipe() { ::close(descriptors[0]); ::close(descriptors[1]); }
+		} closePipe{descriptors};
+		int calls = 0;
+		bool destroyed = false;
+		auto handler = new TestFdHandler(calls, destroyed);
+		QCOMPARE(window.registerEventHandler(handler, -1), Steinberg::kInvalidArgument);
+		QCOMPARE(window.registerEventHandler(handler, descriptors[0]), Steinberg::kResultTrue);
+		QCOMPARE(window.registerEventHandler(handler, descriptors[0]), Steinberg::kInvalidArgument);
+		handler->release();
+		QVERIFY(!destroyed);
+		QSignalSpy failure{&window, &gui::Vst3EditorWindow::editorFailed};
+		QCOMPARE(::write(descriptors[1], "x", 1), ssize_t{1});
+		QTRY_COMPARE(failure.size(), 1);
+		QCOMPARE(calls, 1);
+		QVERIFY(destroyed);
+#else
+		QSKIP("Linux run loop");
+#endif
+	}
+
+	void editorAttachmentAndRemovalFailures()
+	{
+		if (!Engine::audioEngine()) { Engine::init(true); }
+#ifdef Q_OS_MACOS
+		if (QGuiApplication::platformName() != "cocoa") { QSKIP("Needs native editor platform"); }
+#else
+		if (QGuiApplication::platformName() != "xcb") { QSKIP("Needs X11/XWayland"); }
+#endif
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+		ScopedEnv editor{"LMMS_TEST_VST3_EDITOR"};
+		for (const char* flag : {"LMMS_TEST_VST3_ATTACH_FAIL", "LMMS_TEST_VST3_ATTACH_THROW", "LMMS_TEST_VST3_SIZE_THROW"})
+		{
+			resetStats();
+			ScopedEnv failure{flag};
+			gui::Vst3EditorWindow window{&plugin};
+			QSignalSpy failed{&window, &gui::Vst3EditorWindow::editorFailed};
+			window.show();
+			window.attachView();
+			QTRY_COMPARE(failed.size(), 1);
+			QVERIFY(!window.isViewAttached());
+			QCOMPARE(stat(5), 1);
+			const int callbacks = stat(7);
+			QTest::qWait(10);
+			QCOMPARE(stat(7), callbacks);
+		}
+		resetStats();
+		{
+			ScopedEnv failure{"LMMS_TEST_VST3_REMOVE_THROW"};
+			gui::Vst3EditorWindow window{&plugin};
+			window.show();
+			QVERIFY(window.attachView());
+			QTRY_VERIFY(window.isViewAttached());
+		} // throwing removed() must not escape the destructor
+		QCOMPARE(stat(6), 1);
+		QCOMPARE(stat(5), 1);
+		resetStats();
+		{
+			gui::Vst3EditorWindow window{&plugin};
+			window.show();
+			QVERIFY(window.attachView());
+			QTRY_VERIFY(window.isViewAttached());
+			QSignalSpy failed{&window, &gui::Vst3EditorWindow::editorFailed};
+			ScopedEnv failure{"LMMS_TEST_VST3_RESIZE_THROW"};
+			window.resize(400, 300);
+			QTRY_COMPARE(failed.size(), 1);
+			QVERIFY(!window.isViewAttached());
+			QVERIFY(!window.isVisible());
+		}
+		QCOMPARE(stat(5), 1);
 	}
 
 	void lmmsInstrumentAndEffect()
