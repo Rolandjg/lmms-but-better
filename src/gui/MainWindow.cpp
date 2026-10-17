@@ -37,6 +37,7 @@
 
 #include "AboutDialog.h"
 #include "AutomationEditor.h"
+#include "CommandPalette.h"
 #include "ControllerRackView.h"
 #include "DeprecationHelper.h"
 #include "embed.h"
@@ -45,6 +46,7 @@
 #include "FileBrowser.h"
 #include "FileDialog.h"
 #include "Metronome.h"
+#include "MidiCapture.h"
 #include "MixerView.h"
 #include "GuiApplication.h"
 #include "ImportFilter.h"
@@ -60,6 +62,7 @@
 #include "PluginView.h"
 #include "ProjectJournal.h"
 #include "ProjectNotes.h"
+#include "ScriptConsole.h"
 #include "ProjectRenderer.h"
 #include "RecentProjectsMenu.h"
 #include "RemotePluginBase.h"
@@ -192,7 +195,7 @@ MainWindow::MainWindow() :
 	// create global-toolbar at the top of our window
 	m_toolBar = new QWidget( main_widget );
 	m_toolBar->setObjectName( "mainToolbar" );
-	m_toolBar->setFixedHeight( 64 );
+	m_toolBar->setFixedHeight( 72 );
 	m_toolBar->move( 0, 0 );
 
 	// add layout for organizing quite complex toolbar-layouting
@@ -336,6 +339,22 @@ void MainWindow::finalize()
 	m_redoAction->setShortcutContext(Qt::ApplicationShortcut);
 
 	edit_menu->addSeparator();
+	m_commandPalette = new CommandPalette(this);
+	auto commandPaletteAction = edit_menu->addAction(embed::getIconPixmap("tool"), tr("Command palette..."),
+		this, &MainWindow::showCommandPalette);
+	commandPaletteAction->setShortcuts({keySequence(Qt::CTRL, Qt::Key_K), keySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_P)});
+	commandPaletteAction->setShortcutContext(Qt::ApplicationShortcut);
+	m_midiCapture = new MidiCapture(this);
+	auto captureAction = edit_menu->addAction(embed::getIconPixmap("clip_rec"), tr("Capture MIDI"),
+		this, &MainWindow::captureMidi);
+	captureAction->setShortcut(keySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_R));
+	captureAction->setShortcutContext(Qt::ApplicationShortcut);
+	edit_menu->addSeparator();
+	m_scriptConsoleAction = new QAction(embed::getIconPixmap("script"), tr("Script Console"), this);
+	m_scriptConsoleAction->setShortcut(keySequence(Qt::CTRL, Qt::Key_8));
+	m_scriptConsoleAction->setShortcutContext(Qt::ApplicationShortcut);
+	connect(m_scriptConsoleAction, &QAction::triggered, this, &MainWindow::toggleScriptConsole);
+	QWidget::addAction(m_scriptConsoleAction);
 	edit_menu->addAction(embed::getIconPixmap("microtuner"), tr("Scales and keymaps"),
 		this, SLOT(toggleMicrotunerWin()));
 	edit_menu->addAction(embed::getIconPixmap("setup_general"), tr("Settings"),
@@ -416,8 +435,15 @@ void MainWindow::finalize()
 				tr( "Metronome" ),
 				this, SLOT(onToggleMetronome()),
 							m_toolBar );
+	m_metronomeToggle->setObjectName("metronomeToggle");
 	m_metronomeToggle->setCheckable(true);
 	m_metronomeToggle->setChecked(Engine::getSong()->metronome().active());
+
+	auto captureButton = new ToolButton(embed::getIconPixmap("clip_rec"),
+		tr("Capture MIDI (Ctrl+Shift+R): turn what you just played into a clip, even when you weren't recording"),
+		this, SLOT(captureMidi()), m_toolBar);
+	captureButton->setEnabled(m_midiCapture->hasCapture());
+	connect(m_midiCapture, &MidiCapture::availabilityChanged, captureButton, &QWidget::setEnabled);
 
 	m_toolBarLayout->setColumnMinimumWidth( 0, 5 );
 	m_toolBarLayout->addWidget( project_new, 0, 1 );
@@ -427,6 +453,9 @@ void MainWindow::finalize()
 	m_toolBarLayout->addWidget( project_save, 0, 5 );
 	m_toolBarLayout->addWidget( project_export, 0, 6 );
 	m_toolBarLayout->addWidget( m_metronomeToggle, 0, 7 );
+	// Column 8 is the spacer the song editor put before the tempo display; keep a gap after it
+	m_toolBarLayout->addWidget( captureButton, 0, 8, Qt::AlignLeft );
+	m_toolBarLayout->setColumnMinimumWidth( 9, 32 );
 
 
 	// window-toolbar
@@ -466,6 +495,13 @@ void MainWindow::finalize()
 	m_toolBarLayout->addWidget( controllers_window, 1, 6 );
 	m_toolBarLayout->addWidget( project_notes_window, 1, 7 );
 	m_toolBarLayout->setColumnStretch( 100, 1 );
+
+	auto commandPaletteButton = new CommandPaletteButton(m_toolBar);
+	connect(commandPaletteButton, &CommandPaletteButton::clicked, this, &MainWindow::showCommandPalette);
+	// Right-aligned after the stretch column, past everything the editors placed on the toolbar
+	const int paletteCol = std::max(m_toolBarLayout->columnCount(), 101) + 1;
+	m_toolBarLayout->addWidget(commandPaletteButton, 0, paletteCol, 2, 1, Qt::AlignVCenter | Qt::AlignRight);
+	m_toolBarLayout->setColumnMinimumWidth(paletteCol + 1, 6);
 
 	// setup-dialog opened before?
 	if( !ConfigManager::inst()->value( "app", "configured" ).toInt() )
@@ -885,6 +921,32 @@ void MainWindow::saveProjectAsDefaultTemplate()
 
 
 
+void MainWindow::showCommandPalette()
+{
+	if (m_commandPalette->isVisible()) { m_commandPalette->hide(); }
+	else { m_commandPalette->popup(); }
+}
+
+
+
+
+void MainWindow::captureMidi()
+{
+	QString message;
+	if (auto clip = m_midiCapture->capture(&message))
+	{
+		auto pianoRoll = getGUI()->pianoRoll();
+		pianoRoll->setCurrentMidiClip(clip);
+		pianoRoll->parentWidget()->show();
+		pianoRoll->show();
+		pianoRoll->setFocus();
+	}
+	TextFloat::displayMessage(tr("MIDI Capture"), message, embed::getIconPixmap("clip_rec"), 3000);
+}
+
+
+
+
 void MainWindow::showSettingsDialog()
 {
 	SetupDialog sd;
@@ -1037,6 +1099,31 @@ void MainWindow::toggleMicrotunerWin()
 
 
 
+ScriptConsole* MainWindow::scriptConsole()
+{
+	if (!m_scriptConsole) { m_scriptConsole = new ScriptConsole; }
+	return m_scriptConsole;
+}
+
+
+
+
+void MainWindow::toggleScriptConsole()
+{
+	toggleWindow(scriptConsole());
+}
+
+
+
+
+void MainWindow::attachScriptRunner(scripting::ScriptRunner* runner)
+{
+	scriptConsole()->attachRunner(runner);
+}
+
+
+
+
 void MainWindow::updateViewMenu()
 {
 	m_viewMenu->clear();
@@ -1072,6 +1159,7 @@ void MainWindow::updateViewMenu()
 			      tr( "Project Notes" ) + "\tCtrl+7",
 			      this, SLOT(toggleProjectNotesWin())
 		);
+	m_viewMenu->addAction(m_scriptConsoleAction);
 
 	m_viewMenu->addSeparator();
 	

@@ -100,8 +100,27 @@ bool AutomatableModel::mustQuoteName(const QString& name)
 	return !reg.match(name).hasMatch();
 }
 
+namespace
+{
+thread_local AutomatableModel::SaveNameObserver* s_saveNameObserver = nullptr;
+}
+
+AutomatableModel::SaveNameObserver::SaveNameObserver(Callback callback) :
+	m_callback(std::move(callback)),
+	m_previous(s_saveNameObserver)
+{
+	s_saveNameObserver = this;
+}
+
+AutomatableModel::SaveNameObserver::~SaveNameObserver()
+{
+	s_saveNameObserver = m_previous;
+}
+
 void AutomatableModel::saveSettings( QDomDocument& doc, QDomElement& element, const QString& name )
 {
+	if (s_saveNameObserver) { s_saveNameObserver->m_callback(this, element, name); }
+
 	bool mustQuote = mustQuoteName(name);
 
 	if( isAutomated() || m_scaleType != ScaleType::Linear )

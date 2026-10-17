@@ -16,22 +16,26 @@ their existing per-note detuning behavior.
 
 ## Editing
 
-- Drag points to change pitch and time; right-drag to erase points. New curves
-  use smooth interpolation.
-- Drag the round handles extending from a point to shape the curve like a Bézier
-  editor. Paired handles move together. Hold **Alt** while dragging to adjust one
-  side independently, or right-click a handle to restore its automatic tangent.
+- Click a note to edit its curve, then click or drag to add and move points.
+  Points snap to the grid once they move sideways; a point placed off the grid
+  keeps its exact time while you only drag it up or down. Right-click or
+  right-drag erases points. The floating readout shows the bend and the pitch
+  it lands on, e.g. `+7 semitones → G4`.
+- Drag the round handles beside a point to shape the curve like a Bézier
+  editor. Paired handles move together; hold **Alt** to adjust one side, or
+  right-click a handle to restore its automatic tangent. Handles keep a fixed
+  length on screen, so even very steep tangents stay within reach. Points and
+  handles highlight under the mouse.
 - Hold **Alt** to bypass the time grid, or **Ctrl** for pitch between semitones.
-  The floating readout shows the pitch offset and note-relative tick.
-- Click another note to switch the curve selection. Select several notes before
-  entering Pitch Bend mode to edit their curves together. Selected curves with
-  the same number of points are kept identical while you edit; curves with a
-  different point count are left unchanged.
-- The compact **Glide** menu only resets selected curves and configures the
-  external synth bend range.
-- **Shift+right-click** opens the same menu in Pitch Bend mode.
-- **Shift+left-click** a note opens its full Automation Editor, including tangent
-  editing. The Piano Roll displays the actual smooth curve.
+- Select several notes before entering Pitch Bend mode to edit their curves
+  together. Selected curves with the same number of points are kept identical
+  while you edit; curves with a different point count are left unchanged.
+- Piano keys and the velocity/panning lane keep working in Pitch Bend mode.
+- The arrow next to the Pitch Bend tool (or **Shift+right-click**) opens the
+  glide menu: curve shape for the selected notes (smooth curves, straight lines
+  or steps; handles only show on smooth curves), reset, and the external synth
+  bend range.
+- **Shift+left-click** a note opens its full Automation Editor.
 
 ## MIDI behavior and limits
 

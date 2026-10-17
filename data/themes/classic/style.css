@@ -782,6 +782,12 @@ lmms--gui--TimeLineWidget {
 	qproperty-barNumberColor: rgb( 192, 192, 192 );
 }
 
+/* The song editor's timeline carries the arrangement marker lane on top */
+lmms--gui--TimeLineWidget#songEditorTimeLine {
+	min-height: 2.6em;
+	max-height: 2.6em;
+}
+
 QTreeView {
 	alternate-background-color: #747474;
 }

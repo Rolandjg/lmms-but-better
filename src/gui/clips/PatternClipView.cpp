@@ -113,6 +113,8 @@ void PatternClipView::paintEvent(QPaintEvent*)
 	lingrad.setColorAt( 0, c.lighter( 130 ) );
 	lingrad.setColorAt( 1, c.lighter( 70 ) );
 
+	beginClipPaint(p, m_paintPixmap, rect());
+
 	// paint a black rectangle under the clip to prevent glitches with transparent backgrounds
 	p.fillRect( rect(), QColor( 0, 0, 0 ) );
 
@@ -212,14 +214,7 @@ void PatternClipView::paintEvent(QPaintEvent*)
 	// clip name
 	paintTextLabel(m_patternClip->name(), p);
 
-	// inner border
-	p.setPen( c.lighter( 130 ) );
-	p.drawRect( 1, 1, rect().right() - BORDER_WIDTH,
-		rect().bottom() - BORDER_WIDTH );	
-
-	// outer border
-	p.setPen( c.darker( 300 ) );
-	p.drawRect( 0, 0, rect().right(), rect().bottom() );
+	paintClipFrame(p, rect(), c, false);
 	
 	// draw the 'muted' pixmap only if the clip was manually muted
 	if (m_patternClip->isMuted())

@@ -147,6 +147,8 @@ Effect::ProcessStatus CrossoverEQEffect::processImpl(SampleFrame* buf, const f_c
 	m_needsUpdate = false;
 
 	zeroSampleFrames(m_work, frames);
+	std::array<float, 4> peakL{};
+	std::array<float, 4> peakR{};
 
 	for (auto f = std::size_t{0}; f < frames; ++f)
 	{
@@ -172,8 +174,12 @@ Effect::ProcessStatus CrossoverEQEffect::processImpl(SampleFrame* buf, const f_c
 			if (width[i] != 1.f) { dsp::applyWidth(left, right, width[i]); }
 			m_work[f][0] += left;
 			m_work[f][1] += right;
+			peakL[i] = std::max(peakL[i], std::abs(left));
+			peakR[i] = std::max(peakR[i], std::abs(right));
 		}
 	}
+	m_controls.m_bandPeakL = peakL;
+	m_controls.m_bandPeakR = peakR;
 
 	const float d = dryLevel();
 	const float w = wetLevel();

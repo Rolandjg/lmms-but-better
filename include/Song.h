@@ -154,6 +154,10 @@ public:
 		return m_paused;
 	}
 
+	//! Song position in (fractional) ticks at the start of the audio period being processed.
+	//! Effects use it to lock modulation to the beat; only meaningful while playing.
+	double periodStartTicks() const { return m_periodStartTicks; }
+
 	inline bool isPlaying() const
 	{
 		return m_playing == true && m_exporting == false;
@@ -248,6 +252,8 @@ public:
 
 	// file management
 	void createNewProject();
+	//! New project without any tracks and without loading a template (used by scripts)
+	void createEmptyProject();
 	void createNewProjectFromTemplate( const QString & templ );
 	void loadProject( const QString & filename );
 	bool guiSaveProject();
@@ -366,6 +372,8 @@ private slots:
 
 
 private:
+	//! Move the song timeline's markers at or after the play position along with inserted/removed bars
+	void shiftMarkers(tick_t ticks);
 	Song();
 	Song( const Song & );
 	~Song() override;
@@ -445,6 +453,7 @@ private:
 	bool m_loopMidiClip;
 
 	VstSyncController m_vstSyncController;
+	double m_periodStartTicks = 0.0;
     
 	int m_loopRenderCount;
 	int m_loopRenderRemaining;

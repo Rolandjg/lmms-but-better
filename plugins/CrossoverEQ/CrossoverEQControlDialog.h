@@ -29,11 +29,14 @@
 
 #include "EffectControlDialog.h"
 
+#include <QWidget>
+
 namespace lmms
 {
 
 
 class CrossoverEQControls;
+class FloatModel;
 
 
 namespace gui
@@ -45,6 +48,45 @@ class CrossoverEQControlDialog : public EffectControlDialog
 public:
 	CrossoverEQControlDialog( CrossoverEQControls * controls );
 	~CrossoverEQControlDialog() override = default;
+};
+
+
+//! The four bands on a frequency axis with the combined response of the Linkwitz-Riley split.
+//! Crossover lines drag sideways, bands drag up and down for gain (double-click resets).
+class CrossoverEQDisplay : public QWidget
+{
+	Q_OBJECT
+public:
+	CrossoverEQDisplay(CrossoverEQControls* controls, QWidget* parent);
+	QSize sizeHint() const override { return QSize(400, 150); }
+
+	static QColor bandColor(int band);
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+	void mousePressEvent(QMouseEvent*) override;
+	void mouseMoveEvent(QMouseEvent*) override;
+	void mouseReleaseEvent(QMouseEvent*) override;
+	void mouseDoubleClickEvent(QMouseEvent*) override;
+
+private:
+	QRectF plotRect() const;
+	double toX(double freq) const;
+	double toFreq(double x) const;
+	double toY(double db) const;
+	double toDb(double y) const;
+	FloatModel* crossover(int index) const;
+	FloatModel* gain(int band) const;
+	bool plays(int band) const;
+	int crossoverAt(const QPointF& pos) const;
+	int bandAt(const QPointF& pos) const;
+
+	CrossoverEQControls* m_controls;
+	int m_dragCrossover = -1;
+	int m_dragBand = -1;
+	int m_hoverCrossover = -1;
+	double m_dragStartY = 0;
+	float m_dragStartGain = 0;
 };
 
 

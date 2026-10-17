@@ -247,8 +247,7 @@ protected slots:
 	void reverseNotes();
 	void constrainNoteLengths(bool constrainMax);
 	void duplicateSelectedNotes();
-	void humanizeVelocities();
-	void humanizeTiming();
+	void humanizeNotes();
 
 	void changeSnapMode();
 
@@ -475,8 +474,18 @@ private:
 		bool out = false;
 	};
 	std::optional<ParameterTangentHit> parameterTangentUnderMouse(const QPoint& pos) const;
+	struct ParameterNodeHit
+	{
+		Note* note = nullptr;
+		int tick = 0;
+		float value = 0;
+	};
+	std::optional<ParameterNodeHit> parameterNodeUnderMouse(const QPoint& pos) const;
+	//! Screen position of a curve point's tangent handle; handles keep a fixed length however steep the tangent
+	QPointF detuningTangentHandle(const QPointF& node, float tangent, bool out) const;
 	void populateGlideMenu(QMenu* menu);
 	void centerGlideCurves();
+	static QString pitchBendHelp();
 
 	// turn a selection rectangle into selected notes
 	void computeSelectedNotes( bool shift );
@@ -503,6 +512,11 @@ private:
 	//! The current note whose detuning/parameter curve is being edited.
 	Note* m_parameterEditClickedNote = nullptr;
 	std::optional<ParameterTangentHit> m_parameterEditTangent;
+	//! Tick and mouse x of a point picked up by the current drag
+	std::optional<std::pair<int, int>> m_parameterGrab;
+	//! The curve point or handle under the mouse in Pitch Bend mode, highlighted while hovering
+	std::optional<ParameterNodeHit> m_parameterHoverNode;
+	std::optional<ParameterTangentHit> m_parameterHoverTangent;
 	//! Selected notes whose curve had the same point count when this edit began.
 	NoteVector m_parameterEditNotes;
 
@@ -511,6 +525,8 @@ private:
 	//! Finishes the dragging of the current node of the detuning/parameter curves
 	void applyParameterEditPos(Note::ParameterType paramType);
 	void beginParameterCurveEdit(Note* source, Note::ParameterType paramType);
+	//! Readout for a bend of @p semitones on @p key, e.g. "+7 semitones → G4"
+	static QString bendText(float semitones, int key);
 	void syncParameterEditCurves(Note::ParameterType paramType);
 
 	//! Stores the chords for the strum tool

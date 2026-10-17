@@ -25,7 +25,8 @@
 
 
 
-#include <QStyleOptionFrame>
+#include <algorithm>
+#include <array>
 #include <QPainter>
 
 #include "LcdWidget.h"
@@ -134,74 +135,123 @@ void LcdWidget::setTextShadowColor( const QColor & c )
 
 
 
+namespace
+{
+
+// Segment bits: a = top, b = top right, c = bottom right, d = bottom, e = bottom left, f = top left, g = middle
+constexpr unsigned char SegA = 1, SegB = 2, SegC = 4, SegD = 8, SegE = 16, SegF = 32, SegG = 64;
+
+unsigned char segmentsFor(QChar c)
+{
+	switch (c.digitValue())
+	{
+		case 0: return SegA | SegB | SegC | SegD | SegE | SegF;
+		case 1: return SegB | SegC;
+		case 2: return SegA | SegB | SegG | SegE | SegD;
+		case 3: return SegA | SegB | SegG | SegC | SegD;
+		case 4: return SegF | SegG | SegB | SegC;
+		case 5: return SegA | SegF | SegG | SegC | SegD;
+		case 6: return SegA | SegF | SegG | SegE | SegD | SegC;
+		case 7: return SegA | SegB | SegC;
+		case 8: return SegA | SegB | SegC | SegD | SegE | SegF | SegG;
+		case 9: return SegA | SegB | SegC | SegD | SegF | SegG;
+		default: return c == '-' ? SegG : 0;
+	}
+}
+
+//! Six-sided segment between two points, pointed at both ends like on a real LCD
+QPolygonF segment(QPointF from, QPointF to, qreal thickness)
+{
+	const qreal h = thickness / 2;
+	if (from.y() == to.y())
+	{
+		return QPolygonF({from, {from.x() + h, from.y() - h}, {to.x() - h, to.y() - h},
+			to, {to.x() - h, to.y() + h}, {from.x() + h, from.y() + h}});
+	}
+	return QPolygonF({from, {from.x() + h, from.y() + h}, {to.x() + h, to.y() - h},
+		to, {to.x() - h, to.y() - h}, {from.x() - h, from.y() + h}});
+}
+
+void paintDigit(QPainter& p, const QRectF& cell, unsigned char lit, const QColor& on, const QColor& off)
+{
+	// Leave room between neighbouring digits and lean the digit slightly forward
+	const qreal padX = std::max(1.0, cell.width() * 0.16);
+	const qreal padY = std::max(1.0, cell.height() * 0.1);
+	const QRectF r = cell.adjusted(padX, padY, -padX, -padY);
+	const qreal t = std::clamp(r.width() * 0.24, 1.2, 3.0);
+	const qreal gap = t * 0.3;
+	const qreal x0 = r.left() + t / 2, x1 = r.right() - t / 2;
+	const qreal y0 = r.top() + t / 2, y1 = r.center().y(), y2 = r.bottom() - t / 2;
+
+	const std::array<QPolygonF, 7> segments = {
+		segment({x0 + gap, y0}, {x1 - gap, y0}, t),
+		segment({x1, y0 + gap}, {x1, y1 - gap}, t),
+		segment({x1, y1 + gap}, {x1, y2 - gap}, t),
+		segment({x0 + gap, y2}, {x1 - gap, y2}, t),
+		segment({x0, y1 + gap}, {x0, y2 - gap}, t),
+		segment({x0, y0 + gap}, {x0, y1 - gap}, t),
+		segment({x0 + gap, y1}, {x1 - gap, y1}, t),
+	};
+
+	p.save();
+	QTransform lean;
+	lean.translate(cell.center().x(), cell.center().y());
+	lean.shear(-0.07, 0);
+	lean.translate(-cell.center().x(), -cell.center().y());
+	p.setTransform(lean, true);
+	p.setPen(Qt::NoPen);
+	for (std::size_t i = 0; i < segments.size(); ++i)
+	{
+		p.setBrush(lit & (1 << i) ? on : off);
+		p.drawPolygon(segments[i]);
+	}
+	p.restore();
+}
+
+} // namespace
+
+
+void LcdWidget::paintDisplayBackground(QPainter& p, const QRectF& rect, bool edgeLeft, bool edgeRight)
+{
+	p.save();
+	p.setRenderHint(QPainter::Antialiasing, false);
+	// No border on seamless sides: extend past the edge and clip
+	const QRectF body = rect.adjusted(edgeLeft ? 0 : -1, 0, edgeRight ? 0 : 1, 0);
+	p.setClipRect(rect);
+	p.fillRect(body, QColor(10, 12, 14));
+	p.setPen(QColor(0, 0, 0));
+	p.setBrush(Qt::NoBrush);
+	p.drawRect(body.adjusted(0, 0, -1, -1));
+	p.restore();
+}
+
+
 void LcdWidget::paintEvent( QPaintEvent* )
 {
 	QPainter p( this );
 
-	QSize cellSize( m_cellWidth, m_cellHeight );
+	const int margin = 1;
+	const int left = m_seamlessLeft ? 0 : margin + m_marginWidth;
+	const int right = m_seamlessRight ? 0 : margin + m_marginWidth;
+	const QRectF display(0, 0, left + m_cellWidth * m_numDigits + right, m_cellHeight + 2 * margin);
 
-	QRect cellRect( 0, 0, m_cellWidth, m_cellHeight );
+	paintDisplayBackground(p, display, !m_seamlessLeft, !m_seamlessRight);
 
-	int margin = 1;  // QStyle::PM_DefaultFrameWidth;
-	//int lcdWidth = m_cellWidth * m_numDigits + (margin*m_marginWidth)*2;
+	p.setRenderHint(QPainter::Antialiasing);
+	const QColor on = segmentColor();
+	QColor off = on;
+	off.setAlphaF(0.08);
 
-//	p.translate( width() / 2 - lcdWidth / 2, 0 ); 
-	p.save();
-
-	// Don't skip any space and don't draw margin on the left side in seamless mode
-	if (m_seamlessLeft)
+	QRectF cell(left, margin, m_cellWidth, m_cellHeight);
+	for (int i = 0; i < m_numDigits - m_display.length(); ++i)
 	{
-		p.translate(0, margin);
+		paintDigit(p, cell, 0, on, off);
+		cell.translate(m_cellWidth, 0);
 	}
-	else
-	{
-		p.translate(margin, margin);
-		// Left Margin
-		p.drawPixmap(cellRect, m_lcdPixmap,
-			QRect(QPoint(charsPerPixmap * m_cellWidth, isEnabled() ? 0 : m_cellHeight), cellSize));
-
-		p.translate(m_marginWidth, 0);
-	}
-
-	// Padding
-	for( int i=0; i < m_numDigits - m_display.length(); i++ ) 
-	{
-		p.drawPixmap(cellRect, m_lcdPixmap, QRect(QPoint(10 * m_cellWidth, isEnabled() ? 0 : m_cellHeight), cellSize));
-		p.translate( m_cellWidth, 0 );
-	}
-
-	// Digits
 	for (const auto& digit : m_display)
 	{
-		int val = digit.digitValue();
-		if( val < 0 ) 
-		{
-			if (digit == '-') val = 11;
-			else
-				val = 10;
-		}
-		p.drawPixmap(cellRect, m_lcdPixmap, QRect(QPoint(val * m_cellWidth, isEnabled() ? 0 : m_cellHeight), cellSize));
-		p.translate( m_cellWidth, 0 );
-	}
-
-	// Right Margin
-	p.drawPixmap(QRect(0, 0, m_seamlessRight ? 0 : m_marginWidth - 1, m_cellHeight), m_lcdPixmap,
-		QRect(charsPerPixmap * m_cellWidth, isEnabled() ? 0 : m_cellHeight, m_cellWidth / 2, m_cellHeight));
-
-	p.restore();
-
-	// Border
-	// When either the left or right edge is seamless, the border drawing must be done
-	// by the encapsulating class (usually LcdFloatSpinBox).
-	if (!m_seamlessLeft && !m_seamlessRight)
-	{
-		QStyleOptionFrame opt;
-		opt.initFrom(this);
-		opt.state = QStyle::State_Sunken;
-		opt.rect = QRect(0, 0, m_cellWidth * m_numDigits + (margin + m_marginWidth) * 2 - 1,
-			m_cellHeight + (margin * 2));
-
-		style()->drawPrimitive(QStyle::PE_Frame, &opt, &p, this);
+		paintDigit(p, cell, segmentsFor(digit), on, off);
+		cell.translate(m_cellWidth, 0);
 	}
 
 	p.resetTransform();
@@ -286,6 +336,24 @@ void LcdWidget::initUi(const QString& name , const QString& style)
 	m_lcdPixmap = embed::getIconPixmap(QString("lcd_" + style).toUtf8().constData());
 	m_cellWidth = m_lcdPixmap.size().width() / LcdWidget::charsPerPixmap;
 	m_cellHeight = m_lcdPixmap.size().height() / 2;
+
+	// The segments are drawn as vectors; the theme pixmap only supplies the colors. Its digit "8"
+	// is fully lit, so its brightest pixel is the lit color (upper row enabled, lower row disabled).
+	const QImage strip = m_lcdPixmap.toImage();
+	const auto brightest = [&](int top) {
+		QColor best(Qt::black);
+		for (int y = top; y < top + m_cellHeight; ++y)
+		{
+			for (int x = 8 * m_cellWidth; x < 9 * m_cellWidth; ++x)
+			{
+				const QColor c = strip.pixelColor(x, y);
+				if (c.value() > best.value()) { best = c; }
+			}
+		}
+		return best;
+	};
+	m_litColor = brightest(0);
+	m_disabledLitColor = brightest(m_cellHeight);
 
 	m_marginWidth =  m_cellWidth / 2;
 

@@ -84,6 +84,7 @@ public:
 	void setStrokeInnerInactive(const QColor& c) { m_strokeInnerInactive = c; }
 
 	Fader* fader() const { return m_fader; }
+	EffectRackView* effectRackView() const { return m_effectRackView; }
 
 public slots:
 	void renameChannel();

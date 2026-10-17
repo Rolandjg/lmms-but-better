@@ -2,6 +2,7 @@ SET(LMMS_SRCS
 	${LMMS_SRCS}
 	gui/ActionGroup.cpp
 	gui/BounceToAudio.cpp
+	gui/CommandPalette.cpp
 	gui/AudioAlsaSetupWidget.cpp
 	gui/AudioDeviceSetupWidget.cpp
 	gui/AutomatableModelView.cpp
@@ -27,6 +28,7 @@ SET(LMMS_SRCS
 	gui/MainApplication.cpp
 	gui/MainWindow.cpp
 	gui/MicrotunerConfig.cpp
+	gui/MidiCapture.cpp
 	gui/MidiCCRackView.cpp
 	gui/MidiSetupWidget.cpp
 	gui/MixerChannelView.cpp
@@ -37,6 +39,7 @@ SET(LMMS_SRCS
 	gui/ProjectNotes.cpp
 	gui/RowTableView.cpp
 	gui/SampleTrackWindow.cpp
+	gui/ScriptConsole.cpp
 	gui/SampleThumbnail.cpp
 	gui/SendButtonIndicator.cpp
 	gui/SideBar.cpp

@@ -116,6 +116,7 @@ void SubWindow::paintEvent( QPaintEvent * )
 	const bool isActive = windowState() & Qt::WindowActive;
 
 	p.fillRect( rect, isActive ? activeColor() : p.pen().brush() );
+	if (isActive) { p.fillRect(0, 0, width(), 2, m_focusAccentColor); }
 
 	// hairline under the title bar separates it from the content
 	QColor separator = borderColor();

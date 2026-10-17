@@ -32,6 +32,7 @@
 #include <QVBoxLayout>
 
 #include "DeprecationHelper.h"
+#include "Effect.h"
 #include "EffectSelectDialog.h"
 #include "EffectView.h"
 #include "GroupBox.h"
@@ -246,6 +247,25 @@ void EffectRackView::addEffect()
 
 	Effect * fx = esd.instantiateSelectedPlugin( fxChain() );
 
+	appendAndShow(fx);
+}
+
+
+
+
+void EffectRackView::addEffectFromKey(const Plugin::Descriptor::SubPluginFeatures::Key& key)
+{
+	if (!key.desc) { return; }
+	auto keyCopy = key;
+	appendAndShow(Effect::instantiate(key.desc->name, fxChain(), &keyCopy));
+}
+
+
+
+
+void EffectRackView::appendAndShow(Effect* fx)
+{
+	if (!fx) { return; }
 	fxChain()->appendEffect( fx );
 	update();
 
@@ -270,6 +290,8 @@ void EffectRackView::modelChanged()
 	//clearViews();
 	m_effectsGroupBox->setModel( &fxChain()->m_enabledModel );
 	connect( fxChain(), SIGNAL(aboutToClear()), this, SLOT(clearViews()));
+	// effects can also be added/removed without this view (e.g. by scripts)
+	connect(fxChain(), &EffectChain::dataChanged, this, &EffectRackView::update, Qt::UniqueConnection);
 	update();
 }
 

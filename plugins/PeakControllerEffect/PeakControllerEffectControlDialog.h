@@ -28,6 +28,8 @@
 
 #include "EffectControlDialog.h"
 
+#include <QWidget>
+
 namespace lmms
 {
 
@@ -35,8 +37,6 @@ class PeakControllerEffectControls;
 
 namespace gui
 {
-class Knob;
-class LedCheckBox;
 
 
 class PeakControllerEffectControlDialog : public EffectControlDialog
@@ -46,20 +46,32 @@ public:
 	PeakControllerEffectControlDialog(
 				PeakControllerEffectControls * _controls );
 	~PeakControllerEffectControlDialog() override = default;
+} ;
 
+
+//! Scrolling history of the measured input level and the resulting controller value, with the
+//! threshold (draggable) and base level drawn in, plus the knob values translated into ms and dB
+class PeakControllerDisplay : public QWidget
+{
+	Q_OBJECT
+public:
+	PeakControllerDisplay(PeakControllerEffectControls* controls, QWidget* parent);
+	QSize sizeHint() const override { return QSize(392, 136); }
 
 protected:
-	Knob * m_baseKnob;
-	Knob * m_amountKnob;
-	Knob * m_attackKnob;
-	Knob * m_decayKnob;
-	Knob * m_tresholdKnob;
-	LedCheckBox * m_muteLed;
+	void paintEvent(QPaintEvent*) override;
+	void mousePressEvent(QMouseEvent*) override;
+	void mouseMoveEvent(QMouseEvent*) override;
+	void mouseReleaseEvent(QMouseEvent*) override;
 
-	LedCheckBox * m_absLed;
-	Knob * m_amountMultKnob;
+private:
+	QRectF plotRect() const;
+	double toY(double value) const;
+	bool nearThreshold(const QPointF& pos) const;
 
-} ;
+	PeakControllerEffectControls* m_controls;
+	bool m_dragging = false;
+};
 
 } // namespace gui
 

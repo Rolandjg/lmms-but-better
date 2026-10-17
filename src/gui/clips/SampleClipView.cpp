@@ -26,22 +26,47 @@
 
 #include <QApplication>
 #include <QMenu>
+#include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 
 #include "FileDialog.h"
+#include "FontHelper.h"
 #include "GuiApplication.h"
 #include "AutomationEditor.h"
+#include "AudioEngine.h"
 #include "embed.h"
+#include "lmms_math.h"
 #include "PathUtil.h"
 #include "SampleClip.h"
 #include "SampleThumbnail.h"
 #include "Song.h"
 #include "StringPairDrag.h"
+#include "TextFloat.h"
 #include "TrackContainerView.h"
 #include "TrackView.h"
 
 namespace lmms::gui
 {
+
+namespace
+{
+
+constexpr int HandleRadius = 4;
+constexpr int HandleHitRadius = 7;
+//! Handles live in this band at the top of the clip, so the edges below still resize the clip
+constexpr int HandleBand = 12;
+constexpr float MinGainDb = -48.f;
+constexpr float MaxGainDb = 24.f;
+
+QString gainText(float gain)
+{
+	if (gain <= dbfsToAmp(MinGainDb)) { return QStringLiteral("-inf dB"); }
+	const float db = ampToDbfs(gain);
+	return QString("%1%2 dB").arg(db > 0.05f ? "+" : "").arg(db, 0, 'f', 1);
+}
+
+} // namespace
 
 
 SampleClipView::SampleClipView( SampleClip * _clip, TrackView * _tv ) :
@@ -94,6 +119,24 @@ void SampleClipView::constructContextMenu(QMenu* cm)
 		SLOT(reverseSample())
 	);
 
+	cm->addSeparator();
+	cm->addAction(tr("Normalize clip gain"), this, [this] {
+		m_clip->addJournalCheckPoint();
+		m_clip->normalize();
+	});
+	auto resetGain = cm->addAction(tr("Reset clip gain (%1)").arg(gainText(m_clip->gain())), this, [this] {
+		m_clip->addJournalCheckPoint();
+		m_clip->setGain(1.f);
+	});
+	resetGain->setEnabled(m_clip->gain() != 1.f);
+	auto removeFades = cm->addAction(tr("Remove fades"), this, [this] {
+		m_clip->addJournalCheckPoint();
+		m_clip->setFadeIn(0);
+		m_clip->setFadeOut(0);
+	});
+	removeFades->setEnabled(m_clip->fadeIn() > 0 || m_clip->fadeOut() > 0);
+	cm->addSeparator();
+
 	cm->addAction(
 		embed::getIconPixmap("automation_ghost_note"),
 		tr("Set as ghost in automation editor"),
@@ -143,8 +186,107 @@ void SampleClipView::dropEvent( QDropEvent * _de )
 
 
 
+float SampleClipView::pixelsPerTick() const
+{
+	return pixelsPerBar() / TimePos::ticksPerBar();
+}
+
+
+
+
+QPointF SampleClipView::handlePos(Handle handle) const
+{
+	const float ppt = pixelsPerTick();
+	const float inset = HandleRadius + 2.f;
+	const float y = HandleRadius + 2.f;
+	switch (handle)
+	{
+	case Handle::FadeIn:
+		return {std::clamp(m_clip->fadeIn() * ppt, inset, width() - inset), y};
+	case Handle::FadeOut:
+		return {std::clamp(width() - m_clip->fadeOut() * ppt, inset, width() - inset), y};
+	case Handle::Gain:
+		return {width() / 2.f, y};
+	default:
+		return {};
+	}
+}
+
+
+
+
+SampleClipView::Handle SampleClipView::handleAt(const QPoint& pos)
+{
+	if (fixedClips() || m_trackView->trackContainerView()->knifeMode() || pos.y() > HandleBand) { return Handle::None; }
+
+	// Prefer the handle the cursor is closest to, so the fade handles stay reachable on short clips
+	auto best = Handle::None;
+	float bestDistance = HandleHitRadius;
+	const bool roomForGain = width() > 6 * HandleHitRadius;
+	for (auto handle : {Handle::FadeIn, Handle::FadeOut, Handle::Gain})
+	{
+		if (handle == Handle::Gain && !roomForGain) { continue; }
+		const float distance = std::abs(handlePos(handle).x() - pos.x());
+		if (distance <= bestDistance)
+		{
+			best = handle;
+			bestDistance = distance;
+		}
+	}
+	return best;
+}
+
+
+
+
+void SampleClipView::showHandleValue(Handle handle)
+{
+	auto bubble = textFloat();
+	const auto ticks = [](TimePos t) {
+		const float beats = t * Engine::getSong()->getTimeSigModel().getDenominator() / float(DefaultTicksPerBar);
+		const float ms = t * Engine::framesPerTick() * 1000.f / Engine::audioEngine()->outputSampleRate();
+		return tr("%1 beats (%2 ms)").arg(beats, 0, 'f', 2).arg(ms, 0, 'f', 0);
+	};
+	switch (handle)
+	{
+	case Handle::FadeIn:
+		bubble->setTitle(tr("Fade in"));
+		bubble->setText(ticks(m_clip->fadeIn()));
+		break;
+	case Handle::FadeOut:
+		bubble->setTitle(tr("Fade out"));
+		bubble->setText(ticks(m_clip->fadeOut()));
+		break;
+	case Handle::Gain:
+		bubble->setTitle(tr("Clip gain"));
+		bubble->setText(gainText(m_clip->gain()));
+		break;
+	default:
+		return;
+	}
+	bubble->moveGlobal(this, QPoint(width() + 2, height() + 2));
+	bubble->show();
+}
+
+
+
+
 void SampleClipView::mousePressEvent( QMouseEvent * _me )
 {
+	if (_me->button() == Qt::LeftButton && !(_me->modifiers() & (Qt::ControlModifier | Qt::AltModifier)))
+	{
+		if (const auto handle = handleAt(_me->pos()); handle != Handle::None)
+		{
+			m_clip->addJournalCheckPoint();
+			m_dragHandle = handle;
+			m_dragStartY = _me->pos().y();
+			m_dragStartGainDb = std::max(MinGainDb, ampToDbfs(std::max(m_clip->gain(), 1e-6f)));
+			showHandleValue(handle);
+			update();
+			return;
+		}
+	}
+
 	if( _me->button() == Qt::LeftButton &&
 		_me->modifiers() & Qt::ControlModifier &&
 		_me->modifiers() & Qt::ShiftModifier )
@@ -168,8 +310,84 @@ void SampleClipView::mousePressEvent( QMouseEvent * _me )
 
 
 
+void SampleClipView::mouseMoveEvent(QMouseEvent* me)
+{
+	if (m_dragHandle != Handle::None)
+	{
+		const float ppt = pixelsPerTick();
+		const int x = me->pos().x();
+		switch (m_dragHandle)
+		{
+		case Handle::FadeIn:
+			m_clip->setFadeIn(static_cast<int>(std::round(std::max(0, x) / ppt)));
+			break;
+		case Handle::FadeOut:
+			m_clip->setFadeOut(static_cast<int>(std::round(std::max(0, width() - x) / ppt)));
+			break;
+		case Handle::Gain:
+		{
+			// Drag up for louder; hold shift for fine adjustments
+			const float dbPerPixel = me->modifiers() & Qt::ShiftModifier ? 0.05f : 0.25f;
+			const float db = std::clamp(m_dragStartGainDb + (m_dragStartY - me->pos().y()) * dbPerPixel, MinGainDb, MaxGainDb);
+			m_clip->setGain(db <= MinGainDb ? 0.f : dbfsToAmp(db));
+			break;
+		}
+		default:
+			break;
+		}
+		showHandleValue(m_dragHandle);
+		return;
+	}
+
+	ClipView::mouseMoveEvent(me);
+
+	if (!me->buttons())
+	{
+		const auto handle = handleAt(me->pos());
+		if (handle != m_hoverHandle)
+		{
+			m_hoverHandle = handle;
+			update();
+		}
+		if (handle == Handle::Gain) { setCursor(Qt::SizeVerCursor); }
+		else if (handle != Handle::None) { setCursor(Qt::SizeHorCursor); }
+	}
+}
+
+
+
+
+void SampleClipView::enterEvent(QEvent* e)
+{
+	m_hovered = true;
+	update();
+	ClipView::enterEvent(e);
+}
+
+
+
+
+void SampleClipView::leaveEvent(QEvent* e)
+{
+	m_hovered = false;
+	m_hoverHandle = Handle::None;
+	update();
+	ClipView::leaveEvent(e);
+}
+
+
+
+
 void SampleClipView::mouseReleaseEvent(QMouseEvent *_me)
 {
+	if (m_dragHandle != Handle::None)
+	{
+		m_dragHandle = Handle::None;
+		textFloat()->hide();
+		update();
+		return;
+	}
+
 	if( _me->button() == Qt::MiddleButton && !_me->modifiers() )
 	{
 		auto sClip = dynamic_cast<SampleClip*>(getClip());
@@ -184,9 +402,28 @@ void SampleClipView::mouseReleaseEvent(QMouseEvent *_me)
 
 
 
-void SampleClipView::mouseDoubleClickEvent( QMouseEvent * )
+void SampleClipView::mouseDoubleClickEvent( QMouseEvent * me )
 {
 	if (m_trackView->trackContainerView()->knifeMode()) { return; }
+
+	// Double-clicking a handle resets it
+	switch (handleAt(me->pos()))
+	{
+	case Handle::FadeIn:
+		m_clip->addJournalCheckPoint();
+		m_clip->setFadeIn(0);
+		return;
+	case Handle::FadeOut:
+		m_clip->addJournalCheckPoint();
+		m_clip->setFadeOut(0);
+		return;
+	case Handle::Gain:
+		m_clip->addJournalCheckPoint();
+		m_clip->setGain(1.f);
+		return;
+	default:
+		break;
+	}
 
 	const QString selectedAudioFile = FileDialog::openAudioFile();
 
@@ -243,6 +480,9 @@ void SampleClipView::paintEvent( QPaintEvent * pe )
 	lingrad.setColorAt( 1, c.darker( 300 ) );
 	lingrad.setColorAt( 0, c );
 
+	const QRect body(-m_paintPixmapXPosition, 0, width(), height());
+	beginClipPaint(p, m_paintPixmap, body);
+
 	// paint a black rectangle under the clip to prevent glitches with transparent backgrounds
 	p.fillRect( rect(), QColor( 0, 0, 0 ) );
 
@@ -298,23 +538,12 @@ void SampleClipView::paintEvent( QPaintEvent * pe )
 		m_sampleThumbnail.visualize(param, p);
 	}
 
+	paintFades(p, -m_paintPixmapXPosition);
+
 	QString name = PathUtil::cleanName(m_clip->m_sample.sampleFile());
 	paintTextLabel(name, p);
 
-	// disable antialiasing for borders, since its not needed
-	p.setRenderHint( QPainter::Antialiasing, false );
-
-	// inner border
-	p.setPen( c.lighter( 135 ) );
-	p.drawRect(
-		-m_paintPixmapXPosition + 1,
-		1,
-		rect().right() - BORDER_WIDTH,
-		rect().bottom() - BORDER_WIDTH );
-
-	// outer border
-	p.setPen( c.darker( 200 ) );
-	p.drawRect(-m_paintPixmapXPosition, 0, rect().right(), rect().bottom());
+	paintClipFrame(p, body, c, false);
 
 	// draw the 'muted' pixmap only if the clip was manually muted
 	if( m_clip->isMuted() )
@@ -348,6 +577,83 @@ void SampleClipView::paintEvent( QPaintEvent * pe )
 	p.end();
 
 	painter.drawPixmap(m_paintPixmapXPosition, 0, m_paintPixmap);
+}
+
+
+
+
+void SampleClipView::paintFades(QPainter& p, int xOffset)
+{
+	if (fixedClips()) { return; }
+
+	const float ppt = pixelsPerTick();
+	const float w = width();
+	const float fadeIn = m_clip->fadeIn() * ppt;
+	const float fadeOut = m_clip->fadeOut() * ppt;
+	const float top = BORDER_WIDTH;
+	const float bottom = height() - BORDER_WIDTH;
+
+	p.save();
+	p.translate(xOffset, 0);
+	p.setRenderHint(QPainter::Antialiasing);
+
+	// Shade the part of the clip the fades silence and outline the fade curves
+	const auto shade = [&](float from, float to) {
+		if (to - from < 1.f) { return; }
+		QPainterPath curve;
+		QPainterPath shadow;
+		shadow.moveTo(from, top);
+		for (float x = from; x <= to + 0.5f; x += 1.f)
+		{
+			const float clampedX = std::min(x, to);
+			const float y = bottom - SampleClip::fadeGain(clampedX, w, fadeIn, fadeOut) * (bottom - top);
+			if (x == from) { curve.moveTo(clampedX, y); }
+			else { curve.lineTo(clampedX, y); }
+			shadow.lineTo(clampedX, y);
+		}
+		shadow.lineTo(to, top);
+		shadow.closeSubpath();
+		p.fillPath(shadow, QColor(0, 0, 0, 150));
+		p.strokePath(curve, QPen(QColor(255, 255, 255, 190), 1.3));
+	};
+	// Overlapping fades are scaled down so they meet in the middle, like the audio does
+	const float scale = fadeIn + fadeOut > w && w > 0.f ? w / (fadeIn + fadeOut) : 1.f;
+	shade(0.f, fadeIn * scale);
+	shade(w - fadeOut * scale, w);
+
+	const bool dragging = m_dragHandle != Handle::None;
+	if (m_hovered || dragging)
+	{
+		const auto drawHandle = [&](Handle handle, bool round) {
+			const bool active = m_hoverHandle == handle || m_dragHandle == handle;
+			const QPointF c = handlePos(handle);
+			p.setPen(QPen(QColor(0, 0, 0, 200), 1));
+			p.setBrush(active ? QColor(29, 226, 118) : QColor(240, 244, 248, 230));
+			const QRectF r(c.x() - HandleRadius, c.y() - HandleRadius, 2 * HandleRadius, 2 * HandleRadius);
+			if (round) { p.drawEllipse(r); }
+			else { p.drawRect(r); }
+		};
+		drawHandle(Handle::FadeIn, false);
+		drawHandle(Handle::FadeOut, false);
+		if (width() > 6 * HandleHitRadius) { drawHandle(Handle::Gain, true); }
+	}
+
+	// Show a non-default clip gain as a small badge in the lower right corner
+	if (m_clip->gain() != 1.f && width() > 60)
+	{
+		const QString text = gainText(m_clip->gain());
+		p.setFont(adjustedToPixelSize(p.font(), 9));
+		const QFontMetrics fm(p.font());
+		const QRectF badge(w - fm.horizontalAdvance(text) - 12, bottom - fm.height() - 3, fm.horizontalAdvance(text) + 8,
+			fm.height() + 1);
+		p.setPen(Qt::NoPen);
+		p.setBrush(QColor(0, 0, 0, 150));
+		p.drawRect(badge);
+		p.setPen(m_clip->gain() > 1.f ? QColor(255, 196, 92) : QColor(220, 226, 234));
+		p.drawText(badge, Qt::AlignCenter, text);
+	}
+
+	p.restore();
 }
 
 

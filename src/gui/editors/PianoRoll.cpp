@@ -27,8 +27,12 @@
 #include "PianoRoll.h"
 
 #include <QtMath>  // IWYU pragma: keep
+#include <QActionGroup>
 #include <QApplication>
 #include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFormLayout>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QInputDialog>
@@ -40,7 +44,9 @@
 #include <QPainterPath>
 #include <QPointer>
 #include <QPushButton>
+#include <QScreen>
 #include <QScrollBar>
+#include <QSlider>
 #include <QStyleOption>
 #include <QToolButton>
 
@@ -89,6 +95,8 @@ namespace gui
 // some constants...
 const int INITIAL_PIANOROLL_WIDTH = 1970;
 const int INITIAL_PIANOROLL_HEIGHT = 885;
+const int MIN_PIANOROLL_WIDTH = 970;
+const int MIN_PIANOROLL_HEIGHT = 485;
 
 const int SCROLLBAR_SIZE = 12;
 const int PIANO_X = 0;
@@ -340,7 +348,7 @@ PianoRoll::PianoRoll() :
 	{
 		m_zoomingYModel.addItem(QString("%1%").arg(zoomLevel * 100));
 	}
-	m_zoomingYModel.setInitValue(ConfigManager::inst()->value("ui", "pianorollzoomvertical", QString::number(m_zoomingModel.findText("100%"))).toInt());
+	m_zoomingYModel.setInitValue(ConfigManager::inst()->value("ui", "pianorollzoomvertical", QString::number(m_zoomingYModel.findText("100%"))).toInt());
 	zoomingYChanged();
 	connect(&m_zoomingYModel, SIGNAL(dataChanged()),
 					this, SLOT(zoomingYChanged()));
@@ -350,7 +358,7 @@ PianoRoll::PianoRoll() :
 	for (auto q : Quantizations) {
 		m_quantizeModel.addItem(QString("1/%1").arg(q));
 	}
-	m_quantizeModel.setInitValue(ConfigManager::inst()->value("ui", "pianorollquantization", QString::number(m_zoomingModel.findText("1/16"))).toInt());
+	m_quantizeModel.setInitValue(ConfigManager::inst()->value("ui", "pianorollquantization", QString::number(m_quantizeModel.findText("1/16"))).toInt());
 
 	connect( &m_quantizeModel, SIGNAL(dataChanged()),
 					this, SLOT(quantizeChanged()));
@@ -831,20 +839,23 @@ void PianoRoll::duplicateSelectedNotes()
 
 	m_midiClip->addJournalCheckPoint();
 
-	// Compute the span of the selection, rounded up to the quantization
-	// grid so the copy lands on a musical position even when the last
-	// note ends off-grid
+	// The copy goes right after the selection, measured on the grid so it lands on a
+	// musical position even when notes start or end off the grid
 	TimePos start = selectedNotes.front()->pos();
 	TimePos end = selectedNotes.front()->endPos();
 	for (const Note* note : selectedNotes)
 	{
 		start = std::min(start, note->pos());
-		end = std::max(end, note->endPos());
+		end = std::max(end, std::max(note->endPos(), note->pos()));
 	}
 
 	const tick_t q = quantization();
-	tick_t shift = (end - start + q - 1) / q * q;
-	if (shift <= 0) { shift = q; }
+	const tick_t gridStart = start / q * q;
+	const tick_t gridEnd = (end + q - 1) / q * q;
+	tick_t shift = std::max(gridEnd - gridStart, q);
+	// Phrases longer than half a bar repeat on whole bars, e.g. a pickup that starts on beat 2
+	const tick_t bar = TimePos::ticksPerBar();
+	if (shift > bar / 2) { shift = (shift + bar - 1) / bar * bar; }
 
 	// The copies become the new selection, so repeated duplication chains
 	for (Note* note : selectedNotes)
@@ -856,27 +867,18 @@ void PianoRoll::duplicateSelectedNotes()
 		m_midiClip->addNote(newNote, false);
 	}
 
-	update();
-	getGUI()->songEditor()->update();
-	Engine::getSong()->setModified();
-}
-
-
-void PianoRoll::humanizeVelocities()
-{
-	if (!hasValidMidiClip()) { return; }
-
-	const NoteVector selectedNotes = getSelectedNotes();
-	const auto& notes = selectedNotes.empty() ? m_midiClip->notes() : selectedNotes;
-	if (notes.empty()) { return; }
-
-	m_midiClip->addJournalCheckPoint();
-
-	// Subtle jitter of up to +/-10% of the default velocity
-	std::uniform_int_distribution<int> dist(-DefaultVolume / 10, DefaultVolume / 10);
-	for (Note* note : notes)
+	// Follow the copy when it lands past the right edge of the view
+	const int visibleTicks = (noteEditRight() - noteEditLeft()) * TimePos::ticksPerBar() / m_ppb;
+	if (end + shift > m_currentPosition + visibleTicks)
 	{
-		note->setVolume(std::clamp<int>(note->getVolume() + dist(humanizeRng()), MinVolume, MaxVolume));
+		// The scroll range normally grows on the next paint, which is too late here
+		const int clipLength = m_midiClip->length() - m_midiClip->startTimeOffset();
+		if (m_leftRightScroll->maximum() < clipLength)
+		{
+			m_leftRightScroll->setRange(0, clipLength);
+			m_leftRightScroll->setPageStep(clipLength);
+		}
+		m_leftRightScroll->setValue(std::max(0, static_cast<int>(start + shift) - visibleTicks / 8));
 	}
 
 	update();
@@ -885,29 +887,136 @@ void PianoRoll::humanizeVelocities()
 }
 
 
-void PianoRoll::humanizeTiming()
+void PianoRoll::humanizeNotes()
 {
 	if (!hasValidMidiClip()) { return; }
 
 	const NoteVector selectedNotes = getSelectedNotes();
-	const auto& notes = selectedNotes.empty() ? m_midiClip->notes() : selectedNotes;
+	const NoteVector notes = selectedNotes.empty() ? m_midiClip->notes() : selectedNotes;
 	if (notes.empty()) { return; }
 
-	m_midiClip->addJournalCheckPoint();
-
-	// Roughly +/-20 ms at 120 BPM, like the subtle humanization other DAWs apply
-	const int maxOffset = std::max(1, TimePos::ticksPerBar() / 96);
-	std::uniform_int_distribution<int> dist(-maxOffset, maxOffset);
-	for (Note* note : notes)
+	struct Original
 	{
-		note->setPos(std::max(TimePos(0), TimePos(note->pos() + dist(humanizeRng()))));
-	}
-	m_midiClip->rearrangeAllNotes();
-	m_midiClip->updateLength();
+		Note* note;
+		TimePos pos;
+		TimePos length;
+		volume_t volume;
+		// Fixed random offsets in [-1, 1], so moving a slider scales the same variation
+		std::array<float, 3> random;
+	};
+	std::vector<Original> originals;
+	for (Note* note : notes) { originals.push_back({note, note->pos(), note->length(), note->getVolume(), {}}); }
 
-	update();
-	getGUI()->songEditor()->update();
-	Engine::getSong()->setModified();
+	auto reroll = [&originals]
+	{
+		// Triangular distribution: small deviations are more likely than large ones
+		std::uniform_real_distribution<float> dist(0.f, 1.f);
+		for (auto& original : originals)
+		{
+			for (auto& r : original.random) { r = dist(humanizeRng()) + dist(humanizeRng()) - 1.f; }
+		}
+	};
+	reroll();
+
+	auto restore = [&originals]
+	{
+		for (const auto& original : originals)
+		{
+			original.note->setPos(original.pos);
+			original.note->setLength(original.length);
+			original.note->setVolume(original.volume);
+		}
+	};
+
+	const auto config = ConfigManager::inst();
+	QDialog dialogWidget(this);
+	auto* dialog = &dialogWidget;
+	dialog->setObjectName("pianoRollHumanizeDialog");
+	dialog->setWindowTitle(selectedNotes.empty() ? tr("Humanize all notes") : tr("Humanize selected notes"));
+	auto* layout = new QFormLayout(dialog);
+
+	auto addSlider = [&](const QString& name, const QString& label, int maximum, int value, auto format)
+	{
+		auto* row = new QHBoxLayout;
+		auto* slider = new QSlider(Qt::Horizontal, dialog);
+		slider->setObjectName(name);
+		slider->setRange(0, maximum);
+		slider->setValue(std::clamp(value, 0, maximum));
+		slider->setMinimumWidth(220);
+		auto* readout = new QLabel(format(slider->value()), dialog);
+		readout->setMinimumWidth(readout->fontMetrics().horizontalAdvance(format(maximum)) + 4);
+		connect(slider, &QSlider::valueChanged, readout, [readout, format](int v) { readout->setText(format(v)); });
+		row->addWidget(slider);
+		row->addWidget(readout);
+		layout->addRow(label, row);
+		return slider;
+	};
+	auto* velocity = addSlider("velocity", tr("Velocity"), 50,
+		config->value("ui", "pianorollhumanizevelocity", "10").toInt(),
+		[](int v) { return v ? tr("±%1%").arg(v) : tr("off"); });
+	auto* timing = addSlider("timing", tr("Timing"), 60,
+		config->value("ui", "pianorollhumanizetiming", "15").toInt(),
+		[](int v) { return v ? tr("±%1 ms").arg(v) : tr("off"); });
+	auto* length = addSlider("length", tr("Length"), 50,
+		config->value("ui", "pianorollhumanizelength", "0").toInt(),
+		[](int v) { return v ? tr("±%1%").arg(v) : tr("off"); });
+
+	auto apply = [&]
+	{
+		restore();
+		const double ticksPerMs = Engine::audioEngine()->outputSampleRate() / Engine::framesPerTick() / 1000.;
+		for (const auto& original : originals)
+		{
+			Note* note = original.note;
+			note->setVolume(std::clamp<int>(original.volume
+				+ std::lround(original.random[0] * velocity->value()), MinVolume, MaxVolume));
+			const auto shift = std::lround(original.random[1] * timing->value() * ticksPerMs);
+			note->setPos(std::max<tick_t>(0, original.pos + shift));
+			// Step notes (length 0) have nothing to vary
+			if (original.length > 0)
+			{
+				const double factor = 1. + original.random[2] * length->value() / 100.;
+				note->setLength(std::max<tick_t>(1, std::lround(original.length * factor)));
+			}
+		}
+		m_midiClip->rearrangeAllNotes();
+		m_midiClip->updateLength();
+		update();
+		getGUI()->songEditor()->update();
+	};
+	for (auto* slider : {velocity, timing, length}) { connect(slider, &QSlider::valueChanged, dialog, apply); }
+
+	auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dialog);
+	auto* rerollButton = buttons->addButton(tr("Randomize again"), QDialogButtonBox::ActionRole);
+	connect(rerollButton, &QPushButton::clicked, dialog, [&] { reroll(); apply(); });
+	connect(buttons, &QDialogButtonBox::accepted, dialog, &QDialog::accept);
+	connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
+	layout->addRow(buttons);
+
+	// Preview right away, so the first impression is the result
+	apply();
+	const bool accepted = dialog->exec() == QDialog::Accepted;
+
+	// Record the untouched notes in the undo history, then commit the previewed result
+	restore();
+	if (accepted)
+	{
+		config->setValue("ui", "pianorollhumanizevelocity", QString::number(velocity->value()));
+		config->setValue("ui", "pianorollhumanizetiming", QString::number(timing->value()));
+		config->setValue("ui", "pianorollhumanizelength", QString::number(length->value()));
+		m_midiClip->rearrangeAllNotes();
+		m_midiClip->addJournalCheckPoint();
+		apply();
+		m_midiClip->dataChanged();
+		Engine::getSong()->setModified();
+	}
+	else
+	{
+		m_midiClip->rearrangeAllNotes();
+		m_midiClip->updateLength();
+		update();
+		getGUI()->songEditor()->update();
+	}
 }
 
 
@@ -1148,7 +1257,12 @@ void PianoRoll::drawNoteRect( QPainter & p, int x, int y,
 		p.setPen( Qt::NoPen );
 	}
 
-	p.drawRect( x, y, noteWidth, noteHeight );
+	// Softly rounded notes; the radius shrinks with the note so tiny notes stay solid
+	const qreal radius = std::min({2.5, noteHeight / 3.0, noteWidth / 3.0});
+	p.save();
+	p.setRenderHint(QPainter::Antialiasing);
+	p.drawRoundedRect(QRectF(x + 0.5, y + 0.5, noteWidth, noteHeight), radius, radius);
+	p.restore();
 
 	// Draw note key text
 	if (drawNoteName)
@@ -1203,7 +1317,12 @@ void PianoRoll::drawDetuningInfo( QPainter & _p, const Note * _n, int _x,
 	_p.save();
 	_p.setClipRect(QRect(m_whiteKeyWidth, keyAreaTop(),
 		noteEditRight() - m_whiteKeyWidth, keyAreaBottom() - keyAreaTop()), Qt::IntersectClip);
-	_p.setPen(QPen(m_noteColor, 1));
+	_p.setRenderHint(QPainter::Antialiasing);
+
+	const bool editing = m_editMode == EditMode::Detuning && _n->selected();
+	// Curves being edited take the selection color and a heavier line
+	const QColor curveColor = editing ? m_selectedNoteColor.lighter(150) : m_noteColor.lighter(130);
+	_p.setPen(QPen(curveColor, editing ? 2. : 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
 	_p.setBrush(Qt::NoBrush);
 
 	const qreal middle_y = _y + m_keyLineHeight / 2.0;
@@ -1222,11 +1341,6 @@ void PianoRoll::drawDetuningInfo( QPainter & _p, const Note * _n, int _x,
 	{
 		const QPointF in = nodePoint(POS(it), INVAL(it));
 		const QPointF out = nodePoint(POS(it), OUTVAL(it));
-		if (it == map.cbegin())
-		{
-			_p.drawLine(in - QPointF(1, 0), in + QPointF(1, 0));
-			_p.drawLine(in - QPointF(0, 1), in + QPointF(0, 1));
-		}
 		if (in != out) { _p.drawLine(in, out); }
 
 		const auto next = std::next(it);
@@ -1258,48 +1372,75 @@ void PianoRoll::drawDetuningInfo( QPainter & _p, const Note * _n, int _x,
 		_p.drawPath(path);
 	}
 
-	if (m_editMode == EditMode::Detuning && _n->selected())
+	if (!editing)
+	{
+		_p.restore();
+		return;
+	}
+
+	const QColor outline = QColor(0, 0, 0, 170);
+
+	// Tangent handles only shape smooth curves, so linear and stepped ones don't show them
+	if (curve->progressionType() == AutomationClip::ProgressionType::CubicHermite)
 	{
 		for (auto it = map.cbegin(); it != map.cend(); it++)
 		{
 			const qreal nodeX = _x + POS(it) * pixelsPerTick;
-			const bool locked = LOCKEDTAN(it);
+			QColor handleColor = curveColor;
+			// Handles the user has shaped are brighter than automatic ones
+			handleColor.setAlpha(LOCKEDTAN(it) ? 220 : 130);
 
-			QColor tangentColor = m_noteColor.lighter(locked ? 150 : 120);
-			tangentColor.setAlpha(locked ? 230 : 145);
-			_p.setPen(QPen(tangentColor, locked ? 2 : 1));
-			_p.setBrush(tangentColor);
-
-			if (it != map.cbegin())
+			auto drawHandle = [&](bool out, float value, float tangent)
 			{
-				const qreal nodeY = middle_y - INVAL(it) * m_keyLineHeight;
-				const QPointF handle(nodeX - DETUNING_TANGENT_HANDLE_LENGTH,
-					nodeY + DETUNING_TANGENT_HANDLE_LENGTH * INTAN(it) * m_keyLineHeight / pixelsPerTick);
-
-				_p.drawLine(QPointF(nodeX, nodeY), handle);
-				_p.drawEllipse(handle, DETUNING_TANGENT_HANDLE_RADIUS, DETUNING_TANGENT_HANDLE_RADIUS);
-			}
-			if (std::next(it) != map.cend())
-			{
-				const qreal nodeY = middle_y - OUTVAL(it) * m_keyLineHeight;
-				const QPointF handle(nodeX + DETUNING_TANGENT_HANDLE_LENGTH,
-					nodeY - DETUNING_TANGENT_HANDLE_LENGTH * OUTTAN(it) * m_keyLineHeight / pixelsPerTick);
-
-				_p.drawLine(QPointF(nodeX, nodeY), handle);
-				_p.drawEllipse(handle, DETUNING_TANGENT_HANDLE_RADIUS, DETUNING_TANGENT_HANDLE_RADIUS);
-			}
-		}
-
-		_p.setPen(m_noteColor);
-		_p.setBrush(QBrush(m_noteColor));
-
-		for (timeMap::const_iterator it = map.begin(); it != map.end(); ++it)
-		{
-			_p.drawEllipse(nodePoint(POS(it), INVAL(it)),
-				DETUNING_HANDLE_RADIUS, DETUNING_HANDLE_RADIUS);
+				const QPointF node(nodeX, middle_y - value * m_keyLineHeight);
+				const QPointF handle = detuningTangentHandle(node, tangent, out);
+				const bool hovered = m_parameterHoverTangent && m_parameterHoverTangent->note == _n
+					&& m_parameterHoverTangent->tick == POS(it) && m_parameterHoverTangent->out == out;
+				const bool dragged = m_parameterEditTangent && m_parameterEditTangent->note == _n
+					&& m_parameterEditTangent->tick == POS(it) && m_parameterEditTangent->out == out;
+				_p.setPen(QPen(handleColor, 1));
+				_p.drawLine(node, handle);
+				if (hovered || dragged)
+				{
+					_p.setBrush(curveColor);
+					_p.drawEllipse(handle, DETUNING_TANGENT_HANDLE_RADIUS + 1, DETUNING_TANGENT_HANDLE_RADIUS + 1);
+				}
+				else
+				{
+					_p.setBrush(outline);
+					_p.setPen(QPen(handleColor, 1.5));
+					_p.drawEllipse(handle, DETUNING_TANGENT_HANDLE_RADIUS, DETUNING_TANGENT_HANDLE_RADIUS);
+				}
+			};
+			if (it != map.cbegin()) { drawHandle(false, INVAL(it), INTAN(it)); }
+			if (std::next(it) != map.cend()) { drawHandle(true, OUTVAL(it), OUTTAN(it)); }
 		}
 	}
+
+	// Curve points as small squares, enlarged under the mouse
+	_p.setRenderHint(QPainter::Antialiasing, false);
+	for (auto it = map.cbegin(); it != map.cend(); ++it)
+	{
+		const bool hovered = m_parameterHoverNode && m_parameterHoverNode->note == _n
+			&& m_parameterHoverNode->tick == POS(it);
+		const int radius = DETUNING_HANDLE_RADIUS + (hovered ? 1 : 0);
+		const QPointF center = nodePoint(POS(it), INVAL(it));
+		const QRect square(qRound(center.x()) - radius, qRound(center.y()) - radius, 2 * radius + 1, 2 * radius + 1);
+		_p.fillRect(square, outline);
+		_p.fillRect(square.adjusted(1, 1, -1, -1), hovered ? curveColor.lighter(130) : curveColor);
+	}
 	_p.restore();
+}
+
+
+QPointF PianoRoll::detuningTangentHandle(const QPointF& node, float tangent, bool out) const
+{
+	// The tangent is in semitones per tick; convert it to a screen slope and walk a fixed
+	// distance along it so that steep handles stay next to their point instead of leaving the screen
+	const qreal pixelsPerTick = static_cast<qreal>(m_ppb) / TimePos::ticksPerBar();
+	const qreal slope = -tangent * m_keyLineHeight / pixelsPerTick;
+	const qreal length = DETUNING_TANGENT_HANDLE_LENGTH / std::hypot(1., slope);
+	return out ? node + QPointF(length, slope * length) : node - QPointF(length, slope * length);
 }
 
 
@@ -1712,6 +1853,8 @@ void PianoRoll::leaveEvent(QEvent * e )
 {
 	QWidget::leaveEvent( e );
 	s_textFloat->hide();
+	m_parameterHoverNode.reset();
+	m_parameterHoverTangent.reset();
 	update(); // cleaning inner mouse-related graphics
 }
 
@@ -1798,13 +1941,10 @@ void PianoRoll::mousePressEvent(QMouseEvent * me )
 		return;
 	}
 
-	if (m_editMode == EditMode::Detuning)
+	// Outside the note grid (piano keys, velocity lane) Pitch Bend mode behaves like the other modes
+	if (m_editMode == EditMode::Detuning
+		&& pos.x() > m_whiteKeyWidth && pos.y() >= keyAreaTop() && pos.y() < keyAreaBottom())
 	{
-		if (pos.x() <= m_whiteKeyWidth || pos.y() < keyAreaTop() || pos.y() >= keyAreaBottom())
-		{
-			return;
-		}
-
 		// Let users access automation editor with shift-click, if they want the old functionality
 		Note* clickedNote = noteUnderMouse();
 
@@ -1863,13 +2003,17 @@ void PianoRoll::mousePressEvent(QMouseEvent * me )
 
 		// Clicking a different note switches the curve being edited. Clicking
 		// within an existing selection continues to edit all selected curves.
-		if (clickedNote && !clickedNote->selected())
+		// Points of the selected curves take priority over note bodies beneath them.
+		if (clickedNote && !clickedNote->selected() && !parameterNodeUnderMouse(pos))
 		{
 			clearSelectedNotes();
 			clickedNote->setSelected(true);
 			// If there are already automation nodes in the detuning curve, don't immediately place a new when the user clicks on the note to select it
 			if (clickedNote->detuning() && clickedNote->detuning()->hasAutomation()) { update(); return; }
 		}
+
+		// Without a selection there is no curve to edit
+		if (getSelectedNotes().empty()) { return; }
 
 		m_midiClip->addJournalCheckPoint();
 
@@ -2638,7 +2782,10 @@ void PianoRoll::mouseMoveEvent( QMouseEvent * me )
 	const auto pos = position(me);
 	if (m_editMode == EditMode::Detuning && me->buttons() == Qt::NoButton)
 	{
-		setCursor(parameterTangentUnderMouse(pos) ? Qt::CrossCursor : Qt::ArrowCursor);
+		m_parameterHoverTangent = parameterTangentUnderMouse(pos);
+		m_parameterHoverNode = m_parameterHoverTangent ? std::nullopt : parameterNodeUnderMouse(pos);
+		setCursor(m_parameterHoverTangent ? Qt::CrossCursor
+			: m_parameterHoverNode ? Qt::SizeAllCursor : Qt::ArrowCursor);
 		// Hover feedback must refresh even when no note or playback event repaints us.
 		update();
 		return;
@@ -2992,6 +3139,25 @@ void PianoRoll::mouseMoveEvent( QMouseEvent * me )
 }
 
 
+QString PianoRoll::bendText(float semitones, int key)
+{
+	// "+7 semitones → G4", or with the cents left over for fine bends
+	const int nearest = static_cast<int>(std::round(semitones));
+	const int cents = static_cast<int>(std::round((semitones - nearest) * 100));
+	const QString amount = std::abs(semitones - nearest) < 0.005f
+		? QString::number(nearest) : QString::number(semitones, 'f', 2);
+	const QString sign = semitones > 0.0049f ? QStringLiteral("+") : QString();
+	const int target = key + nearest;
+	QString text = tr("%1%2 semitones").arg(sign, amount);
+	if (target >= 0 && target < NumKeys)
+	{
+		text += QStringLiteral(" → ") + getNoteString(target);
+		if (cents != 0) { text += QString(" %1%2 ct").arg(cents > 0 ? "+" : "−").arg(std::abs(cents)); }
+	}
+	return text;
+}
+
+
 void PianoRoll::beginParameterCurveEdit(Note* source, Note::ParameterType paramType)
 {
 	m_parameterEditClickedNote = source;
@@ -3061,9 +3227,9 @@ void PianoRoll::updateParameterEditPos(QMouseEvent* me, Note::ParameterType para
 		curve->setNodeTangent(tangent.tick, tangent.out, newTangent,
 			!(me->modifiers() & Qt::AltModifier));
 		syncParameterEditCurves(paramType);
-		showTextFloat(tr("Curve handle: %1 semitones%2")
-			.arg(valueOffset, 0, 'f', 2)
-			.arg(me->modifiers() & Qt::AltModifier ? tr(" (independent)") : QString()), position(me));
+		showTextFloat(me->modifiers() & Qt::AltModifier
+			? tr("Shaping one side of the point")
+			: tr("Shaping the curve · Alt: one side only"), position(me));
 		update();
 		return;
 	}
@@ -3076,8 +3242,29 @@ void PianoRoll::updateParameterEditPos(QMouseEvent* me, Note::ParameterType para
 		// Do not allow right click mode if left click is already held.
 		m_parameterEditDownRight = (m_parameterEditDownRight || me->button() & Qt::RightButton) && m_parameterEditDownLeft == false;
 		m_lastParameterEditTick = std::nullopt;
-		// Get the note with the closest automation curve to the mouse cursor
-		beginParameterCurveEdit(parameterEditNoteUnderMouse(paramType), paramType);
+		// Grab the point under the mouse, otherwise edit the curve closest to the mouse cursor
+		const auto node = parameterNodeUnderMouse(position(me));
+		beginParameterCurveEdit(node ? node->note : parameterEditNoteUnderMouse(paramType), paramType);
+		AutomationClip* nodeClip = node ? node->note->parameterCurve(paramType) : nullptr;
+		if (nodeClip && (m_parameterEditDownLeft || node->tick != 0))
+		{
+			// Pick the point up where it is, even when it sits off the grid; it snaps once it moves
+			m_lastParameterEditTick = node->note->pos() + node->tick;
+			if (m_parameterEditDownLeft)
+			{
+				m_parameterGrab = {node->tick, me->x()};
+				nodeClip->setDragValue(node->tick, node->value, false);
+				showTextFloat(bendText(node->value, node->note->key()), position(me));
+			}
+			else
+			{
+				nodeClip->removeNode(node->tick);
+				showTextFloat(tr("Erasing points"), position(me));
+			}
+			syncParameterEditCurves(paramType);
+			update();
+			return;
+		}
 	}
 
 	if (!m_parameterEditClickedNote) { return; }
@@ -3091,6 +3278,12 @@ void PianoRoll::updateParameterEditPos(QMouseEvent* me, Note::ParameterType para
 	const bool snap = !(me->modifiers() & Qt::AltModifier);
 	const int snapTicks = snap ? quantization() : 1;
 	TimePos relativePos = std::max(TimePos{0}, Note::quantized(posTicks - m_parameterEditClickedNote->pos(), snapTicks));
+	// A grabbed point keeps its exact time until the mouse really moves sideways
+	if (m_parameterGrab && std::abs(me->x() - m_parameterGrab->second) <= 2)
+	{
+		relativePos = m_parameterGrab->first;
+	}
+	else { m_parameterGrab.reset(); }
 	float relativeKey = keyNum - m_parameterEditClickedNote->key();
 	if (me->modifiers() & Qt::ControlModifier)
 	{
@@ -3155,7 +3348,8 @@ void PianoRoll::updateParameterEditPos(QMouseEvent* me, Note::ParameterType para
 		syncParameterEditCurves(paramType);
 	}
 	if (updateLastEditTick) { m_lastParameterEditTick = posTicks; }
-	showTextFloat(tr("Glide: %1 semitones · tick %2").arg(relativeKey, 0, 'f', 2).arg(int(relativePos)), position(me));
+	showTextFloat(m_parameterEditDownRight ? tr("Erasing points")
+		: bendText(relativeKey, m_parameterEditClickedNote->key()), position(me));
 	update();
 }
 
@@ -3176,6 +3370,7 @@ void PianoRoll::applyParameterEditPos(Note::ParameterType paramType)
 	m_parameterEditDownLeft = false;
 	m_parameterEditClickedNote = nullptr;
 	m_parameterEditTangent.reset();
+	m_parameterGrab.reset();
 	m_parameterEditNotes.clear();
 	if (edited && hasValidMidiClip())
 	{
@@ -3210,9 +3405,58 @@ void PianoRoll::centerGlideCurves()
 }
 
 
+QString PianoRoll::pitchBendHelp()
+{
+	return tr("Click a note, then click or drag to add and move points\n"
+		"Drag the round handles to shape smooth curves (Alt: one side)\n"
+		"Right-click or right-drag to erase points or reset a handle\n"
+		"Alt: off the grid · Ctrl: between semitones · Shift-click: Automation Editor");
+}
+
+
 void PianoRoll::populateGlideMenu(QMenu* menu)
 {
 	const bool hasNotes = hasValidMidiClip() && !getSelectedNotes().empty();
+
+	// Curve shape of the selected notes; checked when they all share it
+	std::optional<AutomationClip::ProgressionType> currentShape;
+	bool mixedShapes = false;
+	if (hasNotes)
+	{
+		for (const Note* note : getSelectedNotes())
+		{
+			if (!note->hasDetuningInfo()) { continue; }
+			const auto shape = note->detuning()->automationClip()->progressionType();
+			if (currentShape && *currentShape != shape) { mixedShapes = true; }
+			currentShape = shape;
+		}
+	}
+	auto* shapeGroup = new QActionGroup(menu);
+	auto addShape = [&](const QString& text, AutomationClip::ProgressionType shape)
+	{
+		auto* action = menu->addAction(text, this, [this, shape]
+		{
+			if (!hasValidMidiClip() || getSelectedNotes().empty()) { return; }
+			m_midiClip->addJournalCheckPoint();
+			for (Note* note : getSelectedNotes())
+			{
+				if (!note->detuning()) { continue; }
+				note->detuning()->automationClip()->setProgressionType(shape);
+			}
+			m_midiClip->dataChanged();
+			Engine::getSong()->setModified();
+			update();
+		});
+		action->setCheckable(true);
+		action->setChecked(currentShape == shape && !mixedShapes);
+		action->setEnabled(currentShape.has_value());
+		shapeGroup->addAction(action);
+	};
+	addShape(tr("Smooth curves"), AutomationClip::ProgressionType::CubicHermite);
+	addShape(tr("Straight lines"), AutomationClip::ProgressionType::Linear);
+	addShape(tr("Steps"), AutomationClip::ProgressionType::Discrete);
+	menu->addSeparator();
+
 	menu->addAction(tr("Reset selected curves"), this, [this]
 	{
 		if (!hasValidMidiClip() || getSelectedNotes().empty()) { return; }
@@ -4858,15 +5102,19 @@ void PianoRoll::verScrolled( int new_pos )
 
 void PianoRoll::setEditMode(int mode)
 {
-	if (static_cast<EditMode>(mode) == EditMode::Detuning)
+	m_parameterHoverNode.reset();
+	m_parameterHoverTangent.reset();
+	if (static_cast<EditMode>(mode) == EditMode::Detuning && m_editMode != EditMode::Detuning)
 	{
 		centerGlideCurves();
-		TextFloat::displayMessage(tr("Pitch Bending"),
-			tr("Drag points to shape the glide; drag round handles to bend the curve\n"
-				"Selected curves sync when they have the same number of points\n"
-				"Alt-drag a curve handle to edit one side · right-click a handle to reset it\n"
-				"Alt: free timing · Ctrl: fine pitch · Shift-click: Automation Editor"),
-			embed::getIconPixmap("automation"), 4000);
+		// The full cheat sheet once per session; it stays in the tool's tooltip afterwards
+		static bool s_shownPitchBendHelp = false;
+		if (!s_shownPitchBendHelp)
+		{
+			s_shownPitchBendHelp = true;
+			TextFloat::displayMessage(tr("Pitch Bend mode"), pitchBendHelp(),
+				embed::getIconPixmap("automation"), 5000);
+		}
 	}
 	m_ctrlMode = m_editMode = (EditMode) mode;
 }
@@ -5497,41 +5745,67 @@ std::optional<PianoRoll::ParameterTangentHit> PianoRoll::parameterTangentUnderMo
 		return std::nullopt;
 	}
 
-	const float pixelsPerTick = static_cast<float>(m_ppb) / TimePos::ticksPerBar();
-	const int hitRadius = DETUNING_TANGENT_HANDLE_RADIUS + 5;
-	int closestDistance = hitRadius * hitRadius + 1;
+	const qreal pixelsPerTick = static_cast<qreal>(m_ppb) / TimePos::ticksPerBar();
+	const qreal hitRadius = DETUNING_TANGENT_HANDLE_RADIUS + 4;
+	qreal closestDistance = hitRadius * hitRadius;
 	std::optional<ParameterTangentHit> closest;
 	for (Note* note : getSelectedNotes())
 	{
 		if (!note->detuning()) { continue; }
-		auto& map = note->detuning()->automationClip()->getTimeMap();
-		const int middleY = yCoordOfKey(note->key()) + m_keyLineHeight / 2;
+		const auto* curve = note->detuning()->automationClip();
+		if (curve->progressionType() != AutomationClip::ProgressionType::CubicHermite) { continue; }
+		const auto& map = curve->getTimeMap();
+		const qreal middleY = yCoordOfKey(note->key()) + m_keyLineHeight / 2.0;
+		// Same rounding as paintEvent, so hits line up with what is drawn
+		const int noteX = m_whiteKeyWidth + (note->pos() - m_currentPosition) * m_ppb / TimePos::ticksPerBar();
 		for (auto it = map.cbegin(); it != map.cend(); ++it)
 		{
-			const int nodeX = m_whiteKeyWidth
-				+ (note->pos() + POS(it) - m_currentPosition) * m_ppb / TimePos::ticksPerBar();
-			auto consider = [&](bool out, const QPoint& handle)
+			const qreal nodeX = noteX + POS(it) * pixelsPerTick;
+			auto consider = [&](bool out, float value, float tangent)
 			{
-				const int dx = handle.x() - pos.x();
-				const int dy = handle.y() - pos.y();
-				const int distance = dx * dx + dy * dy;
+				const QPointF handle = detuningTangentHandle(QPointF(nodeX, middleY - value * m_keyLineHeight),
+					tangent, out);
+				const QPointF delta = handle - pos;
+				const qreal distance = QPointF::dotProduct(delta, delta);
 				if (distance < closestDistance)
 				{
 					closestDistance = distance;
 					closest = ParameterTangentHit{note, POS(it), out};
 				}
 			};
-			if (it != map.cbegin())
+			if (it != map.cbegin()) { consider(false, INVAL(it), INTAN(it)); }
+			if (std::next(it) != map.cend()) { consider(true, OUTVAL(it), OUTTAN(it)); }
+		}
+	}
+	return closest;
+}
+
+
+std::optional<PianoRoll::ParameterNodeHit> PianoRoll::parameterNodeUnderMouse(const QPoint& pos) const
+{
+	if (!hasValidMidiClip() || pos.x() <= m_whiteKeyWidth || pos.y() < keyAreaTop() || pos.y() >= keyAreaBottom())
+	{
+		return std::nullopt;
+	}
+
+	const qreal pixelsPerTick = static_cast<qreal>(m_ppb) / TimePos::ticksPerBar();
+	const qreal hitRadius = DETUNING_HANDLE_RADIUS + 4;
+	qreal closestDistance = hitRadius * hitRadius;
+	std::optional<ParameterNodeHit> closest;
+	for (Note* note : getSelectedNotes())
+	{
+		if (!note->detuning()) { continue; }
+		const auto& map = note->detuning()->automationClip()->getTimeMap();
+		const qreal middleY = yCoordOfKey(note->key()) + m_keyLineHeight / 2.0;
+		const int noteX = m_whiteKeyWidth + (note->pos() - m_currentPosition) * m_ppb / TimePos::ticksPerBar();
+		for (auto it = map.cbegin(); it != map.cend(); ++it)
+		{
+			const QPointF delta = QPointF(noteX + POS(it) * pixelsPerTick, middleY - INVAL(it) * m_keyLineHeight) - pos;
+			const qreal distance = QPointF::dotProduct(delta, delta);
+			if (distance < closestDistance)
 			{
-				const int nodeY = middleY - INVAL(it) * m_keyLineHeight;
-				consider(false, QPoint(nodeX - DETUNING_TANGENT_HANDLE_LENGTH,
-					nodeY + DETUNING_TANGENT_HANDLE_LENGTH * INTAN(it) * m_keyLineHeight / pixelsPerTick));
-			}
-			if (std::next(it) != map.cend())
-			{
-				const int nodeY = middleY - OUTVAL(it) * m_keyLineHeight;
-				consider(true, QPoint(nodeX + DETUNING_TANGENT_HANDLE_LENGTH,
-					nodeY - DETUNING_TANGENT_HANDLE_LENGTH * OUTTAN(it) * m_keyLineHeight / pixelsPerTick));
+				closestDistance = distance;
+				closest = ParameterNodeHit{note, POS(it), INVAL(it)};
 			}
 		}
 	}
@@ -5598,12 +5872,12 @@ PianoRollWindow::PianoRollWindow() :
 	notesActionsToolBar->addAction( drawAction );
 	notesActionsToolBar->addAction( eraseAction );
 	notesActionsToolBar->addAction( selectAction );
-	notesActionsToolBar->addAction( pitchBendAction );
+	// The Pitch Bend tool carries the glide options in its drop-down
 	auto* glideButton = new QToolButton(notesActionsToolBar);
 	glideButton->setObjectName("pianoRollGlideMenuButton");
-	glideButton->setText(tr("Glide"));
-	glideButton->setToolTip(tr("Reset glide curves and set the external synth bend range"));
-	glideButton->setPopupMode(QToolButton::InstantPopup);
+	glideButton->setDefaultAction(pitchBendAction);
+	glideButton->setPopupMode(QToolButton::MenuButtonPopup);
+	pitchBendAction->setToolTip(tr("Pitch Bend mode (Shift+T)") + "\n" + PianoRoll::pitchBendHelp());
 	auto* glideMenu = new QMenu(glideButton);
 	glideButton->setMenu(glideMenu);
 	connect(glideMenu, &QMenu::aboutToShow, m_editor, [this, glideMenu]
@@ -5702,14 +5976,9 @@ PianoRollWindow::PianoRollWindow() :
 	connect(reverseAction, &QAction::triggered, [this](){ m_editor->reverseNotes(); });
 	reverseAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_R));
 
-	auto humanizeVelocityAction
-		= new QAction(embed::getIconPixmap("random_wave_active"), tr("Humanize velocities"), noteToolsButton);
-	connect(humanizeVelocityAction, &QAction::triggered, [this]() { m_editor->humanizeVelocities(); });
-	humanizeVelocityAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_H));
-
-	auto humanizeTimingAction
-		= new QAction(embed::getIconPixmap("random_wave_inactive"), tr("Humanize timing"), noteToolsButton);
-	connect(humanizeTimingAction, &QAction::triggered, [this]() { m_editor->humanizeTiming(); });
+	auto humanizeAction = new QAction(embed::getIconPixmap("random_wave_active"), tr("Humanize…"), noteToolsButton);
+	connect(humanizeAction, &QAction::triggered, [this]() { m_editor->humanizeNotes(); });
+	humanizeAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_H));
 
 	noteToolsButton->addAction(glueAction);
 	noteToolsButton->addAction(knifeAction);
@@ -5719,8 +5988,7 @@ PianoRollWindow::PianoRollWindow() :
 	noteToolsButton->addAction(minLengthAction);
 	noteToolsButton->addAction(maxLengthAction);
 	noteToolsButton->addAction(reverseAction);
-	noteToolsButton->addAction(humanizeVelocityAction);
-	noteToolsButton->addAction(humanizeTimingAction);
+	noteToolsButton->addAction(humanizeAction);
 
 	notesActionsToolBar->addWidget(noteToolsButton);
 
@@ -6073,7 +6341,15 @@ void PianoRollWindow::loadSettings( const QDomElement & de )
 
 QSize PianoRollWindow::sizeHint() const
 {
-	return { INITIAL_PIANOROLL_WIDTH, INITIAL_PIANOROLL_HEIGHT };
+	// Open large, but never bigger than the screen the main window is on
+	const QScreen* screen = getGUI() && getGUI()->mainWindow()
+		? getGUI()->mainWindow()->screen() : QGuiApplication::primaryScreen();
+	if (!screen) { return { INITIAL_PIANOROLL_WIDTH, INITIAL_PIANOROLL_HEIGHT }; }
+	const QSize available = screen->availableSize();
+	return {
+		std::clamp(available.width() * 4 / 5, MIN_PIANOROLL_WIDTH, INITIAL_PIANOROLL_WIDTH),
+		std::clamp(available.height() * 2 / 3, MIN_PIANOROLL_HEIGHT, INITIAL_PIANOROLL_HEIGHT)
+	};
 }
 
 

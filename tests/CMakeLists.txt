@@ -11,10 +11,18 @@ set(LMMS_TESTS
 	src/core/MidiNotePitchTest.cpp
 	src/core/ProjectVersionTest.cpp
 	src/core/RelativePathsTest.cpp
+	src/core/LoudnessAnalyzerTest.cpp
+	src/core/LimiterDspTest.cpp
 	src/core/TimelineTest.cpp
 	src/core/SongExportTest.cpp
+	src/core/SampleClipFadeTest.cpp
+	src/core/ScriptApiTest.cpp
 	src/gui/PianoRollRenderingTest.cpp
 	src/gui/MixerChannelLcdSpinBoxTest.cpp
+	src/gui/CommandPaletteTest.cpp
+	src/gui/MidiCaptureTest.cpp
+	src/gui/ScriptConsoleTest.cpp
+	src/gui/AudioFileProcessorViewTest.cpp
 	src/tracks/AutomationTrackTest.cpp
 )
 
@@ -47,6 +55,31 @@ set_target_properties(MixerChannelLcdSpinBoxTest PROPERTIES ENABLE_EXPORTS ON)
 set_tests_properties(MixerChannelLcdSpinBoxTest PROPERTIES
 	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
 	TIMEOUT 60)
+
+set_target_properties(CommandPaletteTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(CommandPaletteTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
+
+set_target_properties(AudioFileProcessorViewTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(AudioFileProcessorViewTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
+
+set_target_properties(MidiCaptureTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(MidiCaptureTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
+
+set_target_properties(ScriptApiTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(ScriptApiTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
+
+set_target_properties(ScriptConsoleTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(ScriptConsoleTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 90)
 
 if(TARGET vst3base)
 	add_library(Vst3TestPlugin MODULE plugins/Vst3TestPlugin.cpp
@@ -84,3 +117,11 @@ target_static_libraries(PluginSnapshot PRIVATE lmmsobjs)
 target_link_libraries(PluginSnapshot PRIVATE ${QT_LIBRARIES})
 target_compile_features(PluginSnapshot PRIVATE cxx_std_20)
 set_target_properties(PluginSnapshot PROPERTIES ENABLE_EXPORTS ON)
+
+# Developer tool: renders the main windows to PNG for reviewing theme changes.
+add_executable(UiSnapshot EXCLUDE_FROM_ALL plugins/UiSnapshot.cpp)
+target_include_directories(UiSnapshot PRIVATE $<TARGET_PROPERTY:lmmsobjs,INCLUDE_DIRECTORIES>)
+target_static_libraries(UiSnapshot PRIVATE lmmsobjs)
+target_link_libraries(UiSnapshot PRIVATE ${QT_LIBRARIES})
+target_compile_features(UiSnapshot PRIVATE cxx_std_20)
+set_target_properties(UiSnapshot PROPERTIES ENABLE_EXPORTS ON)

@@ -22,164 +22,122 @@
  *
  */
 
+
 #ifndef LMMS_AUDIO_FILE_PROCESSOR_WAVE_VIEW_H
 #define LMMS_AUDIO_FILE_PROCESSOR_WAVE_VIEW_H
 
+#include <QPixmap>
+#include <QWidget>
+#include <memory>
+#include <vector>
 
-#include "Knob.h"
-#include "SampleThumbnail.h"
-
+class QTimer;
 
 namespace lmms
 {
 
-class Sample;
+class AudioFileProcessor;
+class SampleBuffer;
 
 namespace gui
 {
 
+//! The sample editor: a zoomable waveform with draggable start, loop and end points, fade
+//! handles and, in slice mode, slice markers with clickable pads
 class AudioFileProcessorWaveView : public QWidget
 {
 	Q_OBJECT
-protected:
-	virtual void enterEvent(QEvent* e);
-	virtual void leaveEvent(QEvent* e);
-	virtual void mousePressEvent(QMouseEvent* me);
-	virtual void mouseReleaseEvent(QMouseEvent* me);
-	virtual void mouseMoveEvent(QMouseEvent* me);
-	virtual void wheelEvent(QWheelEvent* we);
-	virtual void paintEvent(QPaintEvent* pe);
-
-
 public:
-	enum class Point
-	{
-		Start,
-		End,
-		Loop
-	} ;
+	AudioFileProcessorWaveView(QWidget* parent, AudioFileProcessor* afp);
 
-	class knob : public Knob
-	{
-		const AudioFileProcessorWaveView* m_waveView;
-		const Knob* m_relatedKnob;
+	//! Show the whole sample
+	void zoomToFit();
 
-
-	public:
-		knob(QWidget* parent) :
-			Knob(KnobType::Bright26, parent),
-			m_waveView(0),
-			m_relatedKnob(0)
-		{
-		}
-
-		void setWaveView(const AudioFileProcessorWaveView* wv)
-		{
-			m_waveView = wv;
-		}
-
-		void setRelatedKnob(const Knob* knob)
-		{
-			m_relatedKnob = knob;
-		}
-
-		void slideBy(double v, bool check_bound = true)
-		{
-			slideTo(model()->value() + v, check_bound);
-		}
-
-		void slideTo(double v, bool check_bound = true);
-
-
-	protected:
-		float getValue(const QPoint & p);
-
-
-	private:
-		bool checkBound(double v) const;
-	} ;
-
+signals:
+	//! The empty display was clicked
+	void openFileRequested();
 
 public slots:
-	void update()
-	{
-		updateGraph();
-		QWidget::update();
-	}
+	void sampleUpdated();
 
-	void isPlaying(lmms::f_cnt_t current_frame);
-
+protected:
+	void paintEvent(QPaintEvent*) override;
+	void resizeEvent(QResizeEvent*) override;
+	void mousePressEvent(QMouseEvent*) override;
+	void mouseMoveEvent(QMouseEvent*) override;
+	void mouseReleaseEvent(QMouseEvent*) override;
+	void mouseDoubleClickEvent(QMouseEvent*) override;
+	void wheelEvent(QWheelEvent*) override;
+	void leaveEvent(QEvent*) override;
+	void contextMenuEvent(QContextMenuEvent*) override;
 
 private:
-	static const int s_padding = 2;
+	enum class Target { None, Start, End, Loop, FadeIn, FadeOut, Marker, Pad, Overview, View };
 
-	enum class DraggingType
+	struct Hit
 	{
-		Wave,
-		SlideWave,
-		ZoomWave,
-		SampleStart,
-		SampleEnd,
-		SampleLoop
-	} ;
+		Target target = Target::None;
+		int index = -1; //!< marker or pad index
+	};
 
-	Sample const* m_sample;
-	QPixmap m_graph;
-	int m_from;
-	int m_to;
-	int m_last_from;
-	int m_last_to;
-	float m_last_amp;
-	knob* m_startKnob;
-	knob* m_endKnob;
-	knob* m_loopKnob;
-	int m_startFrameX;
-	int m_endFrameX;
-	int m_loopFrameX;
-	bool m_isDragging;
-	QPoint m_draggingLastPoint;
-	DraggingType m_draggingType;
-	bool m_reversed;
-	f_cnt_t m_framesPlayed;
-	bool m_animation;
-	SampleThumbnail m_sampleThumbnail;
-
-	friend class AudioFileProcessorView;
-
-public:
-	AudioFileProcessorWaveView(QWidget* parent, int w, int h, Sample const* buf,
-		knob* start, knob* end, knob* loop);
-
-
-	void updateSampleRange();
-private:
-	void setTo(int to);
-	void setFrom(int from);
-	int range() const;
-	void zoom(const bool out = false);
-	void slide(int px);
-	void slideSamplePointByPx(Point point, int px);
-	void slideSamplePointByFrames(Point point, long frameOffset, bool slideTo = false);
-	void slideSampleByFrames(long frameOffset);
-
-	void slideSamplePointToFrames(Point point, f_cnt_t frames)
+	struct Peak
 	{
-		slideSamplePointByFrames(point, frames, true);
-	}
+		float min = 0.f;
+		float max = 0.f;
+	};
 
-	void updateGraph();
-	void reverse();
-	void updateCursor(const QMouseEvent* me = nullptr);
-	bool pointerCloseToStartEndOrLoop(const QMouseEvent* me) const;
+	// Geometry
+	QRect padLane() const;
+	QRect waveRect() const;
+	QRect rulerRect() const;
+	QRect overviewRect() const;
 
-	void configureKnobRelationsAndWaveViews();
+	int sampleSize() const;
+	double frameToX(double frame) const;
+	double xToFrame(double x) const;
+	double fadeFrames(float ms) const;
 
-	static bool isCloseTo(int a, int b)
-	{
-		return qAbs(a - b) < 4;
-	}
+	Hit hitTest(const QPoint& pos) const;
+	void updateCursor(const Hit& hit);
+	void dragTo(const QPoint& pos, bool fine);
+	int snapped(double frame, bool bypass) const;
+	void setView(double from, double to);
+	void zoomAt(double x, double factor);
 
-} ;
+	//! Min/max of logical frames [from, to) using the block cache
+	Peak peakOf(double from, double to) const;
+	void rebuildPeaks();
+	void renderWave();
+	QString hoverText() const;
+	QString formatTime(double seconds, double step) const;
+
+	void auditionSlice(int index);
+	void stopAudition();
+
+	AudioFileProcessor* m_afp;
+	std::shared_ptr<const SampleBuffer> m_peaksBuffer;
+	std::vector<Peak> m_peaks; //!< per block of BlockSize frames, in buffer order
+	static constexpr int BlockSize = 256;
+
+	double m_viewFrom = 0.0;
+	double m_viewTo = 1.0;
+	bool m_reversed = false;
+
+	QPixmap m_wave;
+	bool m_waveDirty = true;
+
+	Hit m_hover;
+	Hit m_drag;
+	QPoint m_pressPos;
+	QPoint m_lastPos;
+	double m_dragFrameOffset = 0.0;
+	int m_auditionKey = -1;
+
+	QTimer* m_timer;
+	unsigned m_lastPlayTick = 0;
+	int m_playFrame = -1;
+	int m_idleTicks = 0;
+};
 
 } // namespace gui
 

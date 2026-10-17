@@ -30,11 +30,13 @@
 #include "Effect.h"
 #include "BitcrushControls.h"
 #include "BasicFilters.h"
+#include "ModernWidgets.h"
 
 
 namespace lmms
 {
 
+namespace gui { class BitcrushDisplay; }
 
 class BitcrushEffect : public Effect
 {
@@ -81,7 +83,11 @@ private:
 	
 	int m_silenceCounter;
 
+	//! Input after gain, before crushing, for the GUI's crush display
+	ScopeBuffer m_scope;
+
 	friend class BitcrushControls;
+	friend class gui::BitcrushDisplay;
 };
 
 

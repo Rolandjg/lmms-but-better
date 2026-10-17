@@ -24,6 +24,10 @@
  */
 
 
+#include <cmath>
+
+#include "AudioEngine.h"
+#include "Engine.h"
 #include "Song.h"
 #include "PresetPreviewPlayHandle.h"
 #include "PeakController.h"
@@ -130,12 +134,36 @@ Effect::ProcessStatus PeakControllerEffect::processImpl(SampleFrame* buf, const 
 	}
 
 	float curRMS = sqrt_neg(sum / frames);
+	const float measured = curRMS;
 	const float tres = c.m_tresholdModel.value();
 	const float amount = c.m_amountModel.value() * c.m_amountMultModel.value();
 	curRMS = qAbs( curRMS ) < tres ? 0.0f : curRMS;
 	m_lastSample = qBound( 0.0f, c.m_baseModel.value() + amount * curRMS, 1.0f );
 
+	// Follow the target like PeakController does sample by sample, so the display shows the
+	// controller's real motion even when nothing is connected to it yet
+	const float ratio = 44100.0f / Engine::audioEngine()->outputSampleRate();
+	const float knob = m_lastSample > m_smoothedSample ? c.m_attackModel.value() : c.m_decayModel.value();
+	const float coeff = 1.0f - std::pow(2.0f, -0.3f * (1.0f - knob) * ratio);
+	m_smoothedSample += (m_lastSample - m_smoothedSample) * (1.0f - std::pow(1.0f - coeff, static_cast<float>(frames)));
+
+	const auto pos = m_historyPos.load(std::memory_order_relaxed);
+	m_inputHistory[pos] = std::abs(measured);
+	m_outputHistory[pos] = m_smoothedSample;
+	m_historyPos.store((pos + 1) % HistorySize, std::memory_order_relaxed);
+
 	return ProcessStatus::Continue;
+}
+
+
+
+
+float PeakControllerEffect::smoothingTimeMs(float knobValue)
+{
+	// PeakController moves by coeff * distance per sample (at 44.1 kHz), so the time constant is
+	// -1 / ln(1 - coeff) samples
+	const double coeff = 1.0 - std::pow(2.0, -0.3 * (1.0 - knobValue));
+	return static_cast<float>(-1.0 / std::log(1.0 - coeff) / 44.1);
 }
 
 

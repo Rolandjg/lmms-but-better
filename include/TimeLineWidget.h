@@ -164,6 +164,18 @@ public:
 	bool isPlayheadVisible() const { return m_isPlayheadVisible; }
 	void setPlayheadVisible(bool visible) { m_isPlayheadVisible = visible; }
 
+	//! Show the arrangement marker lane along the top (used by the song editor)
+	void setMarkersEnabled(bool enabled);
+	bool markersEnabled() const { return m_markersEnabled; }
+	//! Height of the marker lane in pixels, 0 when markers are disabled
+	int markerLaneHeight() const;
+
+	//! Add a marker at @p pos (quantized to the snap size), named after the section presets or "Marker n"
+	int addMarker(TimePos pos, const QString& name = QString(), const QColor& color = QColor());
+	//! Move the playhead to the next / previous marker
+	void jumpToNextMarker();
+	void jumpToPreviousMarker();
+
 signals:
 	void regionSelectedFromPixels( int, int );
 	void selectionFinished();
@@ -180,7 +192,9 @@ protected:
 	void mousePressEvent( QMouseEvent * _me ) override;
 	void mouseMoveEvent( QMouseEvent * _me ) override;
 	void mouseReleaseEvent( QMouseEvent * _me ) override;
+	void mouseDoubleClickEvent(QMouseEvent* event) override;
 	void contextMenuEvent(QContextMenuEvent* event) override;
+	void leaveEvent(QEvent* event) override;
 
 private:
 	enum class Action
@@ -191,7 +205,14 @@ private:
 		MoveLoopEnd,
 		MoveLoop,
 		SelectSongClip,
+		MoveMarker,
 	};
+
+	void paintMarkers(QPainter& p);
+	auto markerAt(const QPoint& pos) const -> int;
+	auto markerTagRect(int index) const -> QRect;
+	void renameMarker(int index);
+	void jumpTo(TimePos pos);
 
 	auto getClickedTime(int xPosition) const -> TimePos;
 	auto getLoopAction(QMouseEvent* event) const -> Action;
@@ -241,6 +262,12 @@ private:
 	int m_initalXSelect;
 
 	Action m_action = Action::NoAction;
+
+	bool m_markersEnabled = false;
+	int m_dragMarker = -1;
+	int m_hoverMarker = -1;
+	bool m_markerMoved = false;
+	TimePos m_markerDragOrigin;
 };
 
 } // namespace lmms::gui

@@ -26,6 +26,9 @@
 #ifndef PEAK_CONTROLLER_EFFECT_H
 #define PEAK_CONTROLLER_EFFECT_H
 
+#include <array>
+#include <atomic>
+
 #include "Effect.h"
 #include "PeakControllerEffectControls.h"
 
@@ -71,10 +74,21 @@ public:
 
 	int m_effectId;
 
+	//! Per-period history for the GUI: the measured input level (before the threshold) and the
+	//! controller value after attack/release smoothing
+	static constexpr std::size_t HistorySize = 512;
+	std::array<float, HistorySize> m_inputHistory{};
+	std::array<float, HistorySize> m_outputHistory{};
+	std::atomic<std::size_t> m_historyPos{0};
+
+	//! Time constant in ms of PeakController's smoothing for an attack or release knob value
+	static float smoothingTimeMs(float knobValue);
+
 private:
 	PeakControllerEffectControls m_peakControls;
 
 	float m_lastSample;
+	float m_smoothedSample = 0.f;
 
 	PeakController * m_autoController;
 

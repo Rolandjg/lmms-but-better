@@ -83,15 +83,15 @@ namespace modern
 
 // Colors follow the default LMMS theme (style.css / LmmsPalette) so these plugins sit
 // next to the native ones without standing out
-inline QColor windowColor() { return QColor(38, 43, 48); }      // #262b30, theme background
-inline QColor sectionColor() { return QColor(30, 34, 38); }     // recessed panel
-inline QColor sectionBorder() { return QColor(20, 23, 26); }
-inline QColor displayColor() { return QColor(17, 19, 20); }     // #111314, graph screens
+inline QColor windowColor() { return QColor(29, 32, 37); }      // #1d2025, theme panel
+inline QColor sectionColor() { return QColor(23, 26, 30); }     // #171a1e, recessed panel
+inline QColor sectionBorder() { return QColor(10, 11, 13); }    // #0a0b0d, hairline
+inline QColor displayColor() { return QColor(14, 16, 19); }     // #0e1013, graph screens
 inline QColor gridColor() { return QColor(255, 255, 255, 22); }
-inline QColor textColor() { return QColor(209, 216, 228); }     // #d1d8e4
-inline QColor dimTextColor() { return QColor(138, 147, 156); }
-inline QColor buttonColor() { return QColor(63, 71, 80); }      // #3f4750, theme button
-inline QColor activeButtonColor() { return QColor(28, 73, 51); } // #1c4933, selected tab
+inline QColor textColor() { return QColor(220, 226, 234); }     // #dce2ea
+inline QColor dimTextColor() { return QColor(141, 150, 163); }  // #8d96a3
+inline QColor buttonColor() { return QColor(42, 47, 54); }      // #2a2f36, theme button
+inline QColor activeButtonColor() { return QColor(23, 61, 43); } // #173d2b, selected item
 
 //! The LMMS green, used for values, curves and active states
 inline QColor accentColor() { return QColor(29, 226, 118); }    // #1de276

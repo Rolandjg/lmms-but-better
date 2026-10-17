@@ -259,7 +259,16 @@ protected:
 
 	virtual void paintTextLabel(QString const & text, QPainter & painter);
 
+	//! Prepare a clip's cache pixmap for painting: clear it and confine painting to the
+	//! clip body at @p body (pixmap coordinates)
+	void beginClipPaint(QPainter& p, QPixmap& pixmap, const QRect& body);
+	//! Draw the outline that finishes the clip body
+	void paintClipFrame(QPainter& p, const QRect& body, const QColor& color, bool current);
+
 	auto hasCustomColor() const -> bool;
+
+	//! The shared text bubble shown next to the cursor while dragging
+	static TextFloat* textFloat() { return s_textFloat; }
 
 protected slots:
 	//! @brief Updates a ClipView's length

@@ -128,8 +128,7 @@ continuing its own texture.
   runs on the GUI thread, is cached per tempo ratio, and is swapped in safely.
 * **Loop crossfade** (0–500 ms): an equal-power crossfade is baked into the loop end, which makes
   forward loops seamless. It is not applied to reversed samples or ping-pong loops.
-* Projects still save the original audio; warp and crossfade are re-applied on load. The controls
-  sit on a new strip of the plugin's brushed metal between the knob row and the waveform.
+* Projects still save the original audio; warp and crossfade are re-applied on load.
 
 ### Kicker
 Adds a live preview of the kick, rendered offline with the same oscillator the instrument plays:
@@ -191,11 +190,107 @@ browsing without opening the patch dialog.
   `dsp::unisonVoice`.
 * `LeftRightNav.h` is now self-contained and exported.
 
+## Round 3: displays for the knob-only effects
+
+These effects were a row of knobs with no feedback. Each now has a display that shows what the
+settings do, drawn with the shared modern kit. Their DSP is unchanged except where noted.
+
+### Bitcrush
+A scope of the incoming signal (grey) with the effect's sample-and-hold and quantizer re-run on the
+same samples (green staircase), so Rate and Levels are visible on the real material. Faint lines
+mark the quantization steps when they are coarse enough to see. Quiet signals zoom in by octaves,
+and a test sine is shown while the input is silent. The readout gives the rate with its
+downsampling factor and the levels as effective bits. Also added an output meter.
+
+### BassBooster
+* **The FREQ knob is now in Hz.** It used to set a raw filter coefficient: higher values gave a
+  *lower* corner (100 ≈ 69 Hz, 200 ≈ 35 Hz) while the hint said "Hz". The new `cutoff` attribute
+  (20–250 Hz, log) is converted from the old `freq` on load, and `freq` is still written so older
+  versions open new projects with the same sound. The coefficient is now computed for the actual
+  sample rate.
+* A response curve with a handle: drag it sideways for frequency and up or down for boost, or
+  double-click to reset. A readout shows "+x dB below y Hz", and there is an output meter.
+
+### Peak Controller
+A scrolling history of the measured input level (cyan), the controller output after attack and
+release (green), the base level and the threshold. Drag the threshold line to set it. A bar
+shows the current controller value. The 0–1 knob values are translated into real units:
+threshold in dB, and attack and release as time constants. These show that the
+attack and release knobs only cover about 0.1–110 ms, with most of their travel under 3 ms. The
+output curve follows the same smoothing as `PeakController`, so it shows what connected knobs will
+do even before anything is linked. The bitmap background was replaced by the modern kit.
+
+### Crossover EQ
+A band display shows the four bands on a frequency axis. The curve is the combined response of
+the actual Linkwitz-Riley tree, including the phase dip between the 2/3 and 3/4 splits at equal
+gains (the plugin has no allpass compensation) and the notches left by muted bands. Drag the
+crossover lines sideways and the bands up or down for gain, or double-click a band to reset it.
+Live band levels run along the bottom edge and drive each fader's built-in level bars. The panel
+was rebuilt with the modern kit as per-band sections (fader, mute and solo, width) next to a Split
+section.
+
+### Dispersion
+Two displays: the **group delay per frequency** of the whole all-pass chain, including feedback
+(for example "255 Hz delayed 271 ms"), and the **impulse response**, which shows the chirp that a
+click turns into. Both are computed from the same coefficients and filter structure as the effect,
+and are recalculated only when a parameter changes.
+
+### Core and fixes
+* **Instrument windows no longer tile their artwork.** The *Chord stacking & arpeggio* tab needed
+  286 px, so every 250 px instrument (Organic, sfxr, BitInvader, Vibed…) was stretched and its
+  background pixmap repeated at the bottom. The tab's spacing was tightened to fit 250 px.
+* `GroupBox::ledButtonShown()` uses `!isHidden()` so the caption doesn't slide under the LED when
+  the group box is rendered before being shown.
+* TripleOscillator's unison labels are positioned by baseline and are no longer clipped.
+* `PluginSnapshot`: `PLUGINSNAPSHOT_TAB=<n>` also saves the instrument window with tab *n* active.
+
+## Round 4: AudioFileProcessor rebuilt as a sampler
+
+The bitmap UI (a logo taking a third of the window and a 75 px waveform) was replaced by a flat
+560 px editor built around a large waveform, in the modern kit's colors without boxed sections.
+
+* **Sample editor**: zoom with the wheel (around the mouse) or by dragging up and down, pan by
+  dragging sideways or with Shift+wheel, and use the overview strip underneath to jump around.
+  Double-click to show the whole sample. Start, loop and end are lines with grips. The region
+  outside them is dimmed, the loop range is tinted, amplification that would clip is marked red,
+  and a time ruler and a playback cursor are shown. The cursor is polled from the audio thread
+  instead of a signal per note per period, and the "AFP animation" setting still turns it off.
+* **Fade in / fade out**: square handles at the top of the waveform (like the sample clip fades),
+  plus log-scaled knobs. The fades are equal-power and are computed per note from the playback
+  rate, so they line up exactly with the sample. Fade-out only applies when the sample isn't
+  looping.
+* **Slice mode** (Simpler's Slice, which also covers SlicerT's job): **AUTO** (transients, with a
+  sensitivity knob), **GRID** (1/16 to 1 bar of the sample tempo, anchored at the start point) or
+  **MANUAL**. Each key from the base note up plays the next slice at its original pitch. Slices
+  get short declick fades and loop individually when looping is on. Double-click the waveform to
+  add a marker, drag markers to move them, double-click (or right-click) one to remove it. Editing
+  by hand switches to MANUAL. The numbered pads above the waveform play their slice while held.
+  **COPY MIDI** copies one note per slice in the original rhythm for the piano roll. The transient
+  detector is dependency-free: it measures full-band and high-boosted energy per ~6 ms hop, picks
+  peaks, refines onsets to 32-frame windows and backs up to a zero crossing.
+* **One-shot**: a note plays to the end of the sample or slice however short it is. It works by
+  extending the release (`desiredReleaseTimeMs`) and replacing the linear release fade with a 3 ms
+  declick. **Choke**: a new note fades out the notes still playing in 4 ms (lock-free, by note
+  sequence number).
+* **Pitch**: transpose (±48 semitones) and fine tune (±100 cents). **DETECT KEY** runs YIN on the
+  region and sets the track's base note and the fine tune so the keyboard plays the sample in tune
+  (piano01 → C4, bass01 → C2; synthetic tones within 2 cents up to 1.5 kHz).
+* **Normalize** (button and context menu), **zero-crossing snap** for points and markers (Shift
+  bypasses it), **previous/next sample** in the same folder, and dropping files from a file manager.
+* Toggling reverse now keeps the region and the slices over the same audio in the model rather than
+  in the view, so it also works with the window closed.
+
+Every new setting defaults to the old behavior. Old projects load unchanged (checked by loading
+attribute-only XML), and the snapshot tool's classic-mode render has the same energy as before. Tests:
+`AudioFileProcessorViewTest` drives the editor with the mouse (point and fade dragging, adding,
+moving and removing slices, pads, zoom). `PluginSnapshot` accepts `PLUGINSNAPSHOT_KEY=<key>` to play
+a key other than A3, for slice mode.
+
 ## Remaining gaps (roadmap)
 
 | Plugin | Gap vs. FL / Ableton | Suggested work |
 |---|---|---|
-| AudioFileProcessor | No slicing (split into SlicerT); warp uses WSOLA, which is fine for loops but smears sustained chords | Merge the SlicerT slicing mode into it; optionally use Rubber Band when it is available at build time |
+| AudioFileProcessor | Warp uses WSOLA, which is fine for loops but smears sustained chords; no per-slice settings (gain, pitch, reverse) | Optionally use Rubber Band when it is available at build time; per-slice parameters |
 | SlicerT | Its BPM sync resamples, so pitch changes with tempo | Reuse `dsp::timeStretch` for pitch-preserving sync |
 | Monstro, Organic | Very dense bitmap UIs | They are already feature-rich; only readability tweaks (larger labels, tooltips) would help without losing their look |
 | GigPlayer | Same missing preset stepping as Sf2Player had | Port the Sf2Player arrows |

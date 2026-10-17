@@ -87,7 +87,12 @@ private:
 	std::array<BoolModel, 4> m_solo;
 	std::array<FloatModel, 4> m_width;
 	
+	//! Per-band output peaks of the last period (zero for silenced bands), for the band meters
+	std::array<float, 4> m_bandPeakL{};
+	std::array<float, 4> m_bandPeakR{};
+
 	friend class gui::CrossoverEQControlDialog;
+	friend class gui::CrossoverEQDisplay;
 	friend class CrossoverEQEffect;
 };
 

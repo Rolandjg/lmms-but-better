@@ -26,6 +26,7 @@
 #define LMMS_AUTOMATABLE_MODEL_H
 
 #include <cmath>
+#include <functional>
 #include <QMap>
 #include <QMutex>
 
@@ -265,6 +266,24 @@ public:
 	//! subnode.
 	//! @param name Name to store this model as.
 	virtual void saveSettings(QDomDocument& doc, QDomElement& element, const QString& name);
+
+	//! While an instance is alive, every saveSettings() call on the creating thread reports the
+	//! model, the element it is saved into and the name it is stored under. The scripting API uses
+	//! this to give plugin parameters the same stable keys that presets and projects use.
+	class LMMS_EXPORT SaveNameObserver
+	{
+	public:
+		using Callback = std::function<void(AutomatableModel* model, const QDomElement& parent, const QString& name)>;
+		explicit SaveNameObserver(Callback callback);
+		~SaveNameObserver();
+		SaveNameObserver(const SaveNameObserver&) = delete;
+		SaveNameObserver& operator=(const SaveNameObserver&) = delete;
+
+	private:
+		friend class AutomatableModel;
+		Callback m_callback;
+		SaveNameObserver* m_previous;
+	};
 
 	//! @brief Loads settings of AutomatableModel from a DOM element
 	//!

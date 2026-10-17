@@ -70,7 +70,7 @@ void GroupBox::modelChanged()
 
 bool GroupBox::ledButtonShown() const
 {
-	return m_led->isVisible();
+	return !m_led->isHidden();
 }
 
 

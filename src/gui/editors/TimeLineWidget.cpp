@@ -25,6 +25,7 @@
 #include "TimeLineWidget.h"
 
 #include <QGuiApplication>
+#include <QInputDialog>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
@@ -34,9 +35,11 @@
 #include "ConfigManager.h"
 #include "DeprecationHelper.h"
 #include "embed.h"
+#include "FontHelper.h"
 #include "KeyboardShortcuts.h"
 #include "NStateButton.h"
 #include "TextFloat.h"
+#include "Song.h"
 
 namespace lmms::gui
 {
@@ -44,6 +47,41 @@ namespace lmms::gui
 namespace
 {
 	constexpr int MIN_BAR_LABEL_DISTANCE = 35;
+
+	struct SectionPreset { const char* name; QColor color; };
+	const std::array<SectionPreset, 8>& sectionPresets()
+	{
+		static const std::array<SectionPreset, 8> presets{{
+			{QT_TRANSLATE_NOOP("lmms::gui::TimeLineWidget", "Intro"), QColor(0x5b, 0x8d, 0xef)},
+			{QT_TRANSLATE_NOOP("lmms::gui::TimeLineWidget", "Verse"), QColor(0x3f, 0xbf, 0x8f)},
+			{QT_TRANSLATE_NOOP("lmms::gui::TimeLineWidget", "Pre-Chorus"), QColor(0xd4, 0xa9, 0x3b)},
+			{QT_TRANSLATE_NOOP("lmms::gui::TimeLineWidget", "Chorus"), QColor(0xe0, 0x54, 0x4e)},
+			{QT_TRANSLATE_NOOP("lmms::gui::TimeLineWidget", "Bridge"), QColor(0x9b, 0x6b, 0xd6)},
+			{QT_TRANSLATE_NOOP("lmms::gui::TimeLineWidget", "Breakdown"), QColor(0x4f, 0xb3, 0xc9)},
+			{QT_TRANSLATE_NOOP("lmms::gui::TimeLineWidget", "Drop"), QColor(0xff, 0x7a, 0x3d)},
+			{QT_TRANSLATE_NOOP("lmms::gui::TimeLineWidget", "Outro"), QColor(0x7d, 0x87, 0x96)},
+		}};
+		return presets;
+	}
+
+	QIcon swatch(const QColor& color)
+	{
+		QPixmap pixmap(12, 12);
+		pixmap.fill(Qt::transparent);
+		QPainter p(&pixmap);
+		p.setRenderHint(QPainter::Antialiasing);
+		p.setPen(color.darker(160));
+		p.setBrush(color);
+		p.drawRect(QRectF(0.5, 0.5, 11, 11));
+		return pixmap;
+	}
+
+	QFont markerFont(QFont font)
+	{
+		font = adjustedToPixelSize(font, 10);
+		font.setBold(true);
+		return font;
+	}
 }
 
 TimeLineWidget::TimeLineWidget(const int xoff, const int yoff, const float ppb, Timeline& timeline,
@@ -61,6 +99,7 @@ TimeLineWidget::TimeLineWidget(const int xoff, const int yoff, const float ppb, 
 	connect( Engine::getSong(), SIGNAL(timeSignatureChanged(int,int)),
 					this, SLOT(update()));
 	connect(m_timeline, &Timeline::positionChanged, this, qOverload<>(&QWidget::update));
+	connect(m_timeline, &Timeline::markersChanged, this, qOverload<>(&QWidget::update));
 }
 
 
@@ -137,12 +176,18 @@ void TimeLineWidget::paintEvent( QPaintEvent * )
 	// Draw background
 	p.fillRect( 0, 0, width(), height(), p.background() );
 
+	// Arrangement markers get a lane along the top; everything else moves below it
+	const int lane = markerLaneHeight();
+	if (lane > 0) { paintMarkers(p); }
+	const int height = this->height() - lane;
+	p.translate(0, lane);
+
 	// Clip so that we only draw everything starting from the offset
-	p.setClipRect(m_xOffset, 0, width() - m_xOffset, height());
+	p.setClipRect(m_xOffset, 0, width() - m_xOffset, height);
 
 	// Variables for the loop rectangle
 	int const loopRectMargin = getLoopRectangleVerticalPadding();
-	int const loopRectHeight = this->height() - 2 * loopRectMargin;
+	int const loopRectHeight = height - 2 * loopRectMargin;
 	int const loopStart = markerX(m_timeline->loopBegin());
 	int const loopEndR = markerX(m_timeline->loopEnd());
 	int const loopRectWidth = loopEndR - loopStart;
@@ -178,11 +223,11 @@ void TimeLineWidget::paintEvent( QPaintEvent * )
 		{
 			const int cx = x + qRound( i * m_ppb );
 			p.setPen( barLineColor );
-			p.drawLine( cx, 5, cx, height() - 6 );
+			p.drawLine( cx, 5, cx, height - 6 );
 
 			const QString s = QString::number( barNumber );
 			p.setPen( barNumberColor );
-			p.drawText( cx + 5, ((height() - fontHeight) / 2) + fontAscent, s );
+			p.drawText( cx + 5, ((height - fontHeight) / 2) + fontAscent, s );
 		}
 	}
 
@@ -219,7 +264,7 @@ void TimeLineWidget::paintEvent( QPaintEvent * )
 		p.setClipping(false);
 		p.setOpacity(0.6);
 		p.drawPixmap(markerX(m_timeline->pos()) - (marker.width() / 2),
-			height() - marker.height(), marker);
+			height - marker.height(), marker);
 	}
 }
 
@@ -281,6 +326,22 @@ void TimeLineWidget::mousePressEvent(QMouseEvent* event)
 	const auto pos = position(event);
 
 	if (pos.x() < m_xOffset) { return; }
+
+	// Grab a marker to move it, or click it to jump there
+	if (event->button() == Qt::LeftButton && !(event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)))
+	{
+		if (const int marker = markerAt(QPoint(pos.x(), pos.y())); marker >= 0)
+		{
+			m_action = Action::MoveMarker;
+			m_dragMarker = marker;
+			m_markerMoved = false;
+			m_dragStartPos = getClickedTime(pos.x());
+			m_markerDragOrigin = m_timeline->markers()[marker].pos;
+			setCursor(Qt::ClosedHandCursor);
+			setContextMenuPolicy(Qt::PreventContextMenu);
+			return;
+		}
+	}
 
 	const auto shift = event->modifiers() & Qt::ShiftModifier;
 	const auto ctrl = event->modifiers() & Qt::ControlModifier;
@@ -386,16 +447,46 @@ void TimeLineWidget::mouseMoveEvent( QMouseEvent* event )
 			emit regionSelectedFromPixels(m_initalXSelect, pos.x());
 			break;
 
+		case Action::MoveMarker:
+		{
+			auto target = TimePos{m_markerDragOrigin + (timeAtCursor - m_dragStartPos)};
+			if (!control) { target = target.quantize(m_snapSize); }
+			if (m_dragMarker >= 0 && m_dragMarker < static_cast<int>(m_timeline->markers().size())
+				&& target != m_timeline->markers()[m_dragMarker].pos)
+			{
+				if (!m_markerMoved) { m_timeline->addJournalCheckPoint(); }
+				m_markerMoved = true;
+				m_dragMarker = m_timeline->moveMarker(m_dragMarker, target);
+			}
+			break;
+		}
+
 		default:
 			break;
 	}
 
 	if (event->buttons() == Qt::NoButton)
 	{
+		const int hover = markerAt(QPoint(pos.x(), pos.y()));
+		if (hover != m_hoverMarker)
+		{
+			m_hoverMarker = hover;
+			update();
+		}
 		setCursor(QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier)
 			? actionCursor(getLoopAction(event))
-			: Qt::ArrowCursor
+			: hover >= 0 ? Qt::OpenHandCursor : Qt::ArrowCursor
 		);
+		if (hover >= 0)
+		{
+			setToolTip(tr("%1 - drag to move, double-click to rename, right-click for options")
+				.arg(m_timeline->markers()[hover].name));
+		}
+		else if (markerLaneHeight() > 0 && pos.y() < markerLaneHeight())
+		{
+			setToolTip(tr("Marker lane - double-click or right-click to add a marker"));
+		}
+		else { setToolTip(QString()); }
 	}
 }
 
@@ -404,7 +495,42 @@ void TimeLineWidget::mouseReleaseEvent( QMouseEvent* event )
 	delete m_hint;
 	m_hint = nullptr;
 	if ( m_action == Action::SelectSongClip ) { emit selectionFinished(); }
+	if (m_action == Action::MoveMarker)
+	{
+		// A click without a drag jumps to the marker
+		if (!m_markerMoved && m_dragMarker >= 0 && m_dragMarker < static_cast<int>(m_timeline->markers().size()))
+		{
+			jumpTo(m_timeline->markers()[m_dragMarker].pos);
+		}
+		m_dragMarker = -1;
+		setCursor(Qt::OpenHandCursor);
+		setContextMenuPolicy(Qt::DefaultContextMenu);
+	}
 	m_action = Action::NoAction;
+}
+
+void TimeLineWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+	const auto pos = position(event);
+	if (event->button() != Qt::LeftButton || pos.x() < m_xOffset) { return; }
+	if (const int marker = markerAt(QPoint(pos.x(), pos.y())); marker >= 0)
+	{
+		renameMarker(marker);
+	}
+	else if (markerLaneHeight() > 0 && pos.y() < markerLaneHeight())
+	{
+		renameMarker(addMarker(getClickedTime(pos.x())));
+	}
+}
+
+void TimeLineWidget::leaveEvent(QEvent* event)
+{
+	if (m_hoverMarker >= 0)
+	{
+		m_hoverMarker = -1;
+		update();
+	}
+	QWidget::leaveEvent(event);
 }
 
 void TimeLineWidget::contextMenuEvent(QContextMenuEvent* event)
@@ -412,6 +538,59 @@ void TimeLineWidget::contextMenuEvent(QContextMenuEvent* event)
 	if (event->x() < m_xOffset) { return; }
 
 	auto menu = QMenu{};
+
+	if (markerLaneHeight() > 0 && event->y() < markerLaneHeight())
+	{
+		if (const int marker = markerAt(event->pos()); marker >= 0)
+		{
+			menu.addAction(tr("Rename marker..."), [this, marker] { renameMarker(marker); });
+			const auto colors = menu.addMenu(tr("Color"));
+			for (const auto& preset : sectionPresets())
+			{
+				colors->addAction(swatch(preset.color), tr(preset.name), [this, marker, color = preset.color] {
+					m_timeline->addJournalCheckPoint();
+					m_timeline->setMarkerColor(marker, color);
+				});
+			}
+			menu.addAction(tr("Loop this section"), [this, marker] {
+				const auto begin = m_timeline->markers()[marker].pos;
+				auto end = m_timeline->sectionEnd(marker);
+				if (end <= begin) { end = std::max<tick_t>(begin + 4 * TimePos::ticksPerBar(), TimePos(Engine::getSong()->length(), 0)); }
+				m_timeline->setLoopPoints(begin, end);
+				m_timeline->setLoopEnabled(true);
+				update();
+			});
+			menu.addAction(tr("Move playhead here"), [this, marker] { jumpTo(m_timeline->markers()[marker].pos); });
+			menu.addSeparator();
+			menu.addAction(embed::getIconPixmap("cancel"), tr("Remove marker"), [this, marker] {
+				m_timeline->addJournalCheckPoint();
+				m_timeline->removeMarker(marker);
+			});
+		}
+		else
+		{
+			auto at = getClickedTime(event->x());
+			if (!QGuiApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) { at = at.quantize(m_snapSize); }
+			const auto add = menu.addMenu(tr("Add marker here"));
+			for (const auto& preset : sectionPresets())
+			{
+				add->addAction(swatch(preset.color), tr(preset.name), [this, at, &preset] {
+					addMarker(at, tr(preset.name), preset.color);
+				});
+			}
+			add->addSeparator();
+			add->addAction(tr("Custom..."), [this, at] { renameMarker(addMarker(at)); });
+			if (!m_timeline->markers().empty())
+			{
+				menu.addAction(tr("Remove all markers"), [this] {
+					m_timeline->addJournalCheckPoint();
+					m_timeline->clearMarkers();
+				});
+			}
+		}
+		menu.exec(event->globalPos());
+		return;
+	}
 
 	menu.addAction(tr("Set loop begin here"), [this, event] {
 		auto begin = getClickedTime(event->x());
@@ -446,6 +625,152 @@ void TimeLineWidget::contextMenuEvent(QContextMenuEvent* event)
 	addLoopModeAction(tr("Handles"), "handles");
 
 	menu.exec(event->globalPos());
+}
+
+
+void TimeLineWidget::setMarkersEnabled(bool enabled)
+{
+	m_markersEnabled = enabled;
+	update();
+}
+
+int TimeLineWidget::markerLaneHeight() const
+{
+	return m_markersEnabled ? static_cast<int>(height() * 0.42) : 0;
+}
+
+int TimeLineWidget::addMarker(TimePos pos, const QString& name, const QColor& color)
+{
+	const auto count = m_timeline->markers().size();
+	const auto& presets = sectionPresets();
+	m_timeline->addJournalCheckPoint();
+	return m_timeline->addMarker(pos,
+		name.isEmpty() ? tr("Marker %1").arg(count + 1) : name,
+		color.isValid() ? color : presets[count % presets.size()].color);
+}
+
+void TimeLineWidget::jumpToNextMarker()
+{
+	if (const int next = m_timeline->nextMarker(m_timeline->pos()); next >= 0)
+	{
+		jumpTo(m_timeline->markers()[next].pos);
+	}
+}
+
+void TimeLineWidget::jumpToPreviousMarker()
+{
+	// While playing, give a moment of grace so pressing twice skips back past the marker just passed
+	auto pos = m_timeline->pos();
+	if (Engine::getSong()->isPlaying()) { pos -= TimePos::ticksPerBar() / 4; }
+	const int previous = m_timeline->previousMarker(pos);
+	jumpTo(previous >= 0 ? m_timeline->markers()[previous].pos : TimePos{0});
+}
+
+void TimeLineWidget::jumpTo(TimePos pos)
+{
+	m_timeline->setTicks(pos.getTicks());
+	if (!Engine::getSong()->isPlaying())
+	{
+		Engine::getSong()->getTimeline(Song::PlayMode::None).setTicks(pos.getTicks());
+	}
+	parentWidget()->update();
+	update();
+}
+
+void TimeLineWidget::renameMarker(int index)
+{
+	if (index < 0 || index >= static_cast<int>(m_timeline->markers().size())) { return; }
+	bool ok = false;
+	const auto name = QInputDialog::getText(this, tr("Rename marker"), tr("Marker name:"), QLineEdit::Normal,
+		m_timeline->markers()[index].name, &ok).trimmed();
+	if (!ok || name.isEmpty()) { return; }
+	m_timeline->addJournalCheckPoint();
+	m_timeline->renameMarker(index, name);
+}
+
+auto TimeLineWidget::markerTagRect(int index) const -> QRect
+{
+	const auto& markers = m_timeline->markers();
+	const int lane = markerLaneHeight();
+	const int x = markerX(markers[index].pos);
+	const QFontMetrics metrics(markerFont(font()));
+	int width = metrics.horizontalAdvance(markers[index].name) + 12;
+	// Don't run into the next section's tag
+	const auto end = m_timeline->sectionEnd(index);
+	if (end >= TimePos{0}) { width = std::min(width, std::max(10, markerX(end) - x - 2)); }
+	return QRect(x, 1, std::min(width, 220), lane - 2);
+}
+
+auto TimeLineWidget::markerAt(const QPoint& pos) const -> int
+{
+	if (pos.y() >= markerLaneHeight() || pos.x() < m_xOffset) { return -1; }
+	const auto& markers = m_timeline->markers();
+	// Later tags are drawn on top, so check them first
+	for (auto i = static_cast<int>(markers.size()) - 1; i >= 0; --i)
+	{
+		if (markerTagRect(i).adjusted(-2, 0, 0, 0).contains(pos)) { return i; }
+	}
+	return -1;
+}
+
+void TimeLineWidget::paintMarkers(QPainter& p)
+{
+	const int lane = markerLaneHeight();
+	const auto& markers = m_timeline->markers();
+
+	p.save();
+	p.setClipRect(m_xOffset, 0, width() - m_xOffset, height());
+	p.fillRect(QRect(m_xOffset, 0, width() - m_xOffset, lane), QColor(0, 0, 0, 70));
+	p.setPen(QColor(255, 255, 255, 18));
+	p.drawLine(m_xOffset, lane - 1, width(), lane - 1);
+
+	if (markers.empty())
+	{
+		p.setFont(adjustedToPixelSize(font(), 9));
+		p.setPen(QColor(255, 255, 255, 60));
+		p.drawText(QRect(m_xOffset + 6, 0, width() - m_xOffset - 12, lane), Qt::AlignVCenter | Qt::AlignLeft,
+			tr("Double-click to add a marker"));
+	}
+
+	// Tint each section of the timeline in its marker's color
+	for (std::size_t i = 0; i < markers.size(); ++i)
+	{
+		const auto end = m_timeline->sectionEnd(static_cast<int>(i));
+		const int x = markerX(markers[i].pos);
+		const int right = end >= TimePos{0} ? markerX(end) : width();
+		if (right <= m_xOffset || x >= width()) { continue; }
+		QColor tint = markers[i].color;
+		tint.setAlpha(26);
+		p.fillRect(QRect(x, 0, right - x, height()), tint);
+	}
+
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setFont(markerFont(font()));
+	for (std::size_t i = 0; i < markers.size(); ++i)
+	{
+		const auto& marker = markers[i];
+		const QRect tag = markerTagRect(static_cast<int>(i));
+		if (tag.right() < m_xOffset || tag.left() > width()) { continue; }
+		const bool hot = static_cast<int>(i) == m_hoverMarker || static_cast<int>(i) == m_dragMarker;
+		QColor fill = hot ? marker.color.lighter(125) : marker.color;
+
+		// Flag pole through the whole timeline, then the tag
+		QColor pole = marker.color;
+		pole.setAlpha(200);
+		p.setPen(QPen(pole, 1));
+		p.drawLine(QPointF(tag.left() + 0.5, 0), QPointF(tag.left() + 0.5, height()));
+		p.fillRect(tag, fill);
+
+		const bool dark = qGray(fill.rgb()) > 150;
+		p.setPen(dark ? QColor(20, 22, 26) : QColor(255, 255, 255));
+		const QRect text = tag.adjusted(6, 0, -4, 0);
+		if (text.width() > 6)
+		{
+			p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft,
+				QFontMetrics(p.font()).elidedText(marker.name, Qt::ElideRight, text.width()));
+		}
+	}
+	p.restore();
 }
 
 

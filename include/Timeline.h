@@ -24,7 +24,10 @@
 #ifndef LMMS_TIMELINE_H
 #define LMMS_TIMELINE_H
 
+#include <QColor>
 #include <QObject>
+#include <QString>
+#include <vector>
 
 #include "AudioEngine.h"
 #include "Engine.h"
@@ -86,6 +89,33 @@ public:
 	void setPlayStartPosition(TimePos position) { m_playStartPosition = position; }
 	void setStopBehaviour(StopBehaviour behaviour);
 
+	//! A named position in the arrangement, such as "Chorus"
+	struct Marker
+	{
+		TimePos pos;
+		QString name;
+		QColor color;
+	};
+
+	//! Markers sorted by position
+	auto markers() const -> const std::vector<Marker>& { return m_markers; }
+	//! Adds a marker and returns its index in markers()
+	auto addMarker(TimePos pos, const QString& name, const QColor& color) -> int;
+	void removeMarker(int index);
+	void clearMarkers() { m_markers.clear(); emit markersChanged(); }
+	//! Moves a marker; returns its new index, as the list stays sorted
+	auto moveMarker(int index, TimePos pos) -> int;
+	void renameMarker(int index, const QString& name);
+	void setMarkerColor(int index, const QColor& color);
+	//! Index of the first marker after / last marker before @p pos, or -1
+	auto nextMarker(TimePos pos) const -> int;
+	auto previousMarker(TimePos pos) const -> int;
+	//! End of the section that starts at marker @p index: the next marker, or -1 for the last one
+	auto sectionEnd(int index) const -> TimePos;
+	//! Moves every marker at or after @p from by @p ticks (bars inserted or removed there); markers
+	//! inside a removed range end up at @p from. Returns whether any marker moved.
+	auto shiftMarkers(TimePos from, tick_t ticks) -> bool;
+
 	auto getElapsedSeconds() const -> double { return m_elapsedSeconds + frameOffset() / Engine::audioEngine()->outputSampleRate(); }
 
 	auto nodeName() const -> QString override { return "timeline"; }
@@ -95,6 +125,7 @@ signals:
 	void stopBehaviourChanged(lmms::Timeline::StopBehaviour behaviour);
 	void positionChanged();
 	void positionJumped();
+	void markersChanged();
 
 protected:
 	void saveSettings(QDomDocument& doc, QDomElement& element) override;
@@ -109,6 +140,8 @@ private:
 	float m_frameOffset = 0;
 
 	double m_elapsedSeconds = 0;
+
+	std::vector<Marker> m_markers;
 
 	StopBehaviour m_stopBehaviour = StopBehaviour::BackToStart;
 	TimePos m_playStartPosition = TimePos{-1};

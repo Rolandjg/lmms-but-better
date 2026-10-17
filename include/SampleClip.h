@@ -75,6 +75,22 @@ public:
 	void setStartTimeOffset(const TimePos& startTimeOffset) override;
 	gui::ClipView * createView( gui::TrackView * _tv ) override;
 
+	//! Fade lengths in ticks, measured from the clip's left and right edges
+	TimePos fadeIn() const { return m_fadeIn; }
+	TimePos fadeOut() const { return m_fadeOut; }
+	void setFadeIn(const TimePos& ticks);
+	void setFadeOut(const TimePos& ticks);
+
+	//! Clip gain as a linear factor (applied through the sample's amplification)
+	float gain() const { return m_sample.amplification(); }
+	void setGain(float gain);
+	//! Set the gain so the loudest sample of the played region hits @p peak (linear)
+	void normalize(float peak = 1.f);
+
+	//! Fade gain at @p pos inside a clip of @p length, all in the same unit.
+	//! Overlapping fades are scaled down so they meet instead of overlapping.
+	static float fadeGain(float pos, float length, float fadeIn, float fadeOut);
+
 
 	bool isPlaying() const;
 	void setIsPlaying(bool isPlaying);
@@ -101,6 +117,8 @@ private:
 	BoolModel m_recordModel;
 	bool m_isPlaying;
 	int m_startFrameOffset;
+	TimePos m_fadeIn = 0;
+	TimePos m_fadeOut = 0;
 
 	friend class gui::SampleClipView;
 

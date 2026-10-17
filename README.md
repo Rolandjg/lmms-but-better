@@ -4,8 +4,41 @@
 * MPE pitch gliding support in the piano roll.
 * An option to bounce a track to audio, creating a sample track below the original.
 * Piano roll UX changes: 
-  	- Better note duplication with CTRL+D.
-  	- Better pitch bending directly in the piano roll.
+  	- Better note duplication with CTRL+D: the copy lands right after the selection on the grid (on whole bars
+  	  for phrases longer than half a bar) and the view follows it.
+  	- Better pitch bending directly in the piano roll: grab points and Bézier handles right on the curve, with
+  	  smooth / straight / stepped curve shapes and a readout of the pitch you land on. See
+  	  [doc/glide-notes.md](doc/glide-notes.md).
+  	- **Humanize** (Shift+H): randomize velocity, timing and length by an amount you choose, with a live preview.
+* **Command palette** (Ctrl+K or Ctrl+Shift+P, or the search field in the toolbar): fuzzy-search every menu
+  entry, editor tool, instrument, effect, track and mixer channel. Type `tempo 128` to set the tempo.
+  Recently used commands come first.
+* **MIDI Capture** (Ctrl+Shift+R, or the REC button in the toolbar): LMMS always listens to MIDI input, so you
+  can turn what you just played into a clip after the fact, even if you weren't recording. Takes played during
+  playback land where you played them; free playing lands at the song position marker.
+* **Pumper** effect: tempo-locked volume shaping for sidechain-style pumping, with an editable curve
+  (depth, attack, hold, release, curve, offset), rates from 1/1 to 1/16 including triplets, and optional
+  ducking of only the lows or highs.
+* **Loudness Meter** effect: EBU R128 / ITU-R BS.1770 momentary, short-term and integrated LUFS, loudness
+  range and 4x oversampled true peak, with a 60 second history and delivery targets (streaming, Apple,
+  broadcast, club, podcast).
+* **Limiter** effect: transparent lookahead brickwall limiter for mastering, with 4x oversampled true-peak
+  detection, gain, ceiling, release, lookahead and stereo link, plus a scrolling input / output / gain
+  reduction display. Drag the display up to push the level, or drag the ceiling line.
+* **Audio clip fades and clip gain**: hover an audio clip in the Song Editor and drag the handles on its top
+  edge. The corner handles set equal-power fade in / fade out, and the middle handle sets clip gain (drag up
+  or down, Shift for fine steps). Double-click a handle to reset it. The context menu adds *Normalize clip
+  gain*, *Reset clip gain* and *Remove fades*. Fades stay at the outer edges when a clip is split.
+* **Arrangement markers**: name the sections of your song (Intro, Verse, Chorus, Drop...) on a colored
+  marker lane above the Song Editor timeline. Double-click the lane or press M to add a marker, drag to move,
+  click to jump, and right-click for presets, colors, *Loop this section* and removal. Alt+Left / Alt+Right
+  jump between markers, and the command palette lists every marker ("Go to marker: Chorus").
+* **Python scripting** (like Blender's `bpy`), built so AI agents can make music in LMMS: the `lmms` module
+  creates tracks, notes, chords, patterns, automation and mixer routing, loads instruments and effects
+  (VST3 included), sets any plugin parameter, and renders with peak/RMS stats. You can run scripts in the
+  **Script Console** (Ctrl+8), with `lmms --script song.py`, headless with `lmms script song.py`, or from any
+  Python process via `lmms --script-server` and `lmms.connect()` / `lmms.launch()`. See
+  [doc/SCRIPTING.md](doc/SCRIPTING.md) and the examples in `data/scripting/examples`.
 
 **Contributing to THIS fork**
 --------------

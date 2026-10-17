@@ -29,6 +29,8 @@
 
 #include "EffectControlDialog.h"
 
+#include <QWidget>
+
 namespace lmms
 {
 
@@ -44,6 +46,25 @@ class BitcrushControlDialog : public EffectControlDialog
 public:
 	BitcrushControlDialog( BitcrushControls * controls );
 	~BitcrushControlDialog() override = default;
+};
+
+
+//! Oscilloscope of the incoming signal with the sample-and-hold and quantization of the current
+//! settings applied on top, so the staircase that Rate and Levels produce is visible. Shows a
+//! test sine while the input is silent.
+class BitcrushDisplay : public QWidget
+{
+	Q_OBJECT
+public:
+	BitcrushDisplay(BitcrushControls* controls, QWidget* parent);
+	QSize sizeHint() const override { return QSize(372, 124); }
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+
+private:
+	BitcrushControls* m_controls;
+	float m_zoom = 1.f;
 };
 
 

@@ -73,6 +73,7 @@ private:
 	FloatModel m_amountMultModel;
 
 	friend class gui::PeakControllerEffectControlDialog;
+	friend class gui::PeakControllerDisplay;
 	friend class PeakControllerEffect;
 
 } ;

@@ -30,11 +30,9 @@
 
 #include <QHBoxLayout>
 #include <QInputDialog>
-#include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPixmap>
-#include <QStyleOptionFrame>
 #include <QVBoxLayout>
 
 #include "CaptionMenu.h"
@@ -88,10 +86,12 @@ void LcdFloatSpinBox::layoutSetup(const QString &style)
 
 	lcdLayout->addWidget(&m_wholeDisplay);
 
-	auto dotLabel = new QLabel("", this);
-	QPixmap dotPixmap(embed::getIconPixmap(QString("lcd_" + style + "_dot").toUtf8().constData()));
-	dotLabel->setPixmap(dotPixmap.copy(0, 0, dotPixmap.size().width(), dotPixmap.size().height() / 2));
-	lcdLayout->addWidget(dotLabel);
+	// Room for the decimal point, which paintEvent() draws on the shared display glass
+	auto dotSpace = new QWidget(this);
+	dotSpace->setObjectName("lcdDot");
+	const QPixmap dotPixmap(embed::getIconPixmap(QString("lcd_" + style + "_dot").toUtf8().constData()));
+	dotSpace->setFixedSize(dotPixmap.width(), dotPixmap.height() / 2);
+	lcdLayout->addWidget(dotSpace);
 
 	lcdLayout->addWidget(&m_fractionDisplay);
 
@@ -240,12 +240,17 @@ void LcdFloatSpinBox::paintEvent(QPaintEvent*)
 {
 	QPainter p(this);
 
-	// Border
-	QStyleOptionFrame opt;
-	opt.initFrom(this);
-	opt.state = QStyle::State_Sunken;
-	opt.rect = QRect(0, 0, width() - 1, m_wholeDisplay.height());
-	style()->drawPrimitive(QStyle::PE_Frame, &opt, &p, this);
+	LcdWidget::paintDisplayBackground(p, QRectF(0, 0, width(), m_wholeDisplay.height()));
+
+	if (auto dot = findChild<QWidget*>("lcdDot"))
+	{
+		const QRectF r = dot->geometry();
+		const qreal size = std::max(1.5, r.width() * 0.6);
+		p.setRenderHint(QPainter::Antialiasing);
+		p.setPen(Qt::NoPen);
+		p.setBrush(m_wholeDisplay.segmentColor());
+		p.drawRect(QRectF(r.center().x() - size / 2, r.bottom() - r.height() * 0.1 - size, size, size));
+	}
 
 	// Label
 	if (!m_label.isEmpty())

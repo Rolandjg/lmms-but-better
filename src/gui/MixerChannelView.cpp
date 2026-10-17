@@ -198,28 +198,24 @@ void MixerChannelView::contextMenuEvent(QContextMenuEvent*)
 
 void MixerChannelView::paintEvent(QPaintEvent*)
 {
-	static constexpr auto innerBorderSize = 3;
-	static constexpr auto outerBorderSize = 1;
-
 	const auto channel = mixerChannel();
 	const auto isActive = m_mixerView->currentMixerChannel() == this;
-	const auto width = rect().width();
-	const auto height = rect().height();
 	auto painter = QPainter{this};
 
+	QColor fill = isActive ? backgroundActive().color() : painter.background().color();
 	if (channel->color().has_value() && !channel->m_muteModel.value())
 	{
-		painter.fillRect(rect(), channel->color()->darker(isActive ? 120 : 150));
+		fill = channel->color()->darker(isActive ? 120 : 150);
 	}
-	else { painter.fillRect(rect(), isActive ? backgroundActive().color() : painter.background().color()); }
+	painter.fillRect(rect(), fill);
 
 	// inner border
 	painter.setPen(isActive ? strokeInnerActive() : strokeInnerInactive());
-	painter.drawRect(1, 1, width - innerBorderSize, height - innerBorderSize);
+	painter.drawRect(1, 1, width() - 3, height() - 3);
 
 	// outer border
 	painter.setPen(isActive ? strokeOuterActive() : strokeOuterInactive());
-	painter.drawRect(0, 0, width - outerBorderSize, height - outerBorderSize);
+	painter.drawRect(0, 0, width() - 1, height() - 1);
 }
 
 void MixerChannelView::mousePressEvent(QMouseEvent*)

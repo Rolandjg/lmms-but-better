@@ -24,6 +24,8 @@
 
 #include "BassBooster.h"
 
+#include <cmath>
+
 #include "embed.h"
 #include "plugin_export.h"
 
@@ -85,6 +87,8 @@ Effect::ProcessStatus BassBoosterEffect::processImpl(SampleFrame* buf, const f_c
 
 	const float d = dryLevel();
 	const float w = wetLevel();
+	float peakL = 0.f;
+	float peakR = 0.f;
 
 	for (f_cnt_t f = 0; f < frames; ++f)
 	{
@@ -97,7 +101,11 @@ Effect::ProcessStatus BassBoosterEffect::processImpl(SampleFrame* buf, const f_c
 
 		// Dry/wet mix
 		currentFrame = currentFrame * d + s * w;
+		peakL = std::max(peakL, std::abs(currentFrame[0]));
+		peakR = std::max(peakR, std::abs(currentFrame[1]));
 	}
+	m_bbControls.m_outPeakL = peakL;
+	m_bbControls.m_outPeakR = peakR;
 
 	return ProcessStatus::ContinueIfNotQuiet;
 }
@@ -105,10 +113,10 @@ Effect::ProcessStatus BassBoosterEffect::processImpl(SampleFrame* buf, const f_c
 
 inline void BassBoosterEffect::changeFrequency()
 {
-	const sample_t fac = Engine::audioEngine()->outputSampleRate() / 44100.0f;
-
-	m_bbFX.leftFX().setFrequency( m_bbControls.m_freqModel.value() * fac );
-	m_bbFX.rightFX().setFrequency( m_bbControls.m_freqModel.value() * fac );
+	const float coefficient = BassBoosterControls::coefficientForCutoff(m_bbControls.m_freqModel.value(),
+		Engine::audioEngine()->outputSampleRate());
+	m_bbFX.leftFX().setFrequency(coefficient);
+	m_bbFX.rightFX().setFrequency(coefficient);
 }
 
 

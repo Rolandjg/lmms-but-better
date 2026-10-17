@@ -29,6 +29,7 @@
 
 #include <QDebug>
 #include <QFileInfo>
+#include <QJsonDocument>
 #include <QLocale>
 #include <QTimer>
 #include <QTranslator>
@@ -69,6 +70,9 @@
 #include "OutputSettings.h"
 #include "ProjectRenderer.h"
 #include "RenderManager.h"
+#include "ScriptApi.h"
+#include "ScriptRunner.h"
+#include "ScriptServer.h"
 #include "Song.h"
 
 #ifdef LMMS_DEBUG_FPE
@@ -171,6 +175,9 @@ void printHelp()
 		"  makebundle <in> [out]                 Make a project bundle from the project\n"
 		"                                        file <in> saving the resulting bundle\n"
 		"                                        as <out>\n"
+		"  script <file.py> [args...]            Run a Python script without the GUI and\n"
+		"                                        exit with its exit code (same as\n"
+		"                                        --headless --script <file.py> -- args)\n"
 		"\nGlobal options:\n"
 		"      --allowroot                Bypass root user startup check (use with\n"
 		"          caution).\n"
@@ -183,6 +190,14 @@ void printHelp()
 		"          geometry is <xsizexysize+xoffset+yoffsety>.\n"
 		"      --import <in> [-e]         Import MIDI or Hydrogen file <in>.\n"
 		"          If -e is specified lmms exits after importing the file.\n"
+		"\nScripting options (see doc/SCRIPTING.md):\n"
+		"      --script <file.py>         Run a Python script once LMMS has started.\n"
+		"          Arguments after \"--\" are passed to the script.\n"
+		"      --exit-after-script        Quit when the script ends (exit code = the script's).\n"
+		"      --headless                 Don't start the GUI (with --script or --script-server).\n"
+		"      --script-server            Accept scripting connections from other programs\n"
+		"          (e.g. AI agents using the \"lmms\" Python module) and print the details.\n"
+		"      --script-port <port>       Port for the script server (default: any free port).\n"
 		"\nOptions for \"render\" and \"rendertracks\":\n"
 		"  -a, --float                    Use 32bit float bit depth\n"
 		"  -b, --bitrate <bitrate>        Specify output bitrate in KBit/s\n"
@@ -243,6 +258,65 @@ int noInputFileError()
 }
 
 
+
+
+//! Start the script server and/or run a script; returns false if that failed
+bool startScripting(const QString& scriptFile, const QStringList& scriptArgs, bool announceServer,
+	quint16 port, bool exitAfterScript)
+{
+	using namespace lmms::scripting;
+
+	auto server = ScriptServer::instance();
+	if (!server->start(port))
+	{
+		fprintf(stderr, "Could not start the script server on port %d\n", port);
+		return false;
+	}
+
+	QObject::connect(ScriptApi::instance(), &ScriptApi::quitRequested, qApp, [](int code) {
+		QCoreApplication::exit(code);
+	});
+	if (!lmms::gui::getGUI())
+	{
+		QObject::connect(ScriptApi::instance(), &ScriptApi::messagePosted, qApp, [](const QString& text) {
+			printf("%s\n", text.toUtf8().constData());
+			fflush(stdout);
+		});
+	}
+
+	if (announceServer)
+	{
+		// one machine-readable line, so programs that launch LMMS can pick up port and token
+		const auto info = QJsonDocument(server->connectionInfo()).toJson(QJsonDocument::Compact);
+		printf("LMMS_SCRIPT_SERVER %s\n", info.constData());
+		printf("Script server listening on 127.0.0.1:%d (details in %s)\n", server->port(),
+			ScriptServer::connectionFile().toUtf8().constData());
+		printf("Python module: %s\n", ScriptRunner::pythonModuleDir().toUtf8().constData());
+		fflush(stdout);
+	}
+
+	if (scriptFile.isEmpty()) { return true; }
+
+	auto runner = new ScriptRunner(qApp);
+	QObject::connect(runner, &ScriptRunner::output, qApp, [](const QString& text, bool isError) {
+		FILE* stream = isError ? stderr : stdout;
+		fputs(text.toUtf8().constData(), stream);
+		fflush(stream);
+	});
+	QObject::connect(runner, &ScriptRunner::finished, qApp, [exitAfterScript](int exitCode) {
+		if (exitAfterScript) { QCoreApplication::exit(exitCode); }
+	});
+	if (lmms::gui::getGUI())
+	{
+		lmms::gui::getGUI()->mainWindow()->attachScriptRunner(runner);
+	}
+	QTimer::singleShot(0, runner, [runner, scriptFile, scriptArgs] {
+		if (!runner->runFile(scriptFile, scriptArgs)) { emit runner->finished(EXIT_FAILURE); }
+	});
+	return true;
+}
+
+
 int main( int argc, char * * argv )
 {
 	using namespace lmms;
@@ -253,6 +327,12 @@ int main( int argc, char * * argv )
 	bool allowRoot = false;
 	bool renderLoop = false;
 	bool renderTracks = false;
+	bool headless = false;
+	bool scriptServer = false;
+	bool exitAfterScript = false;
+	quint16 scriptPort = 0;
+	QString scriptFile;
+	QStringList scriptArgs;
 	QString fileToLoad, fileToImport, renderOut, profilerOutputFile, configFile;
 
 	// first of two command-line parsing stages
@@ -278,6 +358,16 @@ int main( int argc, char * * argv )
 		{
 			coreOnly = true;
 			renderTracks = true;
+		}
+		else if (arg == "--")
+		{
+			break;
+		}
+		else if (arg == "script" || arg == "--headless")
+		{
+			coreOnly = true;
+			headless = true;
+			if (arg == "script") { break; }
 		}
 		else if (arg == "--allowroot")
 		{
@@ -608,6 +698,43 @@ int main( int argc, char * * argv )
 		{
 			os.setBitDepth(OutputSettings::BitDepth::Depth32Bit);
 		}
+		else if (arg == "script" || arg == "--script")
+		{
+			++i;
+			if (i == argc) { return usageError("No script file specified"); }
+			scriptFile = QString::fromLocal8Bit(argv[i]);
+			if (arg == "script")
+			{
+				exitAfterScript = true;
+				for (++i; i < argc; ++i)
+				{
+					if (QString(argv[i]) != "--") { scriptArgs << QString::fromLocal8Bit(argv[i]); }
+				}
+			}
+		}
+		else if (arg == "--")
+		{
+			for (++i; i < argc; ++i) { scriptArgs << QString::fromLocal8Bit(argv[i]); }
+		}
+		else if (arg == "--headless")
+		{
+			exitAfterScript = true;
+		}
+		else if (arg == "--exit-after-script")
+		{
+			exitAfterScript = true;
+		}
+		else if (arg == "--script-server")
+		{
+			scriptServer = true;
+		}
+		else if (arg == "--script-port")
+		{
+			++i;
+			if (i == argc) { return usageError("No port specified"); }
+			scriptPort = QString(argv[i]).toUShort();
+			scriptServer = true;
+		}
 		else if( arg == "--import" )
 		{
 			++i;
@@ -755,6 +882,27 @@ int main( int argc, char * * argv )
 		else
 		{
 			r->renderProject();
+		}
+	}
+	else if (headless)
+	{
+		if (scriptFile.isEmpty() && !scriptServer)
+		{
+			fprintf(stderr, "--headless needs --script <file.py> or --script-server. Try \"lmms --help\".\n");
+			return EXIT_FAILURE;
+		}
+		// no GUI to route Ctrl+C through: let it terminate us
+		signal(SIGINT, SIG_DFL);
+
+		Engine::init(true);
+		destroyEngine = true;
+
+		if (!fileToLoad.isEmpty()) { Engine::getSong()->loadProject(fileToLoad); }
+		else { Engine::getSong()->createNewProject(); }
+
+		if (!startScripting(scriptFile, scriptArgs, scriptServer, scriptPort, exitAfterScript))
+		{
+			return EXIT_FAILURE;
 		}
 	}
 	else // otherwise, start the GUI
@@ -910,6 +1058,14 @@ int main( int argc, char * * argv )
 		{
 			gui::getGUI()->mainWindow()->autoSaveTimerReset();
 		}
+
+		if (!scriptFile.isEmpty() || scriptServer)
+		{
+			if (!startScripting(scriptFile, scriptArgs, scriptServer, scriptPort, exitAfterScript))
+			{
+				return EXIT_FAILURE;
+			}
+		}
 	}
 
 	const int ret = app->exec();
@@ -921,7 +1077,7 @@ int main( int argc, char * * argv )
 	}
 
 	// ProjectRenderer::updateConsoleProgress() doesn't return line after render
-	if( coreOnly )
+	if (coreOnly && !headless)
 	{
 		printf( "\n" );
 	}

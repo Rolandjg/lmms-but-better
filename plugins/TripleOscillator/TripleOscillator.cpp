@@ -820,10 +820,15 @@ void TripleOscillatorView::paintEvent(QPaintEvent*)
 	f.setBold(true);
 	p.setFont(f);
 	p.setPen(QColor(90, 90, 90));
-	const int labelY = UnisonStripY + 30;
-	p.drawText(QRect(66, labelY, 60, 12), Qt::AlignHCenter | Qt::AlignTop, tr("VOICES"));
-	p.drawText(QRect(180, labelY, 40, 12), Qt::AlignHCenter | Qt::AlignTop, tr("DET"));
-	p.drawText(QRect(208, labelY, 42, 12), Qt::AlignHCenter | Qt::AlignTop, tr("SPRD"));
+	// Position by baseline: a top-aligned rect drifts down with fonts that have a tall line box
+	const QFontMetrics fm(f);
+	const int baseline = UnisonStripY + 31 + fm.capHeight();
+	auto label = [&](int center, const QString& text) {
+		p.drawText(center - fm.horizontalAdvance(text) / 2, baseline, text);
+	};
+	label(96, tr("VOICES"));
+	label(200, tr("DET"));
+	label(229, tr("SPRD"));
 
 	f.setPixelSize(13);
 	p.setFont(f);

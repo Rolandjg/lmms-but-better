@@ -27,6 +27,8 @@
 
 #include "EffectControlDialog.h"
 
+#include <QWidget>
+
 namespace lmms
 {
 
@@ -43,6 +45,38 @@ public:
 	~BassBoosterControlDialog() override = default;
 
 } ;
+
+
+//! Magnitude response of the boost filter. The handle sits on the corner frequency at the
+//! low-end boost: drag sideways for frequency, up and down for the boost amount.
+class BassBoosterDisplay : public QWidget
+{
+	Q_OBJECT
+public:
+	BassBoosterDisplay(BassBoosterControls* controls, QWidget* parent);
+	QSize sizeHint() const override { return QSize(300, 132); }
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+	void mousePressEvent(QMouseEvent*) override;
+	void mouseMoveEvent(QMouseEvent*) override;
+	void mouseReleaseEvent(QMouseEvent*) override;
+	void mouseDoubleClickEvent(QMouseEvent*) override;
+
+private:
+	QRectF plotRect() const;
+	double toX(double freq) const;
+	double toFreq(double x) const;
+	double toY(double db) const;
+	double toDb(double y) const;
+	//! Response in dB at @p freq, including the output gain
+	double responseDb(double freq) const;
+	QPointF handlePos() const;
+
+	BassBoosterControls* m_controls;
+	bool m_dragging = false;
+	bool m_hover = false;
+};
 
 
 } // namespace gui

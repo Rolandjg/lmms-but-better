@@ -43,7 +43,9 @@ SET(LMMS_PLUGIN_LIST
 	HydrogenImport
 	LadspaBrowser
 	LadspaEffect
+	Limiter
 	LOMM
+	LoudnessMeter
 	Lv2Effect
 	Lv2Instrument
 	Lb302
@@ -58,6 +60,7 @@ SET(LMMS_PLUGIN_LIST
 	FreeBoy
 	Patman
 	PeakControllerEffect
+	Pumper
 	GigPlayer
 	ReverbSC
 	Sf2Player

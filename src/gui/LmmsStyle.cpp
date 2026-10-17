@@ -23,7 +23,6 @@
  *
  */
 
-#include <array>
 
 #include <QApplication>
 #include <QFile>
@@ -232,100 +231,13 @@ void LmmsStyle::drawPrimitive( PrimitiveElement element,
 			element == QStyle::PE_FrameLineEdit ||
 			element == QStyle::PE_PanelLineEdit )
 	{
-		const QRect rect = option->rect;
-
-		QColor black = QColor( 0, 0, 0 );
-		QColor shadow = option->palette.shadow().color();
-		QColor highlight = option->palette.highlight().color();
-
-		int a100 = 165;
-		int a75 = static_cast<int>( a100 * .75 );
-		int a50 = static_cast<int>( a100 * .6 );
-		int a25 = static_cast<int>( a100 * .33 );
-
-		auto lines = std::array<QLine, 4>{};
-		auto points = std::array<QPoint, 4>{};
-
-		// black inside lines
-		// 50%
-		black.setAlpha(a100);
-		painter->setPen(QPen(black, 0));
-		lines[0] = QLine(rect.left() + 2, rect.top() + 1,
-					rect.right() - 2, rect.top() + 1);
-		lines[1] = QLine(rect.left() + 2, rect.bottom() - 1,
-					rect.right() - 2, rect.bottom() - 1);
-		lines[2] = QLine(rect.left() + 1, rect.top() + 2,
-					rect.left() + 1, rect.bottom() - 2);
-		lines[3] = QLine(rect.right() - 1, rect.top() + 2,
-					rect.right() - 1, rect.bottom() - 2);
-		painter->drawLines(lines.data(), 4);
-
-		// black inside dots
-		black.setAlpha(a50);
-		painter->setPen(QPen(black, 0));
-		points[0] = QPoint(rect.left() + 2, rect.top() + 2);
-		points[1] = QPoint(rect.left() + 2, rect.bottom() - 2);
-		points[2] = QPoint(rect.right() - 2, rect.top() + 2);
-		points[3] = QPoint(rect.right() - 2, rect.bottom() - 2);
-		painter->drawPoints(points.data(), 4);
-
-
-		// outside lines - shadow
-		// 100%
-		shadow.setAlpha(a75);
-		painter->setPen(QPen(shadow, 0));
-		lines[0] = QLine(rect.left() + 2, rect.top(),
-						rect.right() - 2, rect.top());
-		lines[1] = QLine(rect.left(), rect.top() + 2,
-						rect.left(), rect.bottom() - 2);
-		painter->drawLines(lines.data(), 2);
-
-		// outside corner dots - shadow
-		// 75%
-		shadow.setAlpha(a50);
-		painter->setPen(QPen(shadow, 0));
-		points[0] = QPoint(rect.left() + 1, rect.top() + 1);
-		points[1] = QPoint(rect.right() - 1, rect.top() + 1);
-		painter->drawPoints(points.data(), 2);
-
-		// outside end dots - shadow
-		// 50%
-		shadow.setAlpha(a25);
-		painter->setPen(QPen(shadow, 0));
-		points[0] = QPoint(rect.left() + 1, rect.top());
-		points[1] = QPoint(rect.left(), rect.top() + 1);
-		points[2] = QPoint(rect.right() - 1, rect.top());
-		points[3] = QPoint(rect.left(), rect.bottom() - 1);
-		painter->drawPoints(points.data(), 4);
-
-
-		// outside lines - highlight
-		// 100%
-		highlight.setAlpha(a75);
-		painter->setPen(QPen(highlight, 0));
-		lines[0] = QLine(rect.left() + 2, rect.bottom(),
-					rect.right() - 2, rect.bottom());
-		lines[1] = QLine(rect.right(), rect.top() + 2,
-					rect.right(), rect.bottom() - 2);
-		painter->drawLines(lines.data(), 2);
-
-		// outside corner dots - highlight
-		// 75%
-		highlight.setAlpha(a50);
-		painter->setPen(QPen(highlight, 0));
-		points[0] = QPoint(rect.left() + 1, rect.bottom() - 1);
-		points[1] = QPoint(rect.right() - 1, rect.bottom() - 1);
-		painter->drawPoints(points.data(), 2);
-
-		// outside end dots - highlight
-		// 50%
-		highlight.setAlpha(a25);
-		painter->setPen(QPen(highlight, 0));
-		points[0] = QPoint(rect.right() - 1, rect.bottom());
-		points[1] = QPoint(rect.right(), rect.bottom() - 1);
-		points[2] = QPoint(rect.left() + 1, rect.bottom());
-		points[3] = QPoint(rect.right(), rect.top() + 1);
-		painter->drawPoints(points.data(), 4);
+		// A plain dark hairline instead of the old bevel
+		painter->save();
+		painter->setRenderHint(QPainter::Antialiasing, false);
+		painter->setBrush(Qt::NoBrush);
+		painter->setPen(QColor(0, 0, 0, 170));
+		painter->drawRect(option->rect.adjusted(0, 0, -1, -1));
+		painter->restore();
 	}
 	else
 	{

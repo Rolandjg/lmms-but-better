@@ -40,6 +40,7 @@
 #include "NotePlayHandle.h"
 #include "SampleFrame.h"
 #include "Song.h"
+#include "TabWidget.h"
 
 using namespace lmms;
 
@@ -148,7 +149,8 @@ bool runInstrument(InstrumentTrack* track, const QString& name)
 	const auto frames = Engine::audioEngine()->framesPerPeriod();
 	const float sr = Engine::audioEngine()->outputSampleRate();
 	std::vector<SampleFrame> buf(frames);
-	auto note = NotePlayHandleManager::acquire(track, 0, static_cast<f_cnt_t>(sr), Note(TimePos(0), TimePos(0), 57, 100));
+	auto note = NotePlayHandleManager::acquire(track, 0, static_cast<f_cnt_t>(sr), Note(TimePos(0), TimePos(0),
+		qEnvironmentVariableIntValue("PLUGINSNAPSHOT_KEY") > 0 ? qEnvironmentVariableIntValue("PLUGINSNAPSHOT_KEY") : 57, 100));
 	double energy = 0, sideEnergy = 0;
 	float peak = 0;
 	// With PLUGINSNAPSHOT_PITCH set, print the pitch (from zero crossings) of each 1/16 note at the song tempo
@@ -306,6 +308,14 @@ int main(int argc, char** argv)
 			const bool audioOk = runInstrument(track, tag);
 			if (!audioOk) { ++failures; }
 			save(window, outDir.filePath(tag + ".png"));
+			// PLUGINSNAPSHOT_TAB=<n> also saves the window with that tab active (1 = envelopes, 2 = chords...)
+			if (const int tab = qEnvironmentVariableIntValue("PLUGINSNAPSHOT_TAB"))
+			{
+				window->tabWidgetParent()->setActiveTab(tab);
+				QApplication::processEvents();
+				save(window, outDir.filePath(tag + "_tab" + QString::number(tab) + ".png"));
+				window->tabWidgetParent()->setActiveTab(0);
+			}
 		}
 	}
 

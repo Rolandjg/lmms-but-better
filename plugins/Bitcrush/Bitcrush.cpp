@@ -146,6 +146,11 @@ Effect::ProcessStatus BitcrushEffect::processImpl(SampleFrame* buf, const f_cnt_
 
 	const float noiseAmt = m_controls.m_inNoise.value() * 0.01f;
 
+	for (auto f = std::size_t{0}; f < frames; ++f)
+	{
+		m_scope.push(buf[f][0] * m_inGain, buf[f][1] * m_inGain);
+	}
+
 	// read input buffer and write it to oversampled buffer
 	if( m_rateEnabled ) // rate crushing enabled so do that
 	{
@@ -220,6 +225,8 @@ Effect::ProcessStatus BitcrushEffect::processImpl(SampleFrame* buf, const f_cnt_
 
 	const float d = dryLevel();
 	const float w = wetLevel();
+	float peakL = 0.f;
+	float peakR = 0.f;
 	for (auto f = std::size_t{0}; f < frames; ++f)
 	{
 		float lsum = 0.0f;
@@ -231,7 +238,11 @@ Effect::ProcessStatus BitcrushEffect::processImpl(SampleFrame* buf, const f_cnt_
 		}
 		buf[f][0] = d * buf[f][0] + w * qBound( -m_outClip, lsum, m_outClip ) * m_outGain;
 		buf[f][1] = d * buf[f][1] + w * qBound( -m_outClip, rsum, m_outClip ) * m_outGain;
+		peakL = std::max(peakL, std::abs(buf[f][0]));
+		peakR = std::max(peakR, std::abs(buf[f][1]));
 	}
+	m_controls.m_outPeakL = peakL;
+	m_controls.m_outPeakR = peakR;
 
 	return ProcessStatus::ContinueIfNotQuiet;
 }

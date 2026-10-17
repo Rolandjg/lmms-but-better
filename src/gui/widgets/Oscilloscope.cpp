@@ -27,6 +27,7 @@
 #include <QPainter>
 
 #include "Oscilloscope.h"
+#include "LcdWidget.h"
 #include "GuiApplication.h"
 #include "FontHelper.h"
 #include "MainWindow.h"
@@ -157,7 +158,8 @@ void Oscilloscope::paintEvent( QPaintEvent * )
 {
 	QPainter p( this );
 
-	p.drawPixmap( 0, 0, m_background );
+	// Same glass as the LCD readouts next to it
+	LcdWidget::paintDisplayBackground(p, rect());
 
 	if( m_active && !Engine::getSong()->isExporting() )
 	{
@@ -200,9 +202,9 @@ void Oscilloscope::paintEvent( QPaintEvent * )
 	}
 	else
 	{
-		p.setPen( QColor( 192, 192, 192 ) );
+		p.setPen(QColor(141, 150, 163));
 		p.setFont(adjustedToPixelSize(p.font(), DEFAULT_FONT_SIZE));
-		p.drawText( 6, height()-5, tr( "Click to enable" ) );
+		p.drawText(rect(), Qt::AlignCenter, tr("Click to enable"));
 	}
 }
 

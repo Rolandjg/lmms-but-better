@@ -74,6 +74,7 @@ public:
 public slots:
 	//! @brief Create and assign a new mixer Channel for this track
 	void createMixerLine();
+	void toggleInstrumentWindow( bool _on );
 
 protected:
 	void modelChanged() override;
@@ -82,7 +83,6 @@ protected:
 
 
 private slots:
-	void toggleInstrumentWindow( bool _on );
 	void toggleMidiCCRack();
 	void activityIndicatorPressed();
 	void activityIndicatorReleased();

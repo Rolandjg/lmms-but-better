@@ -51,6 +51,8 @@ class LMMS_EXPORT SubWindow : public QMdiSubWindow
 	Q_PROPERTY( QBrush activeColor READ activeColor WRITE setActiveColor )
 	Q_PROPERTY( QColor textShadowColor READ textShadowColor WRITE setTextShadowColor )
 	Q_PROPERTY( QColor borderColor READ borderColor WRITE setBorderColor )
+	//! Line along the top of the focused window's title bar; transparent by default
+	Q_PROPERTY(QColor focusAccentColor MEMBER m_focusAccentColor)
 
 public:
 	SubWindow( QWidget *parent = nullptr, Qt::WindowFlags windowFlags = QFlag(0) );
@@ -131,6 +133,7 @@ private:
 	QBrush m_activeColor;
 	QColor m_textShadowColor;
 	QColor m_borderColor;
+	QColor m_focusAccentColor = Qt::transparent;
 	QPoint m_position;
 	QRect m_trackedNormalGeom;
 	QLabel * m_windowTitle;

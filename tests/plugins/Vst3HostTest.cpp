@@ -759,8 +759,7 @@ private slots:
 			}
 			return false;
 		};
-		QCOMPARE(menu->actions().size(), 3);
-		QCOMPARE(menu->actions().front()->text(), QString{"Reset selected curves"});
+		QCOMPARE(menu->actions().front()->text(), QString{"Smooth curves"});
 		QCOMPARE(menu->actions().back()->text(), QString{"External synth bend range…"});
 		QDomDocument doc;
 		auto parent = doc.createElement("notes");

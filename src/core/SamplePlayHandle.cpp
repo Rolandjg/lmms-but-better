@@ -23,6 +23,9 @@
  */
 
 #include "SamplePlayHandle.h"
+
+#include <algorithm>
+
 #include "AudioEngine.h"
 #include "AudioBusHandle.h"
 #include "Engine.h"
@@ -59,6 +62,12 @@ SamplePlayHandle::SamplePlayHandle( SampleClip* clip ) :
 	SamplePlayHandle(&clip->sample(), false)
 {
 	m_track = clip->getTrack();
+	m_clip = clip;
+	// SampleTrack::play() has already pointed the sample's start frame at the playback position; turn that
+	// back into a position on the clip (the start offset is negative when the clip's left edge was trimmed)
+	const auto sampleToOutput = static_cast<double>(Engine::audioEngine()->outputSampleRate()) / m_sample->sampleRate();
+	m_clipFrame = static_cast<f_cnt_t>(std::max(0.0,
+		m_sample->startFrame() * sampleToOutput + clip->startTimeOffset() * Engine::framesPerTick()));
 	setAudioBusHandle(((SampleTrack *)clip->getTrack())->audioBusHandle());
 }
 
@@ -109,6 +118,18 @@ void SamplePlayHandle::play( SampleFrame* buffer )
 		if (!m_sample->play(workingBuffer, &m_state, frames))
 		{
 			zeroSampleFrames(workingBuffer, frames);
+		}
+		else if (m_clip && (m_clip->fadeIn() > 0 || m_clip->fadeOut() > 0))
+		{
+			const auto framesPerTick = static_cast<float>(Engine::framesPerTick());
+			const float length = m_clip->length() * framesPerTick;
+			const float fadeIn = m_clip->fadeIn() * framesPerTick;
+			const float fadeOut = m_clip->fadeOut() * framesPerTick;
+			const auto start = m_clipFrame + m_frame;
+			for (f_cnt_t f = 0; f < frames; ++f)
+			{
+				workingBuffer[f] *= SampleClip::fadeGain(static_cast<float>(start + f), length, fadeIn, fadeOut);
+			}
 		}
 	}
 

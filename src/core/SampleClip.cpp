@@ -24,6 +24,10 @@
  
 #include "SampleClip.h"
 
+#include <algorithm>
+#include <cmath>
+#include <numbers>
+
 #include <QDomElement>
 #include <QFileInfo>
 
@@ -78,7 +82,9 @@ SampleClip::SampleClip(const SampleClip& orig) :
 	Clip(orig),
 	m_sample(std::move(orig.m_sample)),
 	m_isPlaying(orig.m_isPlaying),
-	m_startFrameOffset(orig.m_startFrameOffset)
+	m_startFrameOffset(orig.m_startFrameOffset),
+	m_fadeIn(orig.m_fadeIn),
+	m_fadeOut(orig.m_fadeOut)
 {
 	saveJournallingState( false );
 	setSampleFile( "" );
@@ -309,6 +315,9 @@ void SampleClip::saveSettings( QDomDocument & _doc, QDomElement & _this )
 	{
 		_this.setAttribute("reversed", "true");
 	}
+	if (m_fadeIn > 0) { _this.setAttribute("fadein", static_cast<int>(m_fadeIn)); }
+	if (m_fadeOut > 0) { _this.setAttribute("fadeout", static_cast<int>(m_fadeOut)); }
+	if (gain() != 1.f) { _this.setAttribute("gain", gain()); }
 	// TODO: start- and end-frame
 }
 
@@ -354,6 +363,105 @@ void SampleClip::loadSettings( const QDomElement & _this )
 		m_sample.setReversed(true);
 		emit wasReversed(); // tell SampleClipView to update the view
 	}
+
+	m_fadeIn = std::max(0, _this.attribute("fadein", "0").toInt());
+	m_fadeOut = std::max(0, _this.attribute("fadeout", "0").toInt());
+	m_sample.setAmplification(_this.attribute("gain", "1").toFloat());
+	emit sampleChanged();
+}
+
+
+
+
+void SampleClip::setFadeIn(const TimePos& ticks)
+{
+	const auto value = std::clamp(static_cast<int>(ticks), 0, static_cast<int>(length()));
+	if (value == m_fadeIn) { return; }
+	m_fadeIn = value;
+	Engine::getSong()->setModified();
+	emit sampleChanged();
+}
+
+
+
+
+void SampleClip::setFadeOut(const TimePos& ticks)
+{
+	const auto value = std::clamp(static_cast<int>(ticks), 0, static_cast<int>(length()));
+	if (value == m_fadeOut) { return; }
+	m_fadeOut = value;
+	Engine::getSong()->setModified();
+	emit sampleChanged();
+}
+
+
+
+
+void SampleClip::setGain(float gain)
+{
+	// -inf .. +24 dB
+	gain = std::clamp(gain, 0.f, 15.85f);
+	if (gain == m_sample.amplification()) { return; }
+	m_sample.setAmplification(gain);
+	Engine::getSong()->setModified();
+	emit sampleChanged();
+}
+
+
+
+
+void SampleClip::normalize(float peak)
+{
+	const auto& buffer = m_sample.buffer();
+	if (!buffer || buffer->size() == 0) { return; }
+
+	// Only look at the part of the sample that the clip actually plays
+	const auto framesPerTick = Engine::framesPerTick(m_sample.sampleRate());
+	const auto size = static_cast<long>(buffer->size());
+	auto first = static_cast<long>(-startTimeOffset() * framesPerTick);
+	auto last = first + static_cast<long>(length() * framesPerTick);
+	if (m_sample.reversed())
+	{
+		first = size - last;
+		last = size - static_cast<long>(-startTimeOffset() * framesPerTick);
+	}
+	first = std::clamp(first, 0l, size);
+	last = std::clamp(last, first, size);
+
+	float max = 0.f;
+	for (auto f = first; f < last; ++f)
+	{
+		const auto& frame = buffer->data()[f];
+		max = std::max({max, std::abs(frame.left()), std::abs(frame.right())});
+	}
+	if (max > 1e-6f) { setGain(peak / max); }
+}
+
+
+
+
+float SampleClip::fadeGain(float pos, float length, float fadeIn, float fadeOut)
+{
+	if (fadeIn + fadeOut > length && length > 0.f)
+	{
+		const float scale = length / (fadeIn + fadeOut);
+		fadeIn *= scale;
+		fadeOut *= scale;
+	}
+
+	// Equal-power curves: overlapping fades on two tracks cross over without a dip
+	constexpr float halfPi = std::numbers::pi_v<float> / 2.f;
+	float gain = 1.f;
+	if (fadeIn > 0.f && pos < fadeIn)
+	{
+		gain *= std::sin(std::clamp(pos / fadeIn, 0.f, 1.f) * halfPi);
+	}
+	const float untilEnd = length - pos;
+	if (fadeOut > 0.f && untilEnd < fadeOut)
+	{
+		gain *= std::sin(std::clamp(untilEnd / fadeOut, 0.f, 1.f) * halfPi);
+	}
+	return gain;
 }
 
 

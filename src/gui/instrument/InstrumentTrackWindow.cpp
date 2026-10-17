@@ -244,7 +244,8 @@ InstrumentTrackWindow::InstrumentTrackWindow( InstrumentTrackView * _itv ) :
 	// FUNC tab
 	m_instrumentFunctionsView = new QWidget(m_tabWidget);
 	auto instrumentFunctionsLayout = new QVBoxLayout(m_instrumentFunctionsView);
-	instrumentFunctionsLayout->setContentsMargins(5, 5, 5, 5);
+	instrumentFunctionsLayout->setContentsMargins(5, 2, 5, 2);
+	instrumentFunctionsLayout->setSpacing(2);
 	m_noteStackingView = new InstrumentFunctionNoteStackingView( &m_track->m_noteStacking );
 	m_arpeggioView = new InstrumentFunctionArpeggioView( &m_track->m_arpeggio );
 

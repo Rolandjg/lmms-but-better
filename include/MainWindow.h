@@ -40,9 +40,17 @@ class QGridLayout;
 namespace lmms
 {
 
+namespace scripting
+{
+class ScriptRunner;
+}
+
 namespace gui
 {
 
+class CommandPalette;
+class ScriptConsole;
+class MidiCapture;
 class PluginView;
 class SubWindow;
 class ToolButton;
@@ -67,6 +75,11 @@ public:
 
 	// wrap the widget with a window decoration and add it to the workspace
 	LMMS_EXPORT SubWindow* addWindowedWidget(QWidget *w, Qt::WindowFlags windowFlags = QFlag(0));
+
+	//! The Python Script Console (created on first use)
+	ScriptConsole* scriptConsole();
+	//! Show the output of a script started from the command line in the Script Console
+	void attachScriptRunner(scripting::ScriptRunner* runner);
 
 
 	void refocus();
@@ -154,6 +167,8 @@ public slots:
 	bool saveProjectAsNewVersion();
 	void saveProjectAsDefaultTemplate();
 	void showSettingsDialog();
+	void showCommandPalette();
+	void captureMidi();
 	void aboutLMMS();
 	void help();
 	void toggleAutomationEditorWin();
@@ -161,6 +176,7 @@ public slots:
 	void toggleSongEditorWin();
 	void toggleProjectNotesWin();
 	void toggleMicrotunerWin();
+	void toggleScriptConsole();
 	void toggleMixerWin();
 	void togglePianoRollWin();
 	void toggleControllerRack();
@@ -245,6 +261,10 @@ private:
 	QMenu * m_viewMenu;
 
 	ToolButton * m_metronomeToggle;
+	CommandPalette* m_commandPalette = nullptr;
+	MidiCapture* m_midiCapture = nullptr;
+	ScriptConsole* m_scriptConsole = nullptr;
+	QAction* m_scriptConsoleAction = nullptr;
 
 	SessionState m_session;
 	

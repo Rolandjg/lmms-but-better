@@ -44,6 +44,7 @@
 #include "MidiClipView.h"
 #include "PatternClip.h"
 #include "PatternStore.h"
+#include "SampleClip.h"
 #include "Song.h"
 #include "SongEditor.h"
 #include "StringPairDrag.h"
@@ -441,6 +442,33 @@ void ClipView::paintTextLabel(QString const & text, QPainter & painter)
 	painter.drawText( textLeft + 1, finalTextTop + 1, elidedClipName );
 	painter.setPen( textColor() );
 	painter.drawText( textLeft, finalTextTop, elidedClipName );
+}
+
+void ClipView::beginClipPaint(QPainter& p, QPixmap& pixmap, const QRect& body)
+{
+	// The painter is already active on the pixmap, so clear it through the painter
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(QRect(QPoint(0, 0), pixmap.size()), Qt::transparent);
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	// Painting outside the body is wasted
+	p.setClipRect(body);
+}
+
+void ClipView::paintClipFrame(QPainter& p, const QRect& body, const QColor& color, bool current)
+{
+	p.save();
+	p.setClipRect(body);
+	p.setRenderHint(QPainter::Antialiasing, false);
+	p.setBrush(Qt::NoBrush);
+
+	// inner border
+	p.setPen(color.lighter(current ? 160 : 130));
+	p.drawRect(body.adjusted(1, 1, -BORDER_WIDTH, -BORDER_WIDTH));
+
+	// outer border
+	p.setPen(current ? color.lighter(130) : color.darker(300));
+	p.drawRect(body.adjusted(0, 0, -1, -1));
+	p.restore();
 }
 
 void ClipView::mousePressEvent( QMouseEvent * me )
@@ -1243,6 +1271,13 @@ bool ClipView::splitClip(const TimePos pos)
 	rightClip->changeLength(m_initialClipEnd - splitPos);
 	rightClip->setStartTimeOffset(m_clip->startTimeOffset() - m_clip->length());
 	rightClip->setAutoResize(false);
+
+	// The fades stay at the outer edges of the original clip
+	if (auto left = dynamic_cast<SampleClip*>(m_clip), right = dynamic_cast<SampleClip*>(rightClip); left && right)
+	{
+		left->setFadeOut(0);
+		right->setFadeIn(0);
+	}
 
 	m_clip->getTrack()->restoreJournallingState();
 	return true;

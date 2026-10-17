@@ -78,8 +78,13 @@ private:
 	
 	BoolModel m_rateEnabled;
 	BoolModel m_depthEnabled;
-	
+
+	//! Output peaks of the last period, written by the audio thread for the meter
+	float m_outPeakL = 0.f;
+	float m_outPeakR = 0.f;
+
 	friend class gui::BitcrushControlDialog;
+	friend class gui::BitcrushDisplay;
 	friend class BitcrushEffect;
 };
 

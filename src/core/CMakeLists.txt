@@ -73,6 +73,9 @@ set(LMMS_SRCS
 	core/SampleDecoder.cpp
 	core/SamplePlayHandle.cpp
 	core/SampleRecordHandle.cpp
+	core/scripting/ScriptApi.cpp
+	core/scripting/ScriptRunner.cpp
+	core/scripting/ScriptServer.cpp
 	core/Scale.cpp
 	core/LmmsSemaphore.cpp
 	core/SerializingObject.cpp

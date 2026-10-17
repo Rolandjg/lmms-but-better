@@ -603,6 +603,8 @@ void MidiClipView::paintEvent( QPaintEvent * )
 	lingrad.setColorAt( beatClip ? 0 : 1, c.darker( 300 ) );
 	lingrad.setColorAt( beatClip ? 1 : 0, c );
 
+	beginClipPaint(p, m_paintPixmap, rect());
+
 	// paint a black rectangle under the clip to prevent glitches with transparent backgrounds
 	p.fillRect( rect(), QColor( 0, 0, 0 ) );
 
@@ -864,14 +866,7 @@ void MidiClipView::paintEvent( QPaintEvent * )
 
 	if( !( fixedClips() && beatClip ) )
 	{
-		// inner border
-		p.setPen( c.lighter( current ? 160 : 130 ) );
-		p.drawRect( 1, 1, rect().right() - BORDER_WIDTH,
-			rect().bottom() - BORDER_WIDTH );
-
-		// outer border
-		p.setPen( current ? c.lighter( 130 ) : c.darker( 300 ) );
-		p.drawRect( 0, 0, rect().right(), rect().bottom() );
+		paintClipFrame(p, rect(), c, current);
 	}
 
 	// draw the 'muted' pixmap only if the clip was manually muted

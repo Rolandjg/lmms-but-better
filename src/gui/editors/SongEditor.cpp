@@ -27,6 +27,7 @@
 #include <cmath>
 
 #include <QAction>
+#include <QGridLayout>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMdiArea>
@@ -43,6 +44,8 @@
 #include "ConfigManager.h"
 #include "CPULoadWidget.h"
 #include "DeprecationHelper.h"
+#include <QPainter>
+#include <QPainterPath>
 #include "embed.h"
 #include "GuiApplication.h"
 #include "LcdSpinBox.h"
@@ -59,6 +62,33 @@
 
 namespace lmms::gui
 {
+
+namespace
+{
+
+//! A little flag, drawn so it follows the theme's icon size
+QIcon markerIcon()
+{
+	QPixmap pixmap(32, 32);
+	pixmap.fill(Qt::transparent);
+	QPainter p(&pixmap);
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setPen(QPen(QColor(220, 226, 234), 2.5, Qt::SolidLine, Qt::RoundCap));
+	p.drawLine(QPointF(9, 5), QPointF(9, 28));
+	QPainterPath flag;
+	flag.moveTo(10, 6);
+	flag.lineTo(26, 6);
+	flag.lineTo(21, 11.5);
+	flag.lineTo(26, 17);
+	flag.lineTo(10, 17);
+	flag.closeSubpath();
+	p.setPen(Qt::NoPen);
+	p.setBrush(QColor(29, 226, 118));
+	p.drawPath(flag);
+	return pixmap;
+}
+
+} // namespace
 
 namespace
 {
@@ -99,6 +129,8 @@ SongEditor::SongEditor( Song * song ) :
 		m_song->getTimeline(Song::PlayMode::Song),
 		m_currentPosition, this
 	);
+	m_timeLine->setObjectName("songEditorTimeLine");
+	m_timeLine->setMarkersEnabled(true);
 	connect(this, &TrackContainerView::positionChanged, m_timeLine, qOverload<>(&QWidget::update));
 	connect(m_timeLine->timeline(), &Timeline::positionChanged, this, &SongEditor::updatePosition);
 	connect( m_timeLine, SIGNAL(regionSelectedFromPixels(int,int)),
@@ -132,24 +164,42 @@ SongEditor::SongEditor( Song * song ) :
 	// add some essential widgets to global tool-bar
 	QWidget * tb = getGUI()->mainWindow()->toolBar();
 
-	getGUI()->mainWindow()->addSpacingToToolBar( 40 );
+	getGUI()->mainWindow()->addSpacingToToolBar( 24 );
+
+	// The song's readouts and master controls sit on recessed "decks", like the display
+	// panel of a hardware groovebox
+	const auto makeDeck = [tb]() {
+		auto holder = new QWidget(tb);
+		auto holderLayout = new QVBoxLayout(holder);
+		holderLayout->setContentsMargins(0, 4, 0, 4);
+		auto deck = new QWidget(holder);
+		deck->setObjectName("toolbarDeck");
+		deck->setAttribute(Qt::WA_StyledBackground);
+		holderLayout->addWidget(deck);
+		auto layout = new QGridLayout(deck);
+		layout->setContentsMargins(8, 2, 8, 1);
+		layout->setHorizontalSpacing(8);
+		layout->setVerticalSpacing(1);
+		holder->setFixedHeight(72);
+		return std::pair{holder, layout};
+	};
+	auto [transportDeck, transportLayout] = makeDeck();
+	auto [masterDeck, masterLayout] = makeDeck();
 
 	m_tempoSpinBox = new LcdSpinBox( 3, tb, tr( "Tempo" ) );
 	m_tempoSpinBox->setModel( &m_song->m_tempoModel );
 	m_tempoSpinBox->setLabel( tr( "TEMPO" ) );
 	m_tempoSpinBox->setToolTip(tr("Tempo in BPM"));
 
-	int tempoSpinBoxCol = getGUI()->mainWindow()->addWidgetToToolBar( m_tempoSpinBox, 0 );
-
-	getGUI()->mainWindow()->addWidgetToToolBar( new TimeDisplayWidget, 1, tempoSpinBoxCol );
-
-	getGUI()->mainWindow()->addSpacingToToolBar( 10 );
+	transportLayout->addWidget(m_tempoSpinBox, 0, 0, Qt::AlignLeft | Qt::AlignBottom);
+	transportLayout->addWidget(new TimeDisplayWidget, 1, 0, Qt::AlignLeft | Qt::AlignTop);
 
 	m_timeSigDisplay = new MeterDialog( this, true );
 	m_timeSigDisplay->setModel( &m_song->m_timeSigModel );
-	getGUI()->mainWindow()->addWidgetToToolBar( m_timeSigDisplay );
+	transportLayout->addWidget(m_timeSigDisplay, 0, 1, 2, 1, Qt::AlignVCenter);
+	getGUI()->mainWindow()->addWidgetToToolBar(transportDeck);
 
-	getGUI()->mainWindow()->addSpacingToToolBar( 10 );
+	getGUI()->mainWindow()->addSpacingToToolBar( 8 );
 
 	auto master_vol_lbl = new QLabel(tb);
 	master_vol_lbl->setPixmap( embed::getIconPixmap( "master_volume" ) );
@@ -160,7 +210,7 @@ SongEditor::SongEditor( Song * song ) :
 	m_masterVolumeSlider->setOrientation( Qt::Vertical );
 	m_masterVolumeSlider->setPageStep( 1 );
 	m_masterVolumeSlider->setTickPosition( QSlider::TicksLeft );
-	m_masterVolumeSlider->setFixedSize( 26, 60 );
+	m_masterVolumeSlider->setFixedSize( 26, 50 );
 	m_masterVolumeSlider->setTickInterval( 50 );
 	m_masterVolumeSlider->setToolTip(tr("Master volume"));
 
@@ -177,22 +227,18 @@ SongEditor::SongEditor( Song * song ) :
 	m_mvsStatus->setTitle(tr("Master volume"));
 	m_mvsStatus->setPixmap(embed::getIconPixmap("master_volume"));
 
-	getGUI()->mainWindow()->addWidgetToToolBar( master_vol_lbl );
-	getGUI()->mainWindow()->addWidgetToToolBar( m_masterVolumeSlider );
-
-
-	getGUI()->mainWindow()->addSpacingToToolBar( 10 );
+	masterLayout->addWidget(master_vol_lbl, 0, 0, Qt::AlignVCenter);
+	masterLayout->addWidget(m_masterVolumeSlider, 0, 1, Qt::AlignVCenter);
 
 	auto master_pitch_lbl = new QLabel(tb);
 	master_pitch_lbl->setPixmap( embed::getIconPixmap( "master_pitch" ) );
-	master_pitch_lbl->setFixedHeight( 64 );
 
 	m_masterPitchSlider = new AutomatableSlider( tb, tr( "Global transposition" ) );
 	m_masterPitchSlider->setModel( &m_song->m_masterPitchModel );
 	m_masterPitchSlider->setOrientation( Qt::Vertical );
 	m_masterPitchSlider->setPageStep( 1 );
 	m_masterPitchSlider->setTickPosition( QSlider::TicksLeft );
-	m_masterPitchSlider->setFixedSize( 26, 60 );
+	m_masterPitchSlider->setFixedSize( 26, 50 );
 	m_masterPitchSlider->setTickInterval( 12 );
 	m_masterPitchSlider->setToolTip(tr("Global transposition"));
 	connect( m_masterPitchSlider, SIGNAL(logicValueChanged(int)), this,
@@ -208,13 +254,11 @@ SongEditor::SongEditor( Song * song ) :
 	m_mpsStatus->setTitle( tr( "Global transposition" ) );
 	m_mpsStatus->setPixmap( embed::getIconPixmap( "master_pitch" ) );
 
-	getGUI()->mainWindow()->addWidgetToToolBar( master_pitch_lbl );
-	getGUI()->mainWindow()->addWidgetToToolBar( m_masterPitchSlider );
-
-	getGUI()->mainWindow()->addSpacingToToolBar( 10 );
+	masterLayout->addWidget(master_pitch_lbl, 0, 2, Qt::AlignVCenter);
+	masterLayout->addWidget(m_masterPitchSlider, 0, 3, Qt::AlignVCenter);
 
 	// create widget for oscilloscope- and cpu-load-widget
-	auto vc_w = new QWidget(tb);
+	auto vc_w = new QWidget(masterDeck);
 	auto vcw_layout = new QVBoxLayout(vc_w);
 	vcw_layout->setContentsMargins(0, 0, 0, 0);
 	vcw_layout->setSpacing( 0 );
@@ -225,7 +269,10 @@ SongEditor::SongEditor( Song * song ) :
 	vcw_layout->addWidget( new CPULoadWidget( vc_w ) );
 	vcw_layout->addStretch();
 
-	getGUI()->mainWindow()->addWidgetToToolBar( vc_w );
+	masterLayout->addWidget(vc_w, 0, 4, Qt::AlignVCenter);
+	masterLayout->setColumnMinimumWidth(4, 0);
+	masterLayout->setHorizontalSpacing(4);
+	getGUI()->mainWindow()->addWidgetToToolBar(masterDeck);
 
 	static_cast<QVBoxLayout *>( layout() )->insertWidget( 0, m_timeLine );
 
@@ -975,6 +1022,27 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 
 	DropToolBar *timeLineToolBar = addDropToolBarToTop(tr("Timeline controls"));
 	m_editor->m_timeLine->addToolButtons(timeLineToolBar);
+
+	// Arrangement markers
+	auto timeLine = m_editor->m_timeLine;
+	auto addMarkerAction = new QAction(markerIcon(), tr("Add marker at playhead"), this);
+	addMarkerAction->setShortcut(Qt::Key_M);
+	addMarkerAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	addMarkerAction->setToolTip(tr("Add marker at playhead (M). Double-click the marker lane to add one anywhere."));
+	connect(addMarkerAction, &QAction::triggered, timeLine, [timeLine] {
+		timeLine->addMarker(timeLine->timeline()->pos().quantize(1.f / 16.f));
+	});
+	auto previousMarkerAction = new QAction(tr("Jump to previous marker"), this);
+	previousMarkerAction->setShortcut(keySequence(Qt::ALT, Qt::Key_Left));
+	previousMarkerAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	connect(previousMarkerAction, &QAction::triggered, timeLine, &TimeLineWidget::jumpToPreviousMarker);
+	auto nextMarkerAction = new QAction(tr("Jump to next marker"), this);
+	nextMarkerAction->setShortcut(keySequence(Qt::ALT, Qt::Key_Right));
+	nextMarkerAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	connect(nextMarkerAction, &QAction::triggered, timeLine, &TimeLineWidget::jumpToNextMarker);
+	addAction(previousMarkerAction);
+	addAction(nextMarkerAction);
+	timeLineToolBar->addAction(addMarkerAction);
 
 	DropToolBar *insertActionsToolBar = addDropToolBarToTop(tr("Bar insert controls"));
 	m_insertBarAction = new QAction(embed::getIconPixmap("insert_bar"), tr("Insert bar"), this);

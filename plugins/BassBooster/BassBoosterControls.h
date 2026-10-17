@@ -59,16 +59,29 @@ public:
 	}
 
 
+	//! Corner frequency of the boost filter for the legacy "freq" coefficient (which was
+	//! independent of the sample rate, so this holds at any rate)
+	static float cutoffForCoefficient(float coefficient);
+	//! The one-pole coefficient that puts the -3 dB point of the boost filter at @p cutoff
+	static float coefficientForCutoff(float cutoff, float sampleRate);
+
 private slots:
 	void changeFrequency();
 
 private:
 	BassBoosterEffect* m_effect;
+	//! Corner frequency in Hz. Projects before it existed stored the raw filter coefficient as
+	//! "freq" (where a higher value meant a lower frequency); that is converted on load.
 	FloatModel m_freqModel;
 	FloatModel m_gainModel;
 	FloatModel m_ratioModel;
 
+	//! Output peaks of the last period, written by the audio thread for the meter
+	float m_outPeakL = 0.f;
+	float m_outPeakR = 0.f;
+
 	friend class gui::BassBoosterControlDialog;
+	friend class gui::BassBoosterDisplay;
 	friend class BassBoosterEffect;
 } ;
 

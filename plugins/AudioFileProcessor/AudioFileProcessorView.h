@@ -22,11 +22,14 @@
  *
  */
 
+
 #ifndef LMMS_AUDIO_FILE_PROCESSOR_VIEW_H
 #define LMMS_AUDIO_FILE_PROCESSOR_VIEW_H
 
 #include "InstrumentView.h"
 
+class QLabel;
+class QStackedWidget;
 
 namespace lmms
 {
@@ -34,12 +37,11 @@ namespace lmms
 namespace gui
 {
 
-class AutomatableButtonGroup;
-class Knob;
-class PixmapButton;
 class ComboBox;
-class AutomatableButton;
+class Knob;
 class LcdSpinBox;
+class ModernSegmented;
+class ModernToggle;
 class AudioFileProcessorWaveView;
 
 
@@ -48,11 +50,9 @@ class AudioFileProcessorView : public gui::InstrumentView
 	Q_OBJECT
 public:
 	AudioFileProcessorView(Instrument* instrument, QWidget* parent);
-	virtual ~AudioFileProcessorView() = default;
+	~AudioFileProcessorView() override = default;
 
-	void newWaveView();
-
-	QSize sizeHint() const override { return QSize(250, 290); }
+	QSize sizeHint() const override { return QSize(560, 342); }
 	QSize minimumSizeHint() const override { return sizeHint(); }
 
 protected slots:
@@ -60,31 +60,49 @@ protected slots:
 	void openAudioFile();
 
 protected:
-	virtual void dragEnterEvent(QDragEnterEvent* dee);
-	virtual void dropEvent(QDropEvent* de);
-	virtual void paintEvent(QPaintEvent*);
+	void dragEnterEvent(QDragEnterEvent* dee) override;
+	void dropEvent(QDropEvent* de) override;
+	void paintEvent(QPaintEvent*) override;
+	void mousePressEvent(QMouseEvent* me) override;
 
-	// Private methods
 private:
-	virtual void modelChanged();
+	void modelChanged() override;
+	void updateModeWidgets();
+	QRect fileNameRect() const;
 
-	// Private members
-private:
 	AudioFileProcessorWaveView* m_waveView;
-	Knob* m_ampKnob;
-	Knob* m_startKnob;
-	Knob* m_endKnob;
-	Knob* m_loopKnob;
 
-	gui::PixmapButton* m_openAudioFileButton;
-	PixmapButton* m_reverseButton;
-	AutomatableButtonGroup* m_loopGroup;
-	PixmapButton* m_stutterButton;
+	ModernSegmented* m_modeSelector;
+	ModernToggle* m_reverseButton;
+	ModernToggle* m_stutterButton;
+	ModernToggle* m_oneShotButton;
+	ModernToggle* m_chokeButton;
+	ModernToggle* m_snapButton;
 	ComboBox* m_interpBox;
 
-	AutomatableButton* m_warpButton;
-	LcdSpinBox* m_tempoSpinBox;
+	Knob* m_ampKnob;
+	QStackedWidget* m_regionStack;
+	Knob* m_startKnob;
+	Knob* m_loopKnob;
+	Knob* m_endKnob;
+	Knob* m_fadeInKnob;
+	Knob* m_fadeOutKnob;
+	ModernSegmented* m_sliceMethod;
+	QStackedWidget* m_sliceParamStack;
+	Knob* m_sensitivityKnob;
+	ModernSegmented* m_divisionSelector;
+	QLabel* m_sliceCount;
+
+	ModernSegmented* m_loopSelector;
 	Knob* m_crossfadeKnob;
+	Knob* m_transposeKnob;
+	Knob* m_tuneKnob;
+	QWidget* m_detectButton;
+	ModernToggle* m_warpButton;
+	LcdSpinBox* m_tempoSpinBox;
+
+	QString m_status;
+	QList<QWidget*> m_columns;
 } ;
 
 } // namespace gui

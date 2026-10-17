@@ -70,6 +70,13 @@ public:
 
 	int cellHeight() const { return m_cellHeight; }
 
+	//! Color of lit segments, taken from the theme's LCD pixmap
+	QColor segmentColor() const { return isEnabled() ? m_litColor : m_disabledLitColor; }
+
+	//! Paint the dark display behind the digits. Sides that continue into a neighbouring
+	//! display (seamless) get no border.
+	static void paintDisplayBackground(QPainter& p, const QRectF& rect, bool edgeLeft = true, bool edgeRight = true);
+
 	void setSeamless(bool left, bool right)
 	{
 		m_seamlessLeft = left;
@@ -97,6 +104,8 @@ private:
 
 	QString m_label;
 	QPixmap m_lcdPixmap;
+	QColor m_litColor;
+	QColor m_disabledLitColor;
 
 	QColor m_textColor;
 	QColor m_textShadowColor;

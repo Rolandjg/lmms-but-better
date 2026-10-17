@@ -324,8 +324,9 @@ void Song::processNextBuffer()
 			// First frame of buffer: update VST sync position.
 			// This must be done after we've corrected the frame/tick count,
 			// but before actually playing any frames.
-			m_vstSyncController.setAbsolutePosition(getPlayPos().getTicks()
-				+ timeline.frameOffset() / static_cast<double>(framesPerTick));
+			m_periodStartTicks = getPlayPos().getTicks()
+				+ timeline.frameOffset() / static_cast<double>(framesPerTick);
+			m_vstSyncController.setAbsolutePosition(m_periodStartTicks);
 			m_vstSyncController.update();
 		}
 
@@ -792,6 +793,7 @@ void Song::insertBar()
 		track->insertBar(getPlayPos(PlayMode::Song));
 	}
 	m_tracksMutex.unlock();
+	shiftMarkers(TimePos::ticksPerBar());
 }
 
 
@@ -807,6 +809,23 @@ void Song::removeBar()
 		track->removeBar(getPlayPos(PlayMode::Song));
 	}
 	m_tracksMutex.unlock();
+	shiftMarkers(-TimePos::ticksPerBar());
+}
+
+
+
+
+void Song::shiftMarkers(tick_t ticks)
+{
+	// arrangement markers follow the clips
+	auto& timeline = getTimeline(PlayMode::Song);
+	const auto from = getPlayPos(PlayMode::Song);
+	const auto& markers = timeline.markers();
+	if (std::any_of(markers.begin(), markers.end(), [&](const Timeline::Marker& m) { return m.pos >= from; }))
+	{
+		timeline.addJournalCheckPoint();
+		timeline.shiftMarkers(from, ticks);
+	}
 }
 
 
@@ -867,6 +886,7 @@ void Song::clearProject()
 	for (auto i = std::size_t{0}; i < PlayModeCount; i++)
 	{
 		setPlayPos( 0, ( PlayMode )i );
+		m_timelines[i].clearMarkers();
 	}
 
 
@@ -984,6 +1004,38 @@ void Song::createNewProject()
 	m_loadingProject = false;
 	updateLength();
 	Engine::patternStore()->updateAfterTrackAdd();
+
+	Engine::projectJournal()->setJournalling( true );
+
+	QCoreApplication::sendPostedEvents();
+
+	setModified(false);
+	m_loadOnLaunch = false;
+}
+
+
+
+
+void Song::createEmptyProject()
+{
+	m_loadingProject = true;
+
+	clearProject();
+
+	Engine::projectJournal()->setJournalling( false );
+
+	m_oldFileName = "";
+	setProjectFileName("");
+
+	m_tempoModel.setInitValue( DefaultTempo );
+	m_timeSigModel.reset();
+	m_masterVolumeModel.setInitValue( 100 );
+	m_masterPitchModel.setInitValue( 0 );
+
+	QCoreApplication::instance()->processEvents();
+
+	m_loadingProject = false;
+	updateLength();
 
 	Engine::projectJournal()->setJournalling( true );
 

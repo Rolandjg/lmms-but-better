@@ -30,6 +30,7 @@
 
 #include "EffectChain.h"
 #include "ModelView.h"
+#include "Plugin.h"
 
 class QScrollArea;
 
@@ -49,6 +50,9 @@ public:
 
 	static constexpr int DEFAULT_WIDTH = 245;
 
+	//! Instantiate the effect described by @p key, append it to the chain and open its controls
+	void addEffectFromKey(const Plugin::Descriptor::SubPluginFeatures::Key& key);
+
 public slots:
 	void clearViews();
 	void moveUp(EffectView* view);
@@ -61,6 +65,7 @@ private slots:
 
 
 private:
+	void appendAndShow(Effect* fx);
 	void modelChanged() override;
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override { return sizeHint(); }

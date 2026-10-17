@@ -56,7 +56,10 @@ public slots:
 protected:
 	void constructContextMenu(QMenu* cm) override;
 	void mousePressEvent( QMouseEvent * _me ) override;
+	void mouseMoveEvent( QMouseEvent * _me ) override;
 	void mouseReleaseEvent( QMouseEvent * _me ) override;
+	void enterEvent( QEvent * _e ) override;
+	void leaveEvent( QEvent * _e ) override;
 	void dragEnterEvent( QDragEnterEvent * _dee ) override;
 	void dropEvent( QDropEvent * _de ) override;
 	void mouseDoubleClickEvent( QMouseEvent * ) override;
@@ -64,6 +67,21 @@ protected:
 
 
 private:
+	//! The draggable handles on top of the clip
+	enum class Handle { None, FadeIn, FadeOut, Gain };
+
+	float pixelsPerTick() const;
+	QPointF handlePos(Handle handle) const;
+	Handle handleAt(const QPoint& pos);
+	void showHandleValue(Handle handle);
+	void paintFades(QPainter& p, int xOffset);
+
+	Handle m_dragHandle = Handle::None;
+	Handle m_hoverHandle = Handle::None;
+	bool m_hovered = false;
+	int m_dragStartY = 0;
+	float m_dragStartGainDb = 0.f;
+
 	SampleClip * m_clip;
 	SampleThumbnail m_sampleThumbnail;
 	QPixmap m_paintPixmap;

@@ -66,6 +66,7 @@ private:
 	BoolModel m_dcModel;
 
 	friend class gui::DispersionControlDialog;
+	friend class gui::DispersionDisplay;
 	friend class DispersionEffect;
 };
 
