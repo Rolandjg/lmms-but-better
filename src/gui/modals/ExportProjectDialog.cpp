@@ -256,6 +256,7 @@ void ExportProjectDialog::onStartButtonClicked()
 	m_renderManager = std::make_unique<RenderManager>(outputSettings, format, m_path);
 	m_startButton->setEnabled(false);
 
+	m_renderManager->setRenderTail(!m_exportAsLoopBox->isChecked() && !m_exportBetweenLoopMarkersBox->isChecked());
 	Engine::getSong()->setExportLoop(m_exportAsLoopBox->isChecked());
 	Engine::getSong()->setRenderBetweenMarkers(m_exportBetweenLoopMarkersBox->isChecked());
 	Engine::getSong()->setLoopRenderCount(m_loopRepeatBox->value());

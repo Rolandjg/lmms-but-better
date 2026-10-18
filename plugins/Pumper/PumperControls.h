@@ -47,10 +47,13 @@ public:
 	void loadSettings(const QDomElement& parent) override;
 	inline QString nodeName() const override { return "PumperControls"; }
 	gui::EffectControlDialog* createView() override { return new gui::PumperControlDialog(this); }
-	int controlCount() override { return 9; }
+	int controlCount() override { return 10; }
 
 	//! Length of one pump cycle in ticks for the selected rate
 	float periodTicks() const;
+
+	//! Pick the preset button matching the current length, or "Free"
+	void syncPreset();
 
 	//! Gain (0..1) of the volume shape at @p phase (0..1), using the current settings
 	float shapeAt(float phase, float periodSeconds) const;
@@ -62,7 +65,9 @@ public:
 
 private:
 	PumperEffect* m_effect;
-	ComboBoxModel m_rateModel;
+	ComboBoxModel m_rateModel;  //!< preset shortcuts for m_lengthModel
+	FloatModel m_lengthModel;   //!< cycle length in beats, automatable
+	bool m_syncing = false;
 	FloatModel m_depthModel;
 	FloatModel m_attackModel;
 	FloatModel m_holdModel;

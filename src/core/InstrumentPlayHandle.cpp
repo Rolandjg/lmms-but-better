@@ -27,6 +27,7 @@
 #include "Instrument.h"
 #include "InstrumentTrack.h"
 #include "Engine.h"
+#include "Song.h"
 #include "AudioEngine.h"
 
 namespace lmms
@@ -43,6 +44,10 @@ InstrumentPlayHandle::InstrumentPlayHandle(Instrument * instrument, InstrumentTr
 void InstrumentPlayHandle::play(SampleFrame* working_buffer)
 {
 	InstrumentTrack * instrumentTrack = m_instrument->instrumentTrack();
+
+	// A muted track is inaudible while exporting (stems mute everything but one track),
+	// so don't spend time running its instrument.
+	if (instrumentTrack->isMuted() && Engine::getSong()->isExporting()) { return; }
 
 	// ensure that all our nph's have been processed first
 	auto nphv = NotePlayHandle::nphsOfInstrumentTrack(instrumentTrack, true);

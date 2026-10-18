@@ -290,7 +290,7 @@ protected:
 
 	void mouseMoveEvent(QMouseEvent* me) override
 	{
-		if (m_dragging >= 0) { drag(me->pos()); }
+		if (m_dragging >= 0 && (me->buttons() & Qt::LeftButton)) { drag(me->pos()); }
 		else
 		{
 			const int hit = pointAt(me->pos());
@@ -355,9 +355,14 @@ private:
 
 	void drag(const QPoint& pos)
 	{
-		auto pt = fromWidget(pos);
 		auto& points = m_curve.points;
 		const int last = static_cast<int>(points.size()) - 1;
+		if (m_dragging < 0 || m_dragging > last)
+		{
+			m_dragging = -1;
+			return;
+		}
+		auto pt = fromWidget(pos);
 
 		// the ends keep their place in time; points in between stay between their neighbours
 		if (m_dragging == 0 || m_dragging == last) { pt.first = points[m_dragging].first; }
@@ -370,6 +375,7 @@ private:
 	void removePoint(int index)
 	{
 		m_curve.points.erase(m_curve.points.begin() + index);
+		m_dragging = -1;
 		m_hover = -1;
 		update();
 		emit edited();

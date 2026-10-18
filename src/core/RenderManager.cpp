@@ -135,6 +135,7 @@ void RenderManager::renderProject()
 void RenderManager::render(QString outputPath)
 {
 	m_activeRenderer = std::make_unique<ProjectRenderer>(m_outputSettings, m_format, outputPath);
+	m_activeRenderer->setRenderTail(m_renderTail);
 
 	if( m_activeRenderer->isReady() )
 	{

@@ -82,6 +82,9 @@ public slots:
 
 	void updateConsoleProgress();
 
+	//! Keep rendering after the end until reverb/delay tails fade to silence.
+	void setRenderTail(bool tail) { m_renderTail = tail; }
+
 
 signals:
 	void progressChanged( int );
@@ -96,6 +99,7 @@ private:
 
 	volatile int m_progress;
 	volatile bool m_abort;
+	bool m_renderTail = false;
 
 } ;
 

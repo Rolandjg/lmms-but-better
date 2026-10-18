@@ -26,6 +26,8 @@
 #include <array>
 #include <cmath>
 
+#include <QDomElement>
+
 #include "Pumper.h"
 
 namespace lmms
@@ -35,6 +37,7 @@ namespace
 {
 
 struct Rate { const char* label; float ticks; };
+constexpr float TicksPerBeat = 48.f;
 constexpr std::array<Rate, 8> Rates{{
 	{"1/1", 192.f}, {"1/2", 96.f}, {"1/4", 48.f}, {"1/8", 24.f}, {"1/16", 12.f},
 	{"1/2T", 64.f}, {"1/4T", 32.f}, {"1/8T", 16.f}
@@ -46,7 +49,8 @@ constexpr std::array<Rate, 8> Rates{{
 PumperControls::PumperControls(PumperEffect* effect) :
 	EffectControls(effect),
 	m_effect(effect),
-	m_rateModel(this, tr("Rate")),
+	m_rateModel(this, tr("Rate preset")),
+	m_lengthModel(1.f, 0.0625f, 16.f, 0.001f, this, tr("Rate")),
 	m_depthModel(80.f, 0.f, 100.f, 0.1f, this, tr("Depth")),
 	m_attackModel(3.f, 0.1f, 100.f, 0.1f, this, tr("Attack")),
 	m_holdModel(0.f, 0.f, 50.f, 0.1f, this, tr("Hold")),
@@ -57,7 +61,20 @@ PumperControls::PumperControls(PumperEffect* effect) :
 	m_crossoverModel(150.f, 40.f, 2000.f, 1.f, this, tr("Crossover"))
 {
 	for (const auto& rate : Rates) { m_rateModel.addItem(rate.label); }
+	m_rateModel.addItem(tr("Free"));
 	m_rateModel.setValue(2); // quarter notes: four on the floor
+	m_lengthModel.setScaleLogarithmic(true);
+	m_lengthModel.setStrictStepSize(false);
+
+	// The length knob is the real (automatable) rate, the buttons are shortcuts that set it
+	connect(&m_rateModel, &Model::dataChanged, this, [this] {
+		const int index = m_rateModel.value();
+		if (index < 0 || index >= static_cast<int>(Rates.size()) || m_syncing) { return; }
+		m_syncing = true;
+		m_lengthModel.setValue(Rates[index].ticks / TicksPerBeat);
+		m_syncing = false;
+	});
+	connect(&m_lengthModel, &Model::dataChanged, this, [this] { syncPreset(); });
 	m_bandModel.addItem(tr("Full"));
 	m_bandModel.addItem(tr("Lows"));
 	m_bandModel.addItem(tr("Highs"));
@@ -68,10 +85,23 @@ PumperControls::PumperControls(PumperEffect* effect) :
 }
 
 
+void PumperControls::syncPreset()
+{
+	if (m_syncing) { return; }
+	int match = static_cast<int>(Rates.size()); // "Free"
+	for (int i = 0; i < static_cast<int>(Rates.size()); ++i)
+	{
+		if (std::abs(Rates[i].ticks - periodTicks()) < 0.01f) { match = i; break; }
+	}
+	m_syncing = true;
+	m_rateModel.setValue(match);
+	m_syncing = false;
+}
+
+
 float PumperControls::periodTicks() const
 {
-	const int index = std::clamp(m_rateModel.value(), 0, static_cast<int>(Rates.size()) - 1);
-	return Rates[index].ticks;
+	return std::max(m_lengthModel.value() * TicksPerBeat, 1.f);
 }
 
 
@@ -115,7 +145,15 @@ float PumperControls::shapeAt(float phase, float periodSeconds) const
 
 void PumperControls::loadSettings(const QDomElement& parent)
 {
-	m_rateModel.loadSettings(parent, "rate");
+	if (parent.hasAttribute("length")) { m_lengthModel.loadSettings(parent, "length"); }
+	else
+	{
+		// Older projects stored a preset index
+		m_rateModel.loadSettings(parent, "rate");
+		const int index = m_rateModel.value();
+		if (index >= 0 && index < static_cast<int>(Rates.size())) { m_lengthModel.setValue(Rates[index].ticks / TicksPerBeat); }
+	}
+	syncPreset();
 	m_depthModel.loadSettings(parent, "depth");
 	m_attackModel.loadSettings(parent, "attack");
 	m_holdModel.loadSettings(parent, "hold");
@@ -129,7 +167,7 @@ void PumperControls::loadSettings(const QDomElement& parent)
 
 void PumperControls::saveSettings(QDomDocument& doc, QDomElement& parent)
 {
-	m_rateModel.saveSettings(doc, parent, "rate");
+	m_lengthModel.saveSettings(doc, parent, "length");
 	m_depthModel.saveSettings(doc, parent, "depth");
 	m_attackModel.saveSettings(doc, parent, "attack");
 	m_holdModel.saveSettings(doc, parent, "hold");

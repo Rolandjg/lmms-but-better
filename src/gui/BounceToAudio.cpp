@@ -1,6 +1,7 @@
 #include "BounceToAudio.h"
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -36,15 +37,18 @@ void bounceToAudio(TrackView* sourceView, MidiClip* clip)
 	if (song->projectFileName().isEmpty() && !song->guiSaveProject()) { return; }
 	if (song->projectFileName().isEmpty()) { return; }
 
-	const TimePos begin = clip ? clip->startPosition() : TimePos{0};
-	TimePos end = begin;
-	if (clip) { end = clip->endPosition(); }
-	else
+	// Start at the first audible clip so leading silence is not rendered.
+	TimePos begin = clip ? clip->startPosition() : TimePos{std::numeric_limits<int>::max()};
+	TimePos end = clip ? clip->endPosition() : TimePos{0};
+	if (!clip)
 	{
 		for (auto item : source->getClips())
 		{
-			if (!item->isMuted()) { end = std::max(end, item->endPosition()); }
+			if (item->isMuted()) { continue; }
+			begin = std::min(begin, item->startPosition());
+			end = std::max(end, item->endPosition());
 		}
+		if (end <= begin) { begin = end; }
 	}
 	if (end <= begin)
 	{
@@ -103,6 +107,7 @@ void bounceToAudio(TrackView* sourceView, MidiClip* clip)
 		ready = renderer.isReady();
 		if (ready)
 		{
+			renderer.setRenderTail(true);
 			QProgressDialog progress(QObject::tr("Bouncing %1…").arg(name), QObject::tr("Cancel"), 0, 100, sourceView);
 			progress.setWindowTitle(title);
 			progress.setWindowModality(Qt::ApplicationModal);
@@ -141,8 +146,6 @@ void bounceToAudio(TrackView* sourceView, MidiClip* clip)
 	sampleClip->setSampleFile(filename);
 	sampleClip->setName(name);
 	sampleClip->movePosition(begin);
-	// The renderer writes whole audio buffers; trim the last partial buffer in the editor.
-	sampleClip->changeLength(end - begin);
 	auto containerView = sourceView->trackContainerView();
 	auto sampleView = containerView->createTrackView(sampleTrack);
 	containerView->moveTrackView(sampleView, containerView->trackViews().indexOf(sourceView) + 1);

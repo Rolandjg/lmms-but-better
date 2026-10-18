@@ -349,6 +349,10 @@ bool AutomationEditor::fineTuneValue(timeMap::iterator node, bool editingOutValu
 {
 	if (node == m_clip->getTimeMap().end()) { return false; }
 
+	// Nodes are stored unscaled (knob position); the tooltip and axis labels show the scaled value,
+	// so the dialog has to work with the scaled value too or the point lands somewhere else
+	auto* model = m_clip->firstObject();
+
 	// Display dialog to edit the value
 	bool ok;
 	double value = QInputDialog::getDouble(
@@ -357,17 +361,19 @@ bool AutomationEditor::fineTuneValue(timeMap::iterator node, bool editingOutValu
 		editingOutValue
 			? tr("New outValue")
 			: tr("New inValue"),
-		editingOutValue
+		model->scaledValue(editingOutValue
 			? OUTVAL(node)
-			: INVAL(node),
-		m_clip->firstObject()->minValue<float>(),
-		m_clip->firstObject()->maxValue<float>(),
+			: INVAL(node)),
+		model->minValue<float>(),
+		model->maxValue<float>(),
 		3,
 		&ok
 	);
 
 	// If dialog failed return false
 	if (!ok) { return false; }
+
+	value = model->inverseScaledValue(static_cast<float>(value));
 
 	// Set the new inValue/outValue
 	if (editingOutValue)

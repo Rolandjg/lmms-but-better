@@ -755,6 +755,14 @@ bool InstrumentTrack::play( const TimePos & _start, const f_cnt_t _frames,
 		return false;
 	}
 
+	// A muted track is inaudible while exporting (e.g. stems), so don't create notes for it;
+	// its instrument is skipped too (see InstrumentPlayHandle::play).
+	if (isMuted() && Engine::getSong()->isExporting())
+	{
+		unlock();
+		return false;
+	}
+
 	const float frames_per_tick = Engine::framesPerTick();
 	clipVector clips;
 	class PatternTrack * pattern_track = nullptr;

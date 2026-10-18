@@ -23,6 +23,8 @@
  */
 
 
+#include <algorithm>
+#include <cmath>
 #include <QFile>
 
 #include "ProjectRenderer.h"
@@ -178,6 +180,25 @@ void ProjectRenderer::run()
 		{
 			m_progress = nprog;
 			emit progressChanged( m_progress );
+		}
+	}
+
+	// Let reverb/delay tails ring out: stop after half a second of near-silence, or at 30 seconds.
+	if (m_renderTail && !m_abort)
+	{
+		const auto sampleRate = Engine::audioEngine()->outputSampleRate();
+		const auto silentLimit = static_cast<f_cnt_t>(sampleRate / 2);
+		const auto maxFrames = static_cast<f_cnt_t>(sampleRate) * 30;
+		f_cnt_t silent = 0;
+		f_cnt_t total = 0;
+		while (silent < silentLimit && total < maxFrames && !m_abort)
+		{
+			const auto buffer = Engine::audioEngine()->renderNextPeriod();
+			m_fileDev->writeBuffer(buffer.data(), buffer.size());
+			float peak = 0.f;
+			for (const auto& frame : buffer) { peak = std::max({peak, std::abs(frame[0]), std::abs(frame[1])}); }
+			silent = peak < 1e-4f ? silent + buffer.size() : 0;
+			total += buffer.size();
 		}
 	}
 

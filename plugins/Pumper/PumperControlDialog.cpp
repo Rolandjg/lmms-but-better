@@ -67,18 +67,20 @@ PumperControlDialog::PumperControlDialog(PumperControls* controls) :
 	sections->setSpacing(6);
 
 	auto shape = new ModernSection(tr("Shape"), this);
+	shape->grid()->addWidget(modern::makeKnob(this, &controls->m_lengthModel, tr("RATE"),
+		tr("Cycle length:"), " beats"), 0, 0);
 	shape->grid()->addWidget(modern::makeKnob(this, &controls->m_depthModel, tr("DEPTH"),
-		tr("Depth:"), "%"), 0, 0);
+		tr("Depth:"), "%"), 0, 1);
 	shape->grid()->addWidget(modern::makeKnob(this, &controls->m_attackModel, tr("ATTACK"),
-		tr("Duck time:"), " ms"), 0, 1);
+		tr("Duck time:"), " ms"), 0, 2);
 	shape->grid()->addWidget(modern::makeKnob(this, &controls->m_holdModel, tr("HOLD"),
-		tr("Hold (share of the cycle):"), "%"), 0, 2);
+		tr("Hold (share of the cycle):"), "%"), 0, 3);
 	shape->grid()->addWidget(modern::makeKnob(this, &controls->m_releaseModel, tr("RELEASE"),
-		tr("Release (share of the cycle):"), "%"), 0, 3);
+		tr("Release (share of the cycle):"), "%"), 0, 4);
 	shape->grid()->addWidget(modern::makeKnob(this, &controls->m_curveModel, tr("CURVE"),
-		tr("Release curve:"), "%"), 0, 4);
+		tr("Release curve:"), "%"), 0, 5);
 	shape->grid()->addWidget(modern::makeKnob(this, &controls->m_offsetModel, tr("OFFSET"),
-		tr("Phase offset:"), "%"), 0, 5);
+		tr("Phase offset:"), "%"), 0, 6);
 	sections->addWidget(shape);
 
 	auto band = new ModernSection(tr("Band"), this);
@@ -107,7 +109,7 @@ PumperShapeDisplay::PumperShapeDisplay(PumperControls* controls, QWidget* parent
 
 	for (Model* m : std::initializer_list<Model*>{&controls->m_depthModel, &controls->m_attackModel,
 		&controls->m_holdModel, &controls->m_releaseModel, &controls->m_curveModel, &controls->m_offsetModel,
-		&controls->m_rateModel})
+		&controls->m_rateModel, &controls->m_lengthModel})
 	{
 		connect(m, &Model::dataChanged, this, qOverload<>(&QWidget::update));
 	}
@@ -199,7 +201,8 @@ void PumperShapeDisplay::paintEvent(QPaintEvent*)
 	p.setPen(modern::dimTextColor());
 	const float depthDb = 20.f * std::log10(std::max(1.f - m_controls->m_depthModel.value() * 0.01f, 1e-4f));
 	p.drawText(area.adjusted(10, 6, -10, -6), Qt::AlignBottom | Qt::AlignRight,
-		tr("%1  ·  %2 dB").arg(m_controls->m_rateModel.currentText()).arg(depthDb, 0, 'f', 1));
+		tr("%1  ·  %2 dB").arg(m_controls->m_rateModel.value() < 8 ? m_controls->m_rateModel.currentText()
+			: tr("%1 beats").arg(m_controls->m_lengthModel.value(), 0, 'g', 3)).arg(depthDb, 0, 'f', 1));
 }
 
 

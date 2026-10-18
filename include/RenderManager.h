@@ -51,6 +51,7 @@ public:
 	void renderTracks();
 
 	void abortProcessing();
+	void setRenderTail(bool tail) { m_renderTail = tail; }
 
 signals:
 	void progressChanged( int );
@@ -74,6 +75,7 @@ private:
 
 	std::vector<Track*> m_tracksToRender;
 	std::vector<Track*> m_unmuted;
+	bool m_renderTail = true;
 } ;
 
 
