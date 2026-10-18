@@ -25,8 +25,11 @@
 
 #include "EnvelopeAndLfoView.h"
 
-#include <string_view>
+#include <cmath>
 
+#include <QHBoxLayout>
+#include <QPainter>
+#include <QPainterPath>
 #include <QSizePolicy>
 #include <QVBoxLayout>
 
@@ -34,9 +37,9 @@
 #include "LfoGraph.h"
 #include "EnvelopeAndLfoParameters.h"
 #include "Knob.h"
-#include "LedCheckBox.h"
 #include "DataFile.h"
-#include "PixmapButton.h"
+#include "embed.h"
+#include "ModernWidgets.h"
 #include "StringPairDrag.h"
 #include "TempoSyncKnob.h"
 #include "TextFloat.h"
@@ -48,143 +51,171 @@ namespace lmms
 namespace gui
 {
 
+namespace
+{
+
+//! Small glyphs for the LFO shape selector, in the order of EnvelopeAndLfoParameters::LfoShape
+void paintLfoShape(QPainter& p, const QRectF& r, int shape, const QColor& color)
+{
+	using Shape = EnvelopeAndLfoParameters::LfoShape;
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setPen(QPen(color, 1.3, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+	p.setBrush(Qt::NoBrush);
+
+	const qreal w = std::min(r.width(), 18.0);
+	const qreal l = r.center().x() - w / 2, t = r.top() + 1, h = r.height() - 2, b = t + h, m = t + h / 2;
+	QPainterPath path;
+	switch (static_cast<Shape>(shape))
+	{
+		case Shape::SineWave:
+			path.moveTo(l, m);
+			for (int i = 1; i <= 24; ++i)
+			{
+				path.lineTo(l + w * i / 24, m - std::sin(i / 24.0 * 2 * 3.14159265) * h / 2);
+			}
+			break;
+		case Shape::TriangleWave:
+			path.moveTo(l, m);
+			path.lineTo(l + w / 4, t);
+			path.lineTo(l + w * 3 / 4, b);
+			path.lineTo(l + w, m);
+			break;
+		case Shape::SawWave:
+			path.moveTo(l, b);
+			path.lineTo(l + w / 2, t);
+			path.lineTo(l + w / 2, b);
+			path.lineTo(l + w, t);
+			break;
+		case Shape::SquareWave:
+			path.moveTo(l, b);
+			path.lineTo(l, t);
+			path.lineTo(l + w / 2, t);
+			path.lineTo(l + w / 2, b);
+			path.lineTo(l + w, b);
+			path.lineTo(l + w, t);
+			break;
+		case Shape::UserDefinedWave:
+			// A free-hand squiggle
+			path.moveTo(l, m);
+			path.cubicTo(l + w * 0.2, t - 1, l + w * 0.3, b, l + w * 0.5, m);
+			path.cubicTo(l + w * 0.65, t + h * 0.2, l + w * 0.8, t, l + w, b - h * 0.2);
+			break;
+		case Shape::RandomWave:
+		default:
+		{
+			// Sample & hold steps
+			constexpr qreal levels[] = {0.6, 0.15, 0.85, 0.35, 0.7};
+			path.moveTo(l, t + h * levels[0]);
+			for (int i = 0; i < 5; ++i)
+			{
+				path.lineTo(l + w * (i + 1) / 5, t + h * levels[i]);
+				if (i < 4) { path.lineTo(l + w * (i + 1) / 5, t + h * levels[i + 1]); }
+			}
+			break;
+		}
+	}
+	p.drawPath(path);
+}
+
+} // namespace
+
 EnvelopeAndLfoView::EnvelopeAndLfoView(QWidget * parent) :
 	QWidget(parent),
 	ModelView(nullptr, this),
 	m_params(nullptr)
 {
-	// Helper lambdas for consistent repeated building of certain widgets
-	auto buildKnob = [&](const QString& label, const QString& hintText)
+	// Helper lambda for consistent repeated building of knobs
+	auto buildKnob = [&](const QString& label, const QString& hintText, const QString& toolTip)
 	{
-		auto knob = new Knob(KnobType::Bright26, label, this, Knob::LabelRendering::LegacyFixedFontSize);
+		auto knob = new Knob(KnobType::Modern, label, this);
 		knob->setHintText(hintText, "");
-		
+		knob->setToolTip(toolTip);
 		return knob;
 	};
 
-	auto buildPixmapButton = [&](std::string_view activePixmap, std::string_view inactivePixmap)
-	{
-		auto button = new PixmapButton(this, nullptr);
-		button->setActiveGraphic(embed::getIconPixmap(activePixmap));
-		button->setInactiveGraphic(embed::getIconPixmap(inactivePixmap));
-
-		return button;
-	};
-
 	QVBoxLayout* mainLayout = new QVBoxLayout(this);
-	mainLayout->setContentsMargins(5, 5, 5, 5);
+	mainLayout->setContentsMargins(0, 0, 0, 0);
+	mainLayout->setSpacing(3);
 
-	// Envelope
-
-	QVBoxLayout* envelopeLayout = new QVBoxLayout();
-	mainLayout->addLayout(envelopeLayout);
-
-	QHBoxLayout* graphAndAmountLayout = new QHBoxLayout();
-	envelopeLayout->addLayout(graphAndAmountLayout);
+	// Envelope: the editable graph with the knobs below
 
 	m_envelopeGraph = new EnvelopeGraph(this);
-	graphAndAmountLayout->addWidget(m_envelopeGraph);
-	m_envelopeGraph->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
-	m_amountKnob = buildKnob(tr("AMT"), tr("Modulation amount:"));
-	graphAndAmountLayout->addWidget(m_amountKnob, 0, Qt::AlignCenter);
+	mainLayout->addWidget(m_envelopeGraph, 3);
 
 	QHBoxLayout* envKnobsLayout = new QHBoxLayout();
-	envelopeLayout->addLayout(envKnobsLayout);
+	envKnobsLayout->setSpacing(0);
+	mainLayout->addLayout(envKnobsLayout);
 
-	m_predelayKnob = buildKnob(tr("DEL"), tr("Pre-delay:"));
-	envKnobsLayout->addWidget(m_predelayKnob);
-
-	m_attackKnob = buildKnob(tr("ATT"), tr("Attack:"));
-	envKnobsLayout->addWidget(m_attackKnob);
-
-	m_holdKnob = buildKnob(tr("HOLD"), tr("Hold:"));
-	envKnobsLayout->addWidget(m_holdKnob);
-
-	m_decayKnob = buildKnob(tr("DEC"), tr("Decay:"));
-	envKnobsLayout->addWidget(m_decayKnob);
-
-	m_sustainKnob = buildKnob(tr("SUST"), tr("Sustain:"));
-	envKnobsLayout->addWidget(m_sustainKnob);
-
-	m_releaseKnob = buildKnob(tr("REL"), tr("Release:"));
-	envKnobsLayout->addWidget(m_releaseKnob);
+	m_predelayKnob = buildKnob(tr("DEL"), tr("Pre-delay:"), tr("Time before the envelope starts"));
+	m_attackKnob = buildKnob(tr("ATT"), tr("Attack:"), tr("Time to rise to the peak"));
+	m_holdKnob = buildKnob(tr("HOLD"), tr("Hold:"), tr("Time the envelope stays at the peak"));
+	m_decayKnob = buildKnob(tr("DEC"), tr("Decay:"), tr("Time to fall to the sustain level"));
+	m_sustainKnob = buildKnob(tr("SUST"), tr("Sustain:"), tr("Level held while the note is down"));
+	m_releaseKnob = buildKnob(tr("REL"), tr("Release:"), tr("Time to fade out after the note ends"));
+	m_amountKnob = buildKnob(tr("AMT"), tr("Modulation amount:"), tr("How strongly the envelope affects the target"));
+	for (auto knob : {m_predelayKnob, m_attackKnob, m_holdKnob, m_decayKnob, m_sustainKnob, m_releaseKnob})
+	{
+		envKnobsLayout->addWidget(knob);
+		envKnobsLayout->addStretch(1);
+	}
+	envKnobsLayout->addSpacing(6);
+	envKnobsLayout->addWidget(m_amountKnob);
 
 
-	// Add some space between the envelope and LFO section
-	mainLayout->addSpacing(10);
+	mainLayout->addSpacing(5);
 
 
-	// LFO
+	// LFO: graph and shape selector on the left, knobs and options on the right
 
 	QHBoxLayout* lfoLayout = new QHBoxLayout();
-	mainLayout->addLayout(lfoLayout);
+	lfoLayout->setSpacing(6);
+	mainLayout->addLayout(lfoLayout, 2);
 
 	QVBoxLayout* graphAndTypesLayout = new QVBoxLayout();
-	lfoLayout->addLayout(graphAndTypesLayout);
+	graphAndTypesLayout->setSpacing(3);
+	lfoLayout->addLayout(graphAndTypesLayout, 1);
 
 	m_lfoGraph = new LfoGraph(this);
-	m_lfoGraph->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-	graphAndTypesLayout->addWidget(m_lfoGraph);
+	graphAndTypesLayout->addWidget(m_lfoGraph, 1);
 
-	QHBoxLayout* typesLayout = new QHBoxLayout();
-	graphAndTypesLayout->addLayout(typesLayout);
-	typesLayout->setContentsMargins(0, 0, 0, 0);
-	typesLayout->setSpacing(0);
+	m_lfoWaveSelector = new ModernSegmented(this);
+	m_lfoWaveSelector->setLabels({tr("Sine"), tr("Triangle"), tr("Saw"), tr("Square"), tr("User"), tr("Random")});
+	m_lfoWaveSelector->setToolTips({tr("Sine wave"), tr("Triangle wave"), tr("Saw wave"), tr("Square wave"),
+		tr("User-defined wave: drop a sample onto this tab"), tr("Random (sample & hold)")});
+	m_lfoWaveSelector->setItemPainter(paintLfoShape, 18);
+	graphAndTypesLayout->addWidget(m_lfoWaveSelector);
 
-	auto sin_lfo_btn = buildPixmapButton("sin_wave_active", "sin_wave_inactive");
-	auto triangle_lfo_btn = buildPixmapButton("triangle_wave_active", "triangle_wave_inactive");
-	auto saw_lfo_btn = buildPixmapButton("saw_wave_active", "saw_wave_inactive");
-	auto sqr_lfo_btn = buildPixmapButton("square_wave_active","square_wave_inactive");
-	auto random_lfo_btn = buildPixmapButton("random_wave_active", "random_wave_inactive");
-	m_userLfoBtn = buildPixmapButton("usr_wave_active", "usr_wave_inactive");
-
-	connect(m_userLfoBtn, SIGNAL(toggled(bool)), this, SLOT(lfoUserWaveChanged()));
-
-	typesLayout->addWidget(sin_lfo_btn);
-	typesLayout->addWidget(triangle_lfo_btn);
-	typesLayout->addWidget(saw_lfo_btn);
-	typesLayout->addWidget(sqr_lfo_btn);
-	typesLayout->addWidget(random_lfo_btn);
-	typesLayout->addWidget(m_userLfoBtn);
-
-	m_lfoWaveBtnGrp = new AutomatableButtonGroup(this);
-	m_lfoWaveBtnGrp->addButton(sin_lfo_btn);
-	m_lfoWaveBtnGrp->addButton(triangle_lfo_btn);
-	m_lfoWaveBtnGrp->addButton(saw_lfo_btn);
-	m_lfoWaveBtnGrp->addButton(sqr_lfo_btn);
-	m_lfoWaveBtnGrp->addButton(m_userLfoBtn);
-	m_lfoWaveBtnGrp->addButton(random_lfo_btn);
-
-	QVBoxLayout* knobsAndCheckBoxesLayout  = new QVBoxLayout();
+	QVBoxLayout* knobsAndCheckBoxesLayout = new QVBoxLayout();
+	knobsAndCheckBoxesLayout->setSpacing(3);
 	lfoLayout->addLayout(knobsAndCheckBoxesLayout);
 
 	QHBoxLayout* lfoKnobsLayout = new QHBoxLayout();
+	lfoKnobsLayout->setSpacing(0);
 	knobsAndCheckBoxesLayout->addLayout(lfoKnobsLayout);
 
-	m_lfoPredelayKnob = buildKnob(tr("DEL"), tr("Pre-delay:"));
-	lfoKnobsLayout->addWidget(m_lfoPredelayKnob);
-
-	m_lfoAttackKnob = buildKnob(tr("ATT"), tr("Attack:"));
-	lfoKnobsLayout->addWidget(m_lfoAttackKnob);
-
-	m_lfoSpeedKnob = new TempoSyncKnob(KnobType::Bright26, tr("SPD"), this, Knob::LabelRendering::LegacyFixedFontSize);
+	m_lfoPredelayKnob = buildKnob(tr("DEL"), tr("Pre-delay:"), tr("Time before the LFO starts"));
+	m_lfoAttackKnob = buildKnob(tr("ATT"), tr("Attack:"), tr("Time for the LFO to fade in"));
+	m_lfoSpeedKnob = new TempoSyncKnob(KnobType::Modern, tr("SPD"), this);
 	m_lfoSpeedKnob->setHintText(tr("Frequency:"), "");
-	lfoKnobsLayout->addWidget(m_lfoSpeedKnob);
+	m_lfoSpeedKnob->setToolTip(tr("LFO speed (right-click to sync to tempo)"));
+	m_lfoAmountKnob = buildKnob(tr("AMT"), tr("Modulation amount:"), tr("How strongly the LFO affects the target"));
+	for (auto knob : {m_lfoPredelayKnob, m_lfoAttackKnob, static_cast<Knob*>(m_lfoSpeedKnob), m_lfoAmountKnob})
+	{
+		lfoKnobsLayout->addWidget(knob);
+	}
+	knobsAndCheckBoxesLayout->addStretch(1);
 
-	m_lfoAmountKnob = buildKnob(tr("AMT"), tr("Modulation amount:"));
-	lfoKnobsLayout->addWidget(m_lfoAmountKnob);
-
-	QVBoxLayout* checkBoxesLayout = new QVBoxLayout();
+	QHBoxLayout* checkBoxesLayout = new QHBoxLayout();
+	checkBoxesLayout->setSpacing(3);
 	knobsAndCheckBoxesLayout->addLayout(checkBoxesLayout);
 
-	m_x100Cb = new LedCheckBox(tr("FREQ x 100"), this);
+	m_x100Cb = new ModernToggle(tr("×100"), this);
 	m_x100Cb->setToolTip(tr("Multiply LFO frequency by 100"));
-	checkBoxesLayout->addWidget(m_x100Cb);
+	checkBoxesLayout->addWidget(m_x100Cb, 1);
 
-	m_controlEnvAmountCb = new LedCheckBox(tr("MOD ENV AMOUNT"), this);
+	m_controlEnvAmountCb = new ModernToggle(tr("MOD ENV"), this);
 	m_controlEnvAmountCb->setToolTip(tr("Control envelope amount by this LFO"));
-	checkBoxesLayout->addWidget(m_controlEnvAmountCb);
+	checkBoxesLayout->addWidget(m_controlEnvAmountCb, 1);
 
 	setAcceptDrops(true);
 }
@@ -192,16 +223,14 @@ EnvelopeAndLfoView::EnvelopeAndLfoView(QWidget * parent) :
 
 
 
-EnvelopeAndLfoView::~EnvelopeAndLfoView()
-{
-	delete m_lfoWaveBtnGrp;
-}
+EnvelopeAndLfoView::~EnvelopeAndLfoView() = default;
 
 
 
 
 void EnvelopeAndLfoView::modelChanged()
 {
+	if (m_params) { m_params->getLfoWaveModel().disconnect(this); }
 	m_params = castModel<EnvelopeAndLfoParameters>();
 	m_envelopeGraph->setModel(m_params);
 	m_predelayKnob->setModel( &m_params->m_predelayModel );
@@ -217,9 +246,11 @@ void EnvelopeAndLfoView::modelChanged()
 	m_lfoAttackKnob->setModel( &m_params->m_lfoAttackModel );
 	m_lfoSpeedKnob->setModel( &m_params->m_lfoSpeedModel );
 	m_lfoAmountKnob->setModel( &m_params->m_lfoAmountModel );
-	m_lfoWaveBtnGrp->setModel( &m_params->m_lfoWaveModel );
+	m_lfoWaveSelector->setModel( &m_params->m_lfoWaveModel );
 	m_x100Cb->setModel( &m_params->m_x100Model );
 	m_controlEnvAmountCb->setModel( &m_params->m_controlEnvAmountModel );
+
+	connect(&m_params->m_lfoWaveModel, &IntModel::dataChanged, this, &EnvelopeAndLfoView::lfoUserWaveChanged);
 }
 
 
@@ -242,7 +273,6 @@ void EnvelopeAndLfoView::dropEvent( QDropEvent * _de )
 	if( type == "samplefile" )
 	{
 		m_params->m_userWave = SampleBuffer::fromFile(value);
-		m_userLfoBtn->model()->setValue( true );
 		m_params->m_lfoWaveModel.setValue(static_cast<int>(EnvelopeAndLfoParameters::LfoShape::UserDefinedWave));
 		_de->accept();
 		update();
@@ -254,7 +284,6 @@ void EnvelopeAndLfoView::dropEvent( QDropEvent * _de )
 					firstChildElement().firstChildElement().
 					firstChildElement().attribute("src");
 		m_params->m_userWave = SampleBuffer::fromFile(file);
-		m_userLfoBtn->model()->setValue( true );
 		m_params->m_lfoWaveModel.setValue(static_cast<int>(EnvelopeAndLfoParameters::LfoShape::UserDefinedWave));
 		_de->accept();
 		update();
@@ -266,6 +295,8 @@ void EnvelopeAndLfoView::dropEvent( QDropEvent * _de )
 
 void EnvelopeAndLfoView::lfoUserWaveChanged()
 {
+	// Only hint when the user picks the shape, not when a project or preset loads
+	if (!isVisible()) { return; }
 	if( static_cast<EnvelopeAndLfoParameters::LfoShape>(m_params->m_lfoWaveModel.value()) ==
 				EnvelopeAndLfoParameters::LfoShape::UserDefinedWave )
 	{

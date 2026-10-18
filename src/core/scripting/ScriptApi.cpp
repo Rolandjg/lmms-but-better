@@ -40,6 +40,7 @@
 #include "AutomatableModel.h"
 #include "AutomationClip.h"
 #include "AutomationTrack.h"
+#include "FunctionGenerator.h"
 #include "ComboBoxModel.h"
 #include "ConfigManager.h"
 #include "DataFile.h"
@@ -189,6 +190,77 @@ QString trackTypeName(Track::Type t)
 	case Track::Type::HiddenAutomation: return "hidden_automation";
 	default: return "other";
 	}
+}
+
+FunctionGenerator::Curve parseCurve(const QJsonObject& p, const char* key)
+{
+	FunctionGenerator::Curve curve;
+	for (const auto& v : p.value(key).toArray())
+	{
+		const auto pt = v.toArray();
+		if (pt.size() < 2) { throw ScriptError(QString("%1 points are [x, y] with both between 0 and 1").arg(key)); }
+		curve.points.emplace_back(pt[0].toDouble(), pt[1].toDouble());
+	}
+	curve.normalise();
+	return curve;
+}
+
+FunctionGenerator parseGenerator(const QJsonObject& p, const AutomationClip* clip)
+{
+	using Shape = FunctionGenerator::Shape;
+	FunctionGenerator g;
+	g.low = clip->getMin();
+	g.high = clip->getMax();
+
+	static const struct { const char* name; Shape shape; } shapes[] = {
+		{"sine", Shape::Sine}, {"triangle", Shape::Triangle}, {"saw", Shape::SawUp}, {"saw_up", Shape::SawUp},
+		{"saw_down", Shape::SawDown}, {"square", Shape::Square}, {"pulse", Shape::Square},
+		{"noise", Shape::Noise}, {"random", Shape::Noise}, {"smooth_noise", Shape::SmoothNoise},
+		{"smooth_random", Shape::SmoothNoise}, {"custom", Shape::Custom},
+	};
+	if (has(p, "expression"))
+	{
+		g.expression = str(p, "expression").toStdString();
+		g.shape = Shape::Custom;
+		const std::string error = g.expressionError();
+		if (!error.empty()) { throw ScriptError(QString("bad expression: %1").arg(QString::fromStdString(error))); }
+	}
+	if (has(p, "shape"))
+	{
+		const QString name = str(p, "shape").toLower();
+		bool found = false;
+		for (const auto& s : shapes)
+		{
+			if (name == s.name)
+			{
+				g.shape = s.shape;
+				found = true;
+			}
+		}
+		if (!found)
+		{
+			throw ScriptError(QString("unknown shape \"%1\" (sine, triangle, saw_up, saw_down, square, noise, smooth_noise, "
+				"or pass expression=)").arg(name));
+		}
+		if (g.shape == Shape::Custom && !has(p, "expression")) { throw ScriptError("shape \"custom\" needs expression="); }
+	}
+
+	g.cycles = num(p, "cycles", g.cycles);
+	if (g.cycles <= 0.0) { throw ScriptError("cycles must be positive"); }
+	g.phase = num(p, "phase", g.phase);
+	g.symmetry = std::clamp(num(p, "symmetry", g.symmetry), 0.01, 0.99);
+	g.bend = std::clamp(num(p, "bend", g.bend), -1.0, 1.0);
+	g.steps = static_cast<int>(num(p, "steps", g.steps));
+	g.cells = std::clamp(static_cast<int>(num(p, "cells", g.cells)), 1, 256);
+	g.detail = std::clamp(static_cast<int>(num(p, "detail", g.detail)), 2, 256);
+	g.seed = static_cast<unsigned>(num(p, "seed", g.seed));
+	g.invert = flag(p, "invert", g.invert);
+	g.low = static_cast<float>(num(p, "low", g.low));
+	g.high = static_cast<float>(num(p, "high", g.high));
+	g.frequencyRange = std::clamp(num(p, "frequency_range", g.frequencyRange), 0.1, 6.0);
+	if (has(p, "amplitude")) { g.amplitude = parseCurve(p, "amplitude"); }
+	if (has(p, "frequency")) { g.frequency = parseCurve(p, "frequency"); }
+	return g;
 }
 
 Track::Type parseTrackType(const QString& s)
@@ -1523,6 +1595,32 @@ void ScriptApi::registerClipMethods()
 		}
 		markModified();
 		return describeClip(this, clip);
+	});
+
+	add("clip.generate", "Fill an automation clip with a generated wave. shape (sine|triangle|saw_up|saw_down|square|noise|smooth_noise) "
+		"or expression (math in p, t, n; result -1..1), cycles, phase (0..1), symmetry, bend (-1..1), steps, cells, detail, seed, "
+		"invert, low, high (default: the parameter's range), amplitude / frequency: graphs over the clip as [[x, y], ...] "
+		"with x and y in 0..1 (amplitude 1 = full swing; frequency 0.5 = unchanged), frequency_range (octaves)",
+		[this](const QJsonObject& p) {
+		auto clip = object<AutomationClip>(this, p, "id", "automation clip");
+		if (clip->length() <= 0) { throw ScriptError("the clip has no length"); }
+		const FunctionGenerator generator = parseGenerator(p, clip);
+		if (has(p, "target")) { clip->addObject(object<AutomatableModel>(this, p, "target", "parameter")); }
+		if (has(p, "progression"))
+		{
+			const QString prog = str(p, "progression");
+			if (prog == "linear") { clip->setProgressionType(AutomationClip::ProgressionType::Linear); }
+			else if (prog == "cubic") { clip->setProgressionType(AutomationClip::ProgressionType::CubicHermite); }
+			else if (prog == "discrete") { clip->setProgressionType(AutomationClip::ProgressionType::Discrete); }
+			else { throw ScriptError("progression must be discrete, linear or cubic"); }
+		}
+		const bool discrete = has(p, "progression") && clip->progressionType() == AutomationClip::ProgressionType::Discrete;
+		const int nodes = clip->generate(generator);
+		if (discrete) { clip->setProgressionType(AutomationClip::ProgressionType::Discrete); }
+		markModified();
+		auto o = describeClip(this, clip);
+		o["nodes"] = nodes;
+		return o;
 	});
 
 	add("clip.open", "Open a clip in its editor (piano roll / automation editor); GUI only", [this](const QJsonObject& p) {

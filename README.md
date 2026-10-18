@@ -97,6 +97,19 @@ Building
 
 See [Compiling LMMS](https://github.com/LMMS/lmms/wiki/Compiling)
 
+**Missing instruments (SF2 Player, VeSTige, ...)?** The instruments panel only lists plugins that were built.
+If `PLUGIN_LIST` is set or `LMMS_MINIMAL` is `ON` in your CMake cache (e.g. left over from a quick dev build),
+every plugin not on the list, including SF2 Player, VeSTige, GIG Player, Sid and ZynAddSubFx, is silently
+skipped (`LMMS_MINIMAL` builds only AudioFileProcessor, Kicker and TripleOscillator). Check with
+`grep -E "PLUGIN_LIST|LMMS_MINIMAL" build/CMakeCache.txt`, then reset both and rebuild:
+
+```
+cd build && cmake -DLMMS_MINIMAL=OFF -DPLUGIN_LIST="" .. && ninja
+```
+
+SF2 Player also needs the FluidSynth development package (2.2.0 or newer), and the Windows VST hosts need
+Wine; the `cmake` summary lists what was found.
+
 Join LMMS-development
 ----------------------
 

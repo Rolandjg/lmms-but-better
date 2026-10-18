@@ -56,6 +56,7 @@ SET(LMMS_SRCS
 
 	gui/editors/AutomationEditor.cpp
 	gui/editors/Editor.cpp
+	gui/editors/FunctionGeneratorDialog.cpp
 	gui/editors/PatternEditor.cpp
 	gui/editors/PianoRoll.cpp
 	gui/editors/PositionLine.cpp

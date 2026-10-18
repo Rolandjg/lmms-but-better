@@ -29,6 +29,7 @@
 #include "DeprecationHelper.h"
 #include "embed.h"
 #include "FontHelper.h"
+#include "ModernWidgets.h"
 
 namespace lmms::gui
 {
@@ -40,11 +41,23 @@ GroupBox::GroupBox( const QString & _caption, QWidget * _parent ) :
 	m_caption( _caption ),
 	m_titleBarHeight( 11 )
 {
+	// Square LEDs, drawn to match the flat section headers (ModernHeader)
+	auto ledPixmap = [](bool on)
+	{
+		QPixmap pixmap(11, 11);
+		pixmap.fill(Qt::transparent);
+		QPainter p(&pixmap);
+		p.setPen(on ? modern::accentColor() : modern::dimTextColor());
+		p.setBrush(on ? modern::accentColor() : Qt::transparent);
+		p.drawRect(1, 1, 8, 8);
+		return pixmap;
+	};
 	m_led = new PixmapButton( this, _caption );
 	m_led->setCheckable( true );
-	m_led->move( 3, 0 );
-	m_led->setActiveGraphic( embed::getIconPixmap( "led_green" ) );
-	m_led->setInactiveGraphic( embed::getIconPixmap( "led_off" ) );
+	m_led->move( 3, 1 );
+	m_led->setActiveGraphic(ledPixmap(true));
+	m_led->setInactiveGraphic(ledPixmap(false));
+	m_led->setCursor(Qt::PointingHandCursor);
 
 	setModel( new BoolModel( false, nullptr, _caption, true ) );
 	setAutoFillBackground( true );
@@ -98,21 +111,28 @@ void GroupBox::paintEvent( QPaintEvent * pe )
 	QPainter p( this );
 
 	// Draw background
-	p.fillRect( 0, 0, width() - 1, height() - 1, p.background() );
+	p.fillRect( 0, 0, width(), height(), p.background() );
 
-	// outer rect
-	p.setPen( p.background().color().darker( 150 ) );
-	p.drawRect( 0, 0, width() - 1, height() - 1 );
+	// Flat header: small bold caps followed by a hairline, no box
+	auto f = adjustedToPixelSize(font(), SMALL_FONT_SIZE);
+	f.setBold(true);
+	f.setLetterSpacing(QFont::AbsoluteSpacing, 0.6);
+	p.setFont(f);
+	const auto fm = QFontMetrics(f);
+	const int baseline = (m_titleBarHeight + 2 + fm.capHeight()) / 2 + 1;
 
-	// draw line below titlebar
-	p.fillRect( 1, 1, width() - 2, m_titleBarHeight + 1, p.background().color().darker( 150 ) );
+	const bool on = !ledButtonShown() || (model() && model()->value());
+	p.setPen(on ? modern::textColor() : modern::dimTextColor());
+	int const captionX = ledButtonShown() ? 18 : 4;
+	p.drawText(captionX, baseline, m_caption);
 
-	// draw text
-	p.setPen( palette().color( QPalette::Active, QPalette::Text ) );
-	p.setFont(adjustedToPixelSize(font(), DEFAULT_FONT_SIZE));
-
-	int const captionX = ledButtonShown() ? 22 : 6;
-	p.drawText(captionX, m_titleBarHeight, m_caption);
+	const int lineX = captionX + fm.horizontalAdvance(m_caption) + 6;
+	if (lineX < width() - 4)
+	{
+		p.setPen(QColor(255, 255, 255, 18));
+		const int y = baseline - fm.capHeight() / 2;
+		p.drawLine(lineX, y, width() - 4, y);
+	}
 }
 
 

@@ -25,7 +25,9 @@
 
 #include "Kicker.h"
 
+#include <QBoxLayout>
 #include <QDomElement>
+#include <QGridLayout>
 #include <QPainter>
 #include <QPainterPath>
 #include <cmath>
@@ -35,7 +37,7 @@
 #include "FontHelper.h"
 #include "InstrumentTrack.h"
 #include "Knob.h"
-#include "LedCheckBox.h"
+#include "ModernWidgets.h"
 #include "NotePlayHandle.h"
 #include "KickerOsc.h"
 #include "TempoSyncKnob.h"
@@ -267,51 +269,10 @@ namespace gui
 {
 
 
-class KickerKnob : public Knob
-{
-public:
-	KickerKnob( QWidget * _parent ) :
-			Knob( KnobType::Styled, _parent )
-	{
-		setFixedSize( 29, 29 );
-		setObjectName( "smallKnob" );
-	}
-};
-
-
-class KickerEnvKnob : public TempoSyncKnob
-{
-public:
-	KickerEnvKnob( QWidget * _parent ) :
-			TempoSyncKnob( KnobType::Styled, _parent )
-	{
-		setFixedSize( 29, 29 );
-		setObjectName( "smallKnob" );
-	}
-};
-
-
-class KickerLargeKnob : public Knob
-{
-public:
-	KickerLargeKnob( QWidget * _parent ) :
-			Knob( KnobType::Styled, _parent )
-	{
-		setFixedSize( 34, 34 );
-		setObjectName( "largeKnob" );
-	}
-};
-
-
-
-
 namespace
 {
 
-constexpr int PreviewTop = 176;
-const QColor KickerBlue(81, 159, 255);
-
-//! Engraved screen showing the rendered kick (blue) and its pitch sweep (pale line)
+//! Screen showing the rendered kick and its pitch sweep (dashed line)
 class KickerPreview : public QWidget
 {
 public:
@@ -340,23 +301,8 @@ protected:
 
 		QPainter p(this);
 		p.setRenderHint(QPainter::Antialiasing);
-		const QRectF outer = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
-
-		// Engraved bevel like the panels of the artwork: dark top-left, light bottom-right
-		p.setPen(QPen(QColor(90, 94, 98), 1));
-		p.drawLine(outer.topLeft(), outer.topRight());
-		p.drawLine(outer.topLeft(), outer.bottomLeft());
-		p.setPen(QPen(QColor(235, 237, 240), 1));
-		p.drawLine(outer.bottomLeft(), outer.bottomRight());
-		p.drawLine(outer.topRight(), outer.bottomRight());
-
-		const QRectF screen = outer.adjusted(1.5, 1.5, -1.5, -1.5);
-		QLinearGradient bg(0, screen.top(), 0, screen.bottom());
-		bg.setColorAt(0, QColor(12, 16, 22));
-		bg.setColorAt(1, QColor(26, 33, 42));
-		p.setPen(Qt::NoPen);
-		p.setBrush(bg);
-		p.drawRoundedRect(screen, 3, 3);
+		modern::paintDisplay(p, rect(), 8, 0);
+		const QRectF screen = QRectF(rect()).adjusted(1, 1, -1, -1);
 
 		const double mid = screen.center().y();
 		const double half = screen.height() / 2.0 - 4.0;
@@ -388,10 +334,10 @@ protected:
 			for (auto it = lower.rbegin(); it != lower.rend(); ++it) { wave.lineTo(*it); }
 			wave.closeSubpath();
 
-			QColor fill = KickerBlue;
-			fill.setAlpha(170);
+			QColor fill = modern::accentColor();
+			fill.setAlpha(110);
 			p.setBrush(fill);
-			p.setPen(QPen(KickerBlue.lighter(130), 0.8));
+			p.setPen(QPen(modern::accentColor(), 0.8));
 			p.drawPath(wave);
 		}
 
@@ -414,11 +360,11 @@ protected:
 			if (i == 0) { pitch.moveTo(pt); } else { pitch.lineTo(pt); }
 		}
 		p.setBrush(Qt::NoBrush);
-		p.setPen(QPen(QColor(230, 240, 255, 200), 1.2, Qt::DashLine));
+		p.setPen(QPen(QColor(220, 226, 234, 190), 1.2, Qt::DashLine));
 		p.drawPath(pitch);
 
 		p.setFont(adjustedToPixelSize(font(), SMALL_FONT_SIZE));
-		p.setPen(QColor(170, 205, 255));
+		p.setPen(modern::dimTextColor());
 		p.drawText(QRectF(screen.left() + 6, screen.top() + 3, 140, 12), Qt::AlignLeft | Qt::AlignVCenter,
 			QObject::tr("%1 Hz → %2 Hz").arg(qRound(startFreq)).arg(qRound(endFreq)));
 		p.drawText(QRectF(screen.right() - 86, screen.bottom() - 15, 80, 12), Qt::AlignRight | Qt::AlignVCenter,
@@ -438,85 +384,88 @@ private:
 
 
 
-void KickerInstrumentView::paintEvent(QPaintEvent*)
-{
-	// The original artwork is split just above the logo panel to make room for the preview,
-	// and the gap is filled with the brushed metal in between the panels
-	static const auto artwork = PLUGIN_NAME::getIconPixmap("artwork");
-	QPainter p(this);
-	p.drawPixmap(0, 0, artwork, 0, 0, 250, PreviewTop);
-	p.drawPixmap(QRect(0, PreviewTop, 250, PreviewHeight), artwork, QRect(0, PreviewTop, 250, 2));
-	p.drawPixmap(0, PreviewTop + PreviewHeight, artwork, 0, PreviewTop, 250, 250 - PreviewTop);
-}
-
-
-
-
 KickerInstrumentView::KickerInstrumentView( Instrument * _instrument,
 							QWidget * _parent ) :
 	InstrumentView( _instrument, _parent )
 {
-	setFixedSize(sizeHint());
+	modern::applyWindowStyle(this);
+
+	auto knob = [this](const QString& label, const QString& hint, const QString& unit, const QString& tip)
+	{
+		auto k = new Knob(KnobType::Modern, label, this);
+		k->setHintText(hint, unit);
+		k->setToolTip(tip);
+		return k;
+	};
+	// A titled group of controls laid out in a grid
+	auto group = [this](const QString& title, QGridLayout*& grid)
+	{
+		auto layout = new QVBoxLayout();
+		layout->setSpacing(3);
+		layout->addWidget(new ModernHeader(title, this));
+		grid = new QGridLayout();
+		grid->setHorizontalSpacing(2);
+		grid->setVerticalSpacing(3);
+		grid->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+		layout->addLayout(grid);
+		return layout;
+	};
+
+	auto mainLayout = new QVBoxLayout(this);
+	mainLayout->setContentsMargins(6, 6, 6, 6);
+	mainLayout->setSpacing(8);
+
 	m_preview = new KickerPreview(castModel<KickerInstrument>(), this);
-	m_preview->setGeometry(9, PreviewTop + 2, 232, PreviewHeight - 4);
+	m_preview->setFixedHeight(76);
+	mainLayout->addWidget(m_preview);
 
-	const int ROW1 = 14;
-	const int ROW2 = ROW1 + 56;
-	const int ROW3 = ROW2 + 56;
-	const int LED_ROW = 63;
-	const int COL1 = 14;
-	const int COL2 = COL1 + 56;
-	const int COL3 = COL2 + 56;
-	const int COL4 = COL3 + 41;
-	const int COL5 = COL4 + 41;
-	const int END_COL = COL1 + 48;
-	
-	m_startFreqKnob = new KickerLargeKnob( this );
-	m_startFreqKnob->setHintText( tr( "Start frequency:" ), "Hz" );
-	m_startFreqKnob->move( COL1, ROW1 );
+	m_startFreqKnob = knob(tr("START"), tr("Start frequency:"), "Hz", tr("Pitch at the start of the kick"));
+	m_endFreqKnob = knob(tr("END"), tr("End frequency:"), "Hz", tr("Pitch the kick falls to"));
+	m_slopeKnob = knob(tr("SLOPE"), tr("Frequency slope:"), "", tr("How quickly the pitch falls"));
+	m_startNoteToggle = new ModernToggle(tr("NOTE"), this);
+	m_startNoteToggle->setToolTip(tr("Start at the pitch of the played note"));
+	m_endNoteToggle = new ModernToggle(tr("NOTE"), this);
+	m_endNoteToggle->setToolTip(tr("End at the pitch of the played note"));
 
-	m_endFreqKnob = new KickerLargeKnob( this );
-	m_endFreqKnob->setHintText( tr( "End frequency:" ), "Hz" );
-	m_endFreqKnob->move( END_COL, ROW1 );
+	m_clickKnob = knob(tr("CLICK"), tr("Click:"), "", tr("Snap at the very start"));
+	m_noiseKnob = knob(tr("NOISE"), tr("Noise:"), "", tr("Noise mixed into the kick"));
 
-	m_slopeKnob = new KickerKnob( this );
-	m_slopeKnob->setHintText( tr( "Frequency slope:" ), "" );
-	m_slopeKnob->move( COL3, ROW1 );
+	m_gainKnob = knob(tr("GAIN"), tr("Gain:"), "", tr("Output level"));
+	m_decayKnob = new TempoSyncKnob(KnobType::Modern, tr("LENGTH"), this);
+	m_decayKnob->setHintText(tr("Envelope length:"), "ms");
+	m_decayKnob->setToolTip(tr("Length of the kick (right-click to sync to tempo)"));
+	m_envKnob = knob(tr("SLOPE"), tr("Envelope slope:"), "", tr("Shape of the volume decay"));
 
-	m_gainKnob = new KickerKnob( this );
-	m_gainKnob->setHintText( tr( "Gain:" ), "" );
-	m_gainKnob->move( COL1, ROW3 );
+	m_distKnob = knob(tr("START"), tr("Start distortion:"), "", tr("Distortion at the start"));
+	m_distEndKnob = knob(tr("END"), tr("End distortion:"), "", tr("Distortion at the end"));
 
-	m_decayKnob = new KickerEnvKnob( this );
-	m_decayKnob->setHintText( tr( "Envelope length:" ), "ms" );
-	m_decayKnob->move( COL2, ROW3 );
+	QGridLayout* grid = nullptr;
+	auto topRow = new QHBoxLayout();
+	topRow->setSpacing(10);
+	topRow->addLayout(group(tr("PITCH"), grid), 3);
+	grid->addWidget(m_startFreqKnob, 0, 0, Qt::AlignHCenter);
+	grid->addWidget(m_endFreqKnob, 0, 1, Qt::AlignHCenter);
+	grid->addWidget(m_slopeKnob, 0, 2, Qt::AlignHCenter);
+	grid->addWidget(m_startNoteToggle, 1, 0);
+	grid->addWidget(m_endNoteToggle, 1, 1);
+	topRow->addLayout(group(tr("TONE"), grid), 2);
+	grid->addWidget(m_clickKnob, 0, 0, Qt::AlignHCenter);
+	grid->addWidget(m_noiseKnob, 0, 1, Qt::AlignHCenter);
+	mainLayout->addLayout(topRow);
 
-	m_envKnob = new KickerKnob( this );
-	m_envKnob->setHintText( tr( "Envelope slope:" ), "" );
-	m_envKnob->move( COL3, ROW3 );
+	auto bottomRow = new QHBoxLayout();
+	bottomRow->setSpacing(10);
+	bottomRow->addLayout(group(tr("ENVELOPE"), grid), 3);
+	grid->addWidget(m_gainKnob, 0, 0, Qt::AlignHCenter);
+	grid->addWidget(m_decayKnob, 0, 1, Qt::AlignHCenter);
+	grid->addWidget(m_envKnob, 0, 2, Qt::AlignHCenter);
+	bottomRow->addLayout(group(tr("DISTORTION"), grid), 2);
+	grid->addWidget(m_distKnob, 0, 0, Qt::AlignHCenter);
+	grid->addWidget(m_distEndKnob, 0, 1, Qt::AlignHCenter);
+	mainLayout->addLayout(bottomRow);
 
-	m_clickKnob = new KickerKnob( this );
-	m_clickKnob->setHintText( tr( "Click:" ), "" );
-	m_clickKnob->move( COL5, ROW1 );
-
-	m_noiseKnob = new KickerKnob( this );
-	m_noiseKnob->setHintText( tr( "Noise:" ), "" );
-	m_noiseKnob->move( COL5, ROW3 );
-
-	m_distKnob = new KickerKnob( this );
-	m_distKnob->setHintText( tr( "Start distortion:" ), "" );
-	m_distKnob->move( COL4, ROW2 );
-
-	m_distEndKnob = new KickerKnob( this );
-	m_distEndKnob->setHintText( tr( "End distortion:" ), "" );
-	m_distEndKnob->move( COL5, ROW2 );
-
-	m_startNoteToggle = new LedCheckBox( "", this, "", LedCheckBox::LedColor::Green );
-	m_startNoteToggle->move( COL1 + 8, LED_ROW );
-
-	m_endNoteToggle = new LedCheckBox( "", this, "", LedCheckBox::LedColor::Green );
-	m_endNoteToggle->move( END_COL + 8, LED_ROW );
-
+	mainLayout->addStretch(1);
+	setFixedSize(250, mainLayout->sizeHint().height());
 }
 
 

@@ -191,6 +191,10 @@ public:
 
 	void processNote( NotePlayHandle* n );
 
+	//! Index into the octave-extended chord of the note played at arpeggio step @p step.
+	//! @p range is the number of chord notes times range times repeats. Not for ArpDirection::Random.
+	static int noteIndexForStep(int step, ArpDirection dir, int range, float repeats, float cycle);
+
 
 	void saveSettings( QDomDocument & _doc, QDomElement & _parent ) override;
 	void loadSettings( const QDomElement & _this ) override;

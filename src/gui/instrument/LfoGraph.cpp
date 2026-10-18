@@ -27,10 +27,12 @@
 
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 
 #include "EnvelopeAndLfoParameters.h"
 #include "Oscillator.h"
 #include "ColorHelper.h"
+#include "ModernWidgets.h"
 
 #include "FontHelper.h"
 
@@ -45,18 +47,47 @@ namespace gui
 LfoGraph::LfoGraph(QWidget* parent) :
 	QWidget(parent),
 	ModelView(nullptr, this),
-	m_noAmountColor(96, 91, 96),
-	m_fullAmountColor(0, 255, 128)
+	m_noAmountColor(96, 101, 110),
+	m_fullAmountColor(modern::accentColor())
 {
-	setMinimumSize(m_lfoGraph.size());
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+	setCursor(Qt::SizeVerCursor);
+	setToolTip(tr("Drag up or down to set the LFO amount, double-click to switch it on/off.\n"
+		"Drop a sample here to use it as the LFO wave."));
 }
 
 void LfoGraph::mousePressEvent(QMouseEvent* me)
 {
-	if (me->button() == Qt::LeftButton)
-	{
-		toggleAmountModel();
-	}
+	auto* params = castModel<EnvelopeAndLfoParameters>();
+	if (me->button() != Qt::LeftButton || !params) { return; }
+	auto& amountModel = params->getLfoAmountModel();
+	m_dragging = true;
+	m_dragStartY = me->pos().y();
+	m_dragStartAmount = amountModel.value();
+	amountModel.addJournalCheckPoint();
+	amountModel.saveJournallingState(false);
+}
+
+void LfoGraph::mouseMoveEvent(QMouseEvent* me)
+{
+	auto* params = castModel<EnvelopeAndLfoParameters>();
+	if (!m_dragging || !params) { return; }
+	const float fine = me->modifiers() & Qt::ShiftModifier ? 0.1f : 1.f;
+	// 100 pixels span the whole amount range of -1..1, independent of the display size
+	const float delta = (m_dragStartY - me->pos().y()) / 50.f * fine;
+	params->getLfoAmountModel().setValue(m_dragStartAmount + delta);
+}
+
+void LfoGraph::mouseReleaseEvent(QMouseEvent*)
+{
+	auto* params = castModel<EnvelopeAndLfoParameters>();
+	if (m_dragging && params) { params->getLfoAmountModel().restoreJournallingState(); }
+	m_dragging = false;
+}
+
+void LfoGraph::mouseDoubleClickEvent(QMouseEvent* me)
+{
+	if (me->button() == Qt::LeftButton) { toggleAmountModel(); }
 }
 
 void LfoGraph::paintEvent(QPaintEvent*)
@@ -64,8 +95,7 @@ void LfoGraph::paintEvent(QPaintEvent*)
 	QPainter p{this};
 	p.setRenderHint(QPainter::Antialiasing);
 
-	// Draw the graph background
-	p.drawPixmap(rect(), m_lfoGraph);
+	modern::paintDisplay(p, rect(), 8, 2);
 
 	const auto* params = castModel<EnvelopeAndLfoParameters>();
 	if (!params) { return; }
@@ -79,11 +109,11 @@ void LfoGraph::paintEvent(QPaintEvent*)
 	const int lfoWaveModel = params->getLfoWaveModel().value();
 	const auto * userWave = params->getLfoUserWave().get();
 
-	const int margin = 3;
-	const int lfoGraphWidth = width() - margin; // subtract margin
-	const int lfoGraphHeight = height() - 2 * margin; // subtract margin
-	int graphBaseX = 2;
-	int graphBaseY = margin + lfoGraphHeight / 2;
+	const int margin = 5;
+	const int lfoGraphWidth = width() - 2 * margin;
+	const int lfoGraphHeight = height() - 2 * margin;
+	const int graphBaseX = margin;
+	const int graphBaseY = margin + lfoGraphHeight / 2;
 
 	const float framesForGraph =
 		SECS_PER_LFO_OSCILLATION * Engine::audioEngine()->baseSampleRate() / 10;
@@ -91,7 +121,6 @@ void LfoGraph::paintEvent(QPaintEvent*)
 	float oscFrames = oscillationFrames * (x100 ? 100. : 1.);
 
 	QPolygonF polyLine;
-	polyLine << QPointF(graphBaseX - 1, graphBaseY);
 
 	// Collect the points for the poly line by sampling the LFO according to its shape
 	for (int x = 0; x <= lfoGraphWidth; ++x)
@@ -138,7 +167,8 @@ void LfoGraph::paintEvent(QPaintEvent*)
 			}
 		}
 
-		const float currentY = -lfoGraphHeight / 2.0f * value;
+		// The wave is scaled by the amount, so the display shows how far the LFO swings
+		const float currentY = -lfoGraphHeight / 2.0f * value * (amount == 0.f ? 1.f : amount);
 
 		polyLine << QPointF(graphBaseX + x, graphBaseY + currentY);
 	}
@@ -147,40 +177,42 @@ void LfoGraph::paintEvent(QPaintEvent*)
 	const float absAmount = std::abs(amount);
 	const QColor lineColor{ColorHelper::interpolateInRgb(m_noAmountColor, m_fullAmountColor, absAmount)};
 
-	p.setPen(QPen(lineColor, 1.5));
+	QPainterPath area;
+	area.moveTo(graphBaseX, graphBaseY);
+	area.addPolygon(polyLine);
+	area.lineTo(graphBaseX + lfoGraphWidth, graphBaseY);
+	area.closeSubpath();
+	QColor fill = lineColor;
+	fill.setAlpha(amount == 0.f ? 14 : 34);
+	p.fillPath(area, fill);
 
+	p.setPen(QPen(lineColor, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
 	p.drawPolyline(polyLine);
 
-	drawInfoText(*params);
+	drawInfoText(p, *params);
 }
 
-void LfoGraph::drawInfoText(const EnvelopeAndLfoParameters& params)
+void LfoGraph::drawInfoText(QPainter& p, const EnvelopeAndLfoParameters& params)
 {
-	QPainter p(this);
-
 	const float lfoSpeed = params.getLfoSpeedModel().value();
 	const bool x100 = params.getX100Model().value();
+	const float amount = params.getLfoAmountModel().value();
 
 	const float hertz = 1. / (SECS_PER_LFO_OSCILLATION * lfoSpeed) * (x100 ? 100. : 1.);
-	const auto infoText = tr("%1 Hz").arg(hertz, 0, 'f', 3);
+	const auto infoText = m_dragging
+		? tr("AMT %1%").arg(qRound(amount * 100))
+		: (amount == 0.f ? tr("OFF · %1 Hz") : tr("%1 Hz")).arg(hertz, 0, 'f', hertz < 10 ? 2 : 1);
 
-	// First configure the font so that we get correct results for the font metrics used below
-	QFont f = p.font();
-	p.setFont(adjustedToPixelSize(f, height() * 0.2));
-
-	// This is the position where the text and its rectangle will be rendered
-	const QPoint textPosition(4, height() - 6);
-
-	// Draw a slightly transparent black rectangle underneath the text to keep it legible
-	const QFontMetrics fontMetrics(f);
-	// This gives the bounding rectangle if the text was rendered at the origin ...
-	const auto boundingRect = fontMetrics.boundingRect(infoText);
-	// ... so we translate it to the actual position where the text will be rendered.
-	p.fillRect(boundingRect.translated(textPosition), QColor{0, 0, 0, 192});
-
-	// Now draw the actual info text
-	p.setPen(QColor(201, 201, 225));
-	p.drawText(textPosition, infoText);
+	const auto f = adjustedToPixelSize(font(), SMALL_FONT_SIZE);
+	p.setFont(f);
+	const auto fm = QFontMetrics(f);
+	const int chipWidth = fm.horizontalAdvance(infoText) + 8;
+	const QRectF chip(width() - chipWidth - 3, 3, chipWidth, fm.capHeight() + 7);
+	p.setPen(Qt::NoPen);
+	p.setBrush(QColor(0, 0, 0, 170));
+	p.drawRect(chip);
+	p.setPen(m_dragging ? modern::accentColor() : modern::dimTextColor());
+	p.drawText(QPointF(chip.left() + 4, chip.top() + 3.5 + fm.capHeight()), infoText);
 }
 
 void LfoGraph::toggleAmountModel()

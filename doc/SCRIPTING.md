@@ -233,7 +233,26 @@ All clips have `name`, `start`, `length`, `end`, `muted`, `color`, `track`, and 
 
 **`AutomationClip`**: `points` (`[(beat, value), ...]`), `set_points(points, progression=None, replace=True)`,
 `add_point(beat, value)`, `progression` (`"discrete"`, `"linear"` or `"cubic"`), `targets`,
-`add_target(param)` and `open()`.
+`add_target(param)`, `generate(...)` and `open()`.
+
+`generate` is the automation editor's function generator. It replaces the clip's curve with a wave:
+
+```python
+clip.generate("sine", cycles=8, amplitude="up")                      # fade in
+clip.generate("saw_down", cycles=6, frequency="down")                # slows down
+clip.generate("sine", cycles=5, amplitude=[(0, 0), (.5, 1), (1, 0)]) # swell and fade out
+clip.generate(expression="sin(tau * p) * (1 - t)", cycles=6)         # any formula
+track.add_automation_clip(cut, 0, 16, generate=dict(shape="triangle", cycles=4, low=0.2, high=0.9))
+```
+
+`shape` is `sine`, `triangle`, `saw_up`, `saw_down`, `square`, `noise` or `smooth_noise`; `cycles` is the
+total over the clip. `amplitude` and `frequency` are graphs over the clip, `[(x, y), ...]` with x and y in
+0..1 (or `"up"`, `"down"`, `"hill"`, `"dip"`): amplitude y is the swing (1 = full), frequency y is the speed
+(0.5 = unchanged; `frequency_range` octaves in each direction). An `expression` uses `p` (position in
+cycles), `t` (0..1 over the clip) and `n` (cycle number) and returns -1..1; it knows `sin cos tan abs sqrt
+exp ln floor fract sign min max pow mod clamp mix step smoothstep noise`, `pi`, `tau`, `e` and the operators
+`+ - * / % ^ < > <= >= == !=`. Also `phase`, `symmetry`, `bend`, `steps` (quantise), `cells`, `seed`,
+`detail`, `invert`, and `low` / `high` (default: the parameter's full range).
 
 **`PatternClip`**: a placement of a pattern on a `PatternTrack`.
 
@@ -494,6 +513,7 @@ printf '{"token":"%s"}\n{"id":1,"method":"song.info"}\n' "$TOKEN" | nc -q1 127.0
 | `clip.delete` | Remove a clip |
 | `clip.info` | Describe a clip |
 | `clip.notes` | Notes of a MIDI clip: [{pitch, start, length, velocity, pan}] (start relative to the clip) |
+| `clip.generate` | Fill an automation clip with a generated wave: shape or expression, cycles, amplitude / frequency graphs, low, high, … (see `AutomationClip.generate`) |
 | `clip.open` | Open a clip in its editor (piano roll / automation editor); GUI only |
 | `clip.remove_notes` | Remove notes by index (as returned by clip.notes): id, indices |
 | `clip.set` | Set name, start, length, muted, color; sample clips: gain, reversed, fade_in, fade_out, file |

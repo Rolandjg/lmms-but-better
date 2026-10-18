@@ -56,11 +56,12 @@ InstrumentTuningView::InstrumentTuningView(InstrumentTrack *it, QWidget *parent)
 	layout->addWidget(m_pitchGroupBox);
 
 	auto masterPitchLayout = new QHBoxLayout(m_pitchGroupBox);
-	masterPitchLayout->setContentsMargins(8, 18, 8, 8);
+	masterPitchLayout->setContentsMargins(4, 18, 4, 8);
 
-	auto tlabel = new QLabel(tr("Enables the use of global transposition"));
+	auto tlabel = new QLabel(tr("Follow the song's global transposition"));
 	tlabel->setWordWrap(true);
 	tlabel->setFont(adjustedToPixelSize(tlabel->font(), DEFAULT_FONT_SIZE));
+	tlabel->setStyleSheet("color: #8d96a3;");
 	masterPitchLayout->addWidget(tlabel);
 
 	// Microtuner settings
@@ -74,13 +75,23 @@ InstrumentTuningView::InstrumentTuningView(InstrumentTrack *it, QWidget *parent)
 	layout->addWidget(m_microtunerGroupBox);
 
 	auto microtunerLayout = new QVBoxLayout(m_microtunerGroupBox);
-	microtunerLayout->setContentsMargins(8, 18, 8, 8);
+	microtunerLayout->setContentsMargins(4, 20, 4, 8);
+	microtunerLayout->setSpacing(4);
 
 	auto scaleEditLayout = new QHBoxLayout();
 	scaleEditLayout->setContentsMargins(0, 0, 4, 0);
 	microtunerLayout->addLayout(scaleEditLayout);
 
-	auto scaleLabel = new QLabel(tr("Active scale:"));
+	// Small caps captions like the rest of the instrument window
+	auto caption = [](const QString& text)
+	{
+		auto label = new QLabel(text);
+		label->setFont(adjustedToPixelSize(label->font(), SMALL_FONT_SIZE));
+		label->setStyleSheet("color: #8d96a3;");
+		return label;
+	};
+
+	auto scaleLabel = caption(tr("SCALE"));
 	scaleEditLayout->addWidget(scaleLabel);
 
 	QPixmap editPixmap(embed::getIconPixmap("edit_draw_small"));
@@ -97,7 +108,7 @@ InstrumentTuningView::InstrumentTuningView(InstrumentTrack *it, QWidget *parent)
 	m_scaleCombo->setModel(it->m_microtuner.scaleModel());
 	microtunerLayout->addWidget(m_scaleCombo);
 
-	auto keymapLabel = new QLabel(tr("Active keymap:"));
+	auto keymapLabel = caption(tr("KEYMAP"));
 	microtunerLayout->addWidget(keymapLabel);
 
 	m_keymapCombo = new ComboBox();

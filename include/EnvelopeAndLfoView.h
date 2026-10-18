@@ -38,10 +38,9 @@ class EnvelopeAndLfoParameters;
 namespace gui
 {
 
-class AutomatableButtonGroup;
 class Knob;
-class LedCheckBox;
-class PixmapButton;
+class ModernSegmented;
+class ModernToggle;
 class TempoSyncKnob;
 class EnvelopeGraph;
 class LfoGraph;
@@ -86,11 +85,10 @@ private:
 	Knob * m_lfoAttackKnob;
 	TempoSyncKnob * m_lfoSpeedKnob;
 	Knob * m_lfoAmountKnob;
-	PixmapButton * m_userLfoBtn;
-	AutomatableButtonGroup * m_lfoWaveBtnGrp;
+	ModernSegmented* m_lfoWaveSelector;
 
-	LedCheckBox * m_x100Cb;
-	LedCheckBox * m_controlEnvAmountCb;
+	ModernToggle* m_x100Cb;
+	ModernToggle* m_controlEnvAmountCb;
 } ;
 
 } // namespace gui

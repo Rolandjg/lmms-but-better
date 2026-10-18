@@ -41,9 +41,12 @@ namespace gui
 {
 
 class ComboBox;
-class GroupBox;
 class Knob;
+class ModernHeader;
+class ModernSegmented;
 class TempoSyncKnob;
+class ChordPreview;
+class ArpeggioPreview;
 
 class InstrumentFunctionNoteStackingView : public QWidget, public ModelView
 {
@@ -55,12 +58,14 @@ public:
 
 private:
 	void modelChanged() override;
+	void updatePreview();
 
 	InstrumentFunctionNoteStacking * m_cc;
 
-	GroupBox * m_chordsGroupBox;
+	ModernHeader* m_chordsToggle;
 	ComboBox * m_chordsComboBox;
 	Knob * m_chordRangeKnob;
+	ChordPreview* m_preview;
 
 } ;
 
@@ -78,9 +83,11 @@ public:
 
 private:
 	void modelChanged() override;
+	void updatePreview();
 
 	InstrumentFunctionArpeggio * m_a;
-	GroupBox * m_arpGroupBox;
+	ModernHeader* m_arpToggle;
+	ArpeggioPreview* m_preview;
 	ComboBox * m_arpComboBox;
 	Knob * m_arpRangeKnob;
 	Knob * m_arpRepeatsKnob;
@@ -90,8 +97,8 @@ private:
 	TempoSyncKnob * m_arpTimeKnob;
 	Knob * m_arpGateKnob;
 
-	ComboBox * m_arpDirectionComboBox;
-	ComboBox * m_arpModeComboBox;
+	ModernSegmented* m_arpDirectionSelector;
+	ModernSegmented* m_arpModeSelector;
 
 } ;
 

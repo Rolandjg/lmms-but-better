@@ -180,6 +180,74 @@ void ModernToggle::paintEvent(QPaintEvent*)
 
 
 
+ModernHeader::ModernHeader(const QString& title, QWidget* parent, bool toggle) :
+	AutomatableButton(parent, title),
+	m_toggle(toggle)
+{
+	setText(title);
+	setCheckable(toggle);
+	if (toggle) { setCursor(Qt::PointingHandCursor); }
+	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+}
+
+QFont ModernHeader::titleFont() const
+{
+	auto f = adjustedToPixelSize(font(), SMALL_FONT_SIZE);
+	f.setBold(true);
+	f.setLetterSpacing(QFont::AbsoluteSpacing, 0.6);
+	return f;
+}
+
+QSize ModernHeader::sizeHint() const
+{
+	return QSize(QFontMetrics(titleFont()).horizontalAdvance(text()) + (m_toggle ? 16 : 0) + 12, 16);
+}
+
+void ModernHeader::mousePressEvent(QMouseEvent* event)
+{
+	// Plain titles are decoration only, so they must not flip their (unused) model
+	if (!m_toggle) { event->ignore(); return; }
+	AutomatableButton::mousePressEvent(event);
+}
+
+void ModernHeader::paintEvent(QPaintEvent*)
+{
+	QPainter p(this);
+	const bool on = !m_toggle || (model() && model()->value());
+	const QFont f = titleFont();
+	const auto fm = QFontMetrics(f);
+	// Position by baseline: the line box of small fonts is too tall to center reliably
+	const qreal baseline = (height() + fm.capHeight()) / 2.0;
+	qreal x = 0;
+
+	if (m_toggle)
+	{
+		p.setRenderHint(QPainter::Antialiasing);
+		const QRectF led(0.5, baseline - fm.capHeight() - 1.5, 9, 9);
+		p.setPen(QPen(on ? modern::accentColor() : modern::dimTextColor(), 1));
+		p.setBrush(on ? modern::accentColor() : Qt::transparent);
+		p.drawRect(led);
+		p.setRenderHint(QPainter::Antialiasing, false);
+		x = 15;
+	}
+
+	p.setFont(f);
+	p.setPen(on && m_toggle ? modern::textColor() : modern::dimTextColor());
+	p.drawText(QPointF(x, baseline), text());
+
+	// The hairline only shows when the header is given more room than the title needs
+	const int lineX = static_cast<int>(x) + fm.horizontalAdvance(text()) + 6;
+	if (width() > sizeHint().width())
+	{
+		p.setPen(QColor(255, 255, 255, 18));
+		const int y = static_cast<int>(baseline - fm.capHeight() / 2.0);
+		p.drawLine(lineX, y, width() - 1, y);
+	}
+}
+
+
+
+
 ModernSegmented::ModernSegmented(QWidget* parent) :
 	QWidget(parent),
 	IntModelView(new ComboBoxModel(nullptr, QString(), true), this)

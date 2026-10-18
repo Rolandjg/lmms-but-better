@@ -27,18 +27,22 @@
 #define LMMS_GUI_ENVELOPE_GRAPH_H
 
 #include <QWidget>
+#include <array>
 
 #include "ModelView.h"
-#include "embed.h"
 
 namespace lmms
 {
 
 class EnvelopeAndLfoParameters;
+class FloatModel;
 
 namespace gui
 {
 
+//! Envelope display whose points can be dragged: pre-delay, attack, hold and release move
+//! sideways, the decay point also moves up and down to set the sustain level. The round handle
+//! in the middle of the attack, decay and release segments bends them into curves.
 class EnvelopeGraph : public QWidget, public ModelView
 {
 	Q_OBJECT
@@ -58,22 +62,52 @@ public:
 public:
 	EnvelopeGraph(QWidget* parent);
 
+	QSize sizeHint() const override { return QSize(240, 64); }
+	QSize minimumSizeHint() const override { return QSize(120, 48); }
+
 protected:
 	void modelChanged() override;
 
 	void mousePressEvent(QMouseEvent*) override;
+	void mouseMoveEvent(QMouseEvent*) override;
+	void mouseReleaseEvent(QMouseEvent*) override;
+	void mouseDoubleClickEvent(QMouseEvent*) override;
+	void leaveEvent(QEvent*) override;
 	void contextMenuEvent(QContextMenuEvent*) override;
 	void paintEvent(QPaintEvent*) override;
 
 private:
+	//! The draggable points, in the order they appear on the curve
+	enum class Handle { None = -1, Predelay, Attack, Hold, Decay, Release, AttackCurve, DecayCurve, ReleaseCurve };
+
+	struct Geometry
+	{
+		QRectF plot;
+		float segmentWidth; //!< pixels for a segment at its maximum value
+		std::array<QPointF, 5> points;
+		std::array<QPointF, 3> curveHandles; //!< middle of the attack, decay and release segments
+	};
+
+	Geometry geometry() const;
+	Handle handleAt(const QPointF& pos) const;
+	FloatModel* timeModel(Handle handle) const;
+	FloatModel* curveModel(Handle handle) const;
+	QString readout(Handle handle) const;
 	void toggleAmountModel();
 
 private:
-	QPixmap m_envGraph = embed::getIconPixmap("envelope_graph");
-
 	EnvelopeAndLfoParameters* m_params = nullptr;
 
-	ScalingMode m_scaling = ScalingMode::Dynamic;
+	//! Fit the envelope to the width, like the envelope editors of Vital or Serum
+	ScalingMode m_scaling = ScalingMode::Relative;
+
+	Handle m_hovered = Handle::None;
+	Handle m_dragged = Handle::None;
+	QPointF m_dragStart;
+	float m_dragStartTime = 0.f;
+	float m_dragStartSustain = 0.f;
+	float m_dragStartCurve = 0.f;
+	float m_dragSegmentWidth = 1.f;
 
 	QColor m_noAmountColor;
 	QColor m_fullAmountColor;

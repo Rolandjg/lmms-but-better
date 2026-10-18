@@ -30,17 +30,18 @@
 #include "ModelView.h"
 
 class QLabel;
+class QStackedWidget;
 
-namespace lmms { class InstrumentSoundShaping; }
+namespace lmms { class InstrumentSoundShaping; class IntModel; }
 
 namespace lmms::gui
 {
 
 class EnvelopeAndLfoView;
 class ComboBox;
-class GroupBox;
 class Knob;
-class TabWidget;
+class ModernHeader;
+class ModernSegmented;
 
 
 class InstrumentSoundShapingView : public QWidget, public ModelView
@@ -58,14 +59,17 @@ private:
 
 
 	InstrumentSoundShaping * m_ss = nullptr;
-	TabWidget * m_targetsTabWidget;
+	IntModel* m_targetModel;
+	ModernSegmented* m_targetSelector;
+	QStackedWidget* m_targetStack;
 
 	EnvelopeAndLfoView* m_volumeView;
 	EnvelopeAndLfoView* m_cutoffView;
 	EnvelopeAndLfoView* m_resonanceView;
 
 	// filter-stuff
-	GroupBox * m_filterGroupBox;
+	QWidget* m_filterRow;
+	ModernHeader* m_filterToggle;
 	ComboBox * m_filterComboBox;
 	Knob * m_filterCutKnob;
 	Knob * m_filterResKnob;

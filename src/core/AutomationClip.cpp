@@ -26,9 +26,11 @@
 
 #include "AutomationClip.h"
 
+#include <cmath>
 #include <utility>
 
 #include "AutomationNode.h"
+#include "FunctionGenerator.h"
 #include "AutomationClipView.h"
 #include "AutomationTrack.h"
 #include "KeyboardShortcuts.h"
@@ -305,6 +307,23 @@ TimePos AutomationClip::putValues(
 }
 
 
+
+
+int AutomationClip::generate(const FunctionGenerator& generator)
+{
+	const int lengthTicks = length();
+	if (lengthTicks <= 0) { return 0; }
+
+	const auto nodes = generator.build(lengthTicks);
+	removeNodes(0, lengthTicks);
+	for (const auto& node : nodes)
+	{
+		putValues(TimePos(static_cast<int>(std::round(node.tick))), node.in, node.out, false);
+	}
+
+	if (progressionType() == ProgressionType::Discrete) { setProgressionType(ProgressionType::Linear); }
+	return static_cast<int>(nodes.size());
+}
 
 
 void AutomationClip::removeNode(const TimePos & time)

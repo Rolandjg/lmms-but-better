@@ -737,6 +737,24 @@ class SampleClip(Clip):
         return self._get("sample_length")
 
 
+_CURVE_PRESETS = {
+    "up": [(0, 0), (1, 1)],
+    "down": [(0, 1), (1, 0)],
+    "hill": [(0, 0), (0.5, 1), (1, 0)],
+    "dip": [(0, 1), (0.5, 0), (1, 1)],
+    "flat": [],
+}
+
+
+def _curve(graph):
+    """A graph for AutomationClip.generate: a preset name or a list of (x, y) pairs."""
+    if isinstance(graph, str):
+        if graph not in _CURVE_PRESETS:
+            raise ValueError("graph must be a list of (x, y) or one of: " + ", ".join(_CURVE_PRESETS))
+        graph = _CURVE_PRESETS[graph]
+    return [list(p) for p in graph]
+
+
 class AutomationClip(Clip):
     """A curve that drives one or more parameters over time."""
 
@@ -759,6 +777,45 @@ class AutomationClip(Clip):
 
     def add_point(self, beat, value):
         return self.set_points([(beat, value)], replace=False)
+
+    def generate(self, shape="sine", cycles=4, *, expression=None, amplitude=None, frequency=None,
+                 low=None, high=None, progression=None, **options):
+        """Replace the clip's curve with a generated wave (the automation editor's function generator).
+
+        ``shape``: ``sine``, ``triangle``, ``saw_up``, ``saw_down``, ``square``, ``noise`` or ``smooth_noise``.
+        ``cycles`` is the total number of cycles over the clip, whatever its length.
+
+        ``amplitude`` and ``frequency`` shape the wave over the length of the clip. Each is a graph
+        ``[(x, y), ...]`` with x = 0 at the start and 1 at the end, or one of ``"up"``, ``"down"``,
+        ``"hill"``, ``"dip"``. Amplitude y is the swing (1 = full, 0 = flat); frequency y is the speed
+        (0.5 = unchanged, 1 = ``frequency_range`` octaves faster, 0 = that much slower)::
+
+            clip.generate("sine", cycles=8, amplitude="up")                       # fade in
+            clip.generate("saw_down", cycles=6, frequency="down")                 # slowing down
+            clip.generate("sine", cycles=5, amplitude=[(0, 0), (.5, 1), (1, 0)])  # swell and fade
+
+        ``expression`` replaces the shape with a formula in ``p`` (position in cycles), ``t`` (0 to 1
+        over the clip) and ``n`` (cycle number), returning -1 to 1::
+
+            clip.generate(expression="sin(tau * p) * (1 - t)", cycles=6)
+
+        Other options: ``phase`` (0-1), ``symmetry``, ``bend`` (-1 to 1), ``steps`` (quantise to this
+        many levels), ``cells`` and ``seed`` (noise), ``detail`` (nodes per cycle), ``invert``,
+        ``frequency_range``. ``low`` / ``high`` default to the parameter's whole range."""
+        params = {"id": self.id, "cycles": cycles}
+        if expression is not None:
+            params["expression"] = expression
+        elif shape is not None:
+            params["shape"] = shape
+        for key, graph in (("amplitude", amplitude), ("frequency", frequency)):
+            if graph is not None:
+                params[key] = _curve(graph)
+        for key, value in (("low", low), ("high", high), ("progression", progression)):
+            if value is not None:
+                params[key] = value
+        params.update(options)
+        self._desc = call("clip.generate", **params)
+        return self
 
     progression = property(lambda self: self._get("progression"),
                            lambda self, v: call("clip.set_automation", id=self.id, progression=v))
@@ -926,16 +983,22 @@ class SampleTrack(_AudioTrackMixin, Track):
 class AutomationTrack(Track):
     """A track holding automation clips."""
 
-    def add_automation_clip(self, param, start=0.0, length=None, points=None, progression=None, name=None):
+    def add_automation_clip(self, param, start=0.0, length=None, points=None, progression=None, name=None,
+                            generate=None):
         """Automate ``param`` (a :class:`Param`, e.g. ``synth.params.param("cutoff")``).
 
-        ``points`` are ``(beat, value)`` pairs relative to the clip start."""
+        ``points`` are ``(beat, value)`` pairs relative to the clip start. ``generate`` is a dict of
+        :meth:`AutomationClip.generate` arguments to fill the clip with a wave instead::
+
+            track.add_automation_clip(cutoff, 0, 16, generate=dict(shape="sine", cycles=8, amplitude="up", low=0.2, high=0.9))"""
         kw = {"target": _param_id(param)}
         if points:
             kw["points"] = [list(p) for p in points]
         clip = self.add_clip(start, length, name, **kw)
         if progression:
             clip.progression = progression
+        if generate:
+            clip.generate(**generate)
         return clip
 
 
@@ -1362,6 +1425,8 @@ _HELP = """LMMS scripting - quick reference (positions/lengths in beats, pitches
                        .add_effect("reverbsc") .effects .play_note("C4")
     sample tracks: .add_sample_clip(file, start)
     automation tracks: .add_automation_clip(param, start, length, points=[(0, 0), (8, 1)])
+    automation clip: .points .set_points() .generate("sine", cycles=8, amplitude="up", frequency="down")
+                     .generate(expression="sin(tau*p)*(1-t)", cycles=6)
     pattern tracks: .add_clip(start, length)
   midi clip: .notes .add_note(p, start, length, velocity) .add_notes([...]) .add_chord(lmms.chord("Am7"))
              .set_notes() .clear() .transpose(n) .quantize(0.25) .remove_notes(fn)

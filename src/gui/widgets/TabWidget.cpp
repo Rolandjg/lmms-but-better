@@ -34,6 +34,7 @@
 #include "DeprecationHelper.h"
 #include "embed.h"
 #include "FontHelper.h"
+#include "ModernWidgets.h"
 
 namespace lmms::gui
 {
@@ -259,14 +260,19 @@ void TabWidget::paintEvent(QPaintEvent* pe)
 			// Get artwork
 			QPixmap artwork(embed::getIconPixmap(currentWidgetDesc.pixmap));
 
-			// Highlight active tab
-			if (it.key() == m_activeTab)
+			// Highlight active tab: it takes the page color, so it reads as the front tab,
+			// with an accent line along its bottom edge. Inactive icons are dimmed.
+			const bool active = it.key() == m_activeTab;
+			if (active)
 			{
-				p.fillRect(tab_x_offset, 0, currentWidgetDesc.nwidth, m_tabbarHeight - 1, tabSelected());
+				p.fillRect(tab_x_offset, 0, currentWidgetDesc.nwidth, m_tabbarHeight - 1, bg_color);
+				p.fillRect(tab_x_offset, m_tabbarHeight - 3, currentWidgetDesc.nwidth, 2, modern::accentColor());
 			}
 
 			// Draw artwork
+			p.setOpacity(active ? 1.0 : 0.45);
 			p.drawPixmap(tab_x_offset + (currentWidgetDesc.nwidth - artwork.width()) / 2, 1, artwork);
+			p.setOpacity(1.0);
 		}
 		else
 		{

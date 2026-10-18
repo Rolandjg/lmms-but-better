@@ -150,6 +150,28 @@ protected:
 };
 
 
+//! Unboxed section title: small bold caps followed by a hairline. When @p toggle is set it also
+//! switches a BoolModel on and off, with a square LED in front of the title.
+class LMMS_EXPORT ModernHeader : public AutomatableButton
+{
+	Q_OBJECT
+public:
+	ModernHeader(const QString& title, QWidget* parent, bool toggle = false);
+
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override { return sizeHint(); }
+
+protected:
+	void paintEvent(QPaintEvent*) override;
+	void mousePressEvent(QMouseEvent*) override;
+
+private:
+	QFont titleFont() const;
+
+	bool m_toggle;
+};
+
+
 //! Horizontal segmented selector for an IntModel - every option is visible and one click away.
 //! Labels come from a ComboBoxModel automatically, or from setLabels(); setItemPainter() allows
 //! drawing glyphs instead of text.

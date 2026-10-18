@@ -23,6 +23,8 @@ set(LMMS_TESTS
 	src/gui/MidiCaptureTest.cpp
 	src/gui/ScriptConsoleTest.cpp
 	src/gui/AudioFileProcessorViewTest.cpp
+	src/gui/InstrumentWindowTabsTest.cpp
+	src/gui/FunctionGeneratorTest.cpp
 	src/tracks/AutomationTrackTest.cpp
 )
 
@@ -63,6 +65,11 @@ set_tests_properties(CommandPaletteTest PROPERTIES
 
 set_target_properties(AudioFileProcessorViewTest PROPERTIES ENABLE_EXPORTS ON)
 set_tests_properties(AudioFileProcessorViewTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
+
+set_target_properties(InstrumentWindowTabsTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(InstrumentWindowTabsTest PROPERTIES
 	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
 	TIMEOUT 60)
 
@@ -125,3 +132,7 @@ target_static_libraries(UiSnapshot PRIVATE lmmsobjs)
 target_link_libraries(UiSnapshot PRIVATE ${QT_LIBRARIES})
 target_compile_features(UiSnapshot PRIVATE cxx_std_20)
 set_target_properties(UiSnapshot PROPERTIES ENABLE_EXPORTS ON)
+
+set_tests_properties(FunctionGeneratorTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+	TIMEOUT 60)

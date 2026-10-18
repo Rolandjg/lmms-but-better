@@ -45,7 +45,7 @@ class NotePlayHandle;  // IWYU pragma: keep
 namespace gui
 {
 class Knob;
-class LedCheckBox;
+class ModernToggle;
 class KickerInstrumentView;
 }
 
@@ -115,15 +115,6 @@ public:
 	KickerInstrumentView( Instrument * _instrument, QWidget * _parent );
 	~KickerInstrumentView() override = default;
 
-	QSize sizeHint() const override { return QSize(250, 250 + PreviewHeight); }
-	QSize minimumSizeHint() const override { return sizeHint(); }
-
-	//! Height of the waveform preview strip inserted above the logo
-	static constexpr int PreviewHeight = 74;
-
-protected:
-	void paintEvent(QPaintEvent*) override;
-
 private:
 	void modelChanged() override;
 
@@ -140,8 +131,8 @@ private:
 	Knob * m_clickKnob;
 	Knob * m_slopeKnob;
 
-	LedCheckBox * m_startNoteToggle;
-	LedCheckBox * m_endNoteToggle;
+	ModernToggle* m_startNoteToggle;
+	ModernToggle* m_endNoteToggle;
 
 } ;
 

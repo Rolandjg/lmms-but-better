@@ -286,6 +286,43 @@ attribute-only XML), and the snapshot tool's classic-mode render has the same en
 moving and removing slices, pads, zoom). `PluginSnapshot` accepts `PLUGINSNAPSHOT_KEY=<key>` to play
 a key other than A3, for slice mode.
 
+## Round 5: the instrument window and the built-in synths
+
+The instrument window's own tabs and Kicker were rebuilt with layouts and the shared modern
+widgets. (A TripleOscillator rebuild was tried and reverted: its original artwork UI stays.)
+
+* **Header:** modern knobs, one caption baseline, a flat preset-save button. The graphic tab bar
+  shows the active tab in the page color with an accent underline, and dims inactive icons.
+* **Envelope tab:** the targets (volume, cutoff, resonance) are a segmented selector; a dot marks
+  each target whose envelope or LFO is in use. The envelope display is vector-drawn and editable:
+  drag the pre-delay, attack, hold and release points sideways, and the decay point sideways and
+  up/down for sustain (Shift for fine steps, double-click a point to reset it). Dragging a point of
+  a switched-off envelope switches it on, and double-clicking the background toggles it as before.
+  A readout shows the time of the point under the mouse. The display fits the envelope to its
+  width (right-click for the old scalings) and keeps the zoom while a point is dragged.
+* **Envelope curves (like Vital/Serum):** attack, decay and release each have a curve
+  (`attcurve`, `deccurve`, `relcurve`, -1..1, saved per envelope). Drag the round handle in the
+  middle of a segment up or down to bend it; double-click resets it. Positive values bulge the
+  segment upwards (fast attack start, slow decay/release start). The engine uses an exponential
+  `(1 - e^(-kt)) / (1 - e^(-k))` with k = 8 × curve; at 0 the old linear code runs unchanged, and
+  settings without the attributes load as straight segments. On the LFO display, drag up/down to set
+  the amount. Wave shapes are a glyph selector, and the filter is a header toggle with its type,
+  cutoff and resonance.
+* **Chord stacking & arpeggio tab:** flat header toggles. Stacking shows the chord on a mini
+  keyboard. The arpeggio has a piano-roll preview of the pattern for one held note (direction,
+  range, repeats, cycle, gate; skip fades the notes), plus glyph/segmented selectors for
+  direction and mode. The preview uses the same step function as the engine
+  (`InstrumentFunctionArpeggio::noteIndexForStep`). That function also fixes a division by zero in
+  up-and-down mode with a single repeated note (e.g. "octave" over one octave with 2 repeats).
+* **GroupBox** (MIDI and tuning tabs, effect racks, LADSPA dialogs) is drawn as a flat header
+  with a square LED instead of a boxed title bar.
+* **Kicker:** the kick preview on top, with PITCH / TONE / ENVELOPE / DISTORTION groups below it.
+
+`InstrumentWindowTabsTest` drags the envelope and LFO points, switches the arpeggio on with its
+header, and checks the arpeggio step function. `PluginSnapshot` accepts
+`PLUGINSNAPSHOT_TRACK="elvol:amt=1;arpeggiator:arp-enabled=1"` to edit the saved track settings
+before taking screenshots of the window tabs.
+
 ## Remaining gaps (roadmap)
 
 | Plugin | Gap vs. FL / Ableton | Suggested work |

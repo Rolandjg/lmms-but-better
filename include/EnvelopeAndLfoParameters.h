@@ -92,6 +92,10 @@ public:
 		return ( ( _val < 0 ) ? -_val : _val ) * _val;
 	}
 
+	//! Level at position @p t (0..1) of a segment going from @p from to @p to. @p bend (-1..1) bows
+	//! the segment: positive values bulge it upwards, negative ones downwards, 0 is a straight line.
+	static float curveValue(float t, float from, float to, float bend);
+
 	static LfoInstances * instances()
 	{
 		return s_lfoInstances;
@@ -132,7 +136,19 @@ public:
 	const FloatModel& getSustainModel() const { return m_sustainModel; }
 	const FloatModel& getReleaseModel() const { return m_releaseModel; }
 	const FloatModel& getAmountModel() const { return m_amountModel; }
+	const FloatModel& getAttackCurveModel() const { return m_attackCurveModel; }
+	const FloatModel& getDecayCurveModel() const { return m_decayCurveModel; }
+	const FloatModel& getReleaseCurveModel() const { return m_releaseCurveModel; }
+	FloatModel& getPredelayModel() { return m_predelayModel; }
+	FloatModel& getAttackModel() { return m_attackModel; }
+	FloatModel& getHoldModel() { return m_holdModel; }
+	FloatModel& getDecayModel() { return m_decayModel; }
+	FloatModel& getSustainModel() { return m_sustainModel; }
+	FloatModel& getReleaseModel() { return m_releaseModel; }
 	FloatModel& getAmountModel() { return m_amountModel; }
+	FloatModel& getAttackCurveModel() { return m_attackCurveModel; }
+	FloatModel& getDecayCurveModel() { return m_decayCurveModel; }
+	FloatModel& getReleaseCurveModel() { return m_releaseCurveModel; }
 
 
 	// LFO
@@ -168,6 +184,9 @@ private:
 	FloatModel m_sustainModel;
 	FloatModel m_releaseModel;
 	FloatModel m_amountModel;
+	FloatModel m_attackCurveModel;
+	FloatModel m_decayCurveModel;
+	FloatModel m_releaseCurveModel;
 
 	float  m_sustainLevel;
 	float  m_amount;
@@ -203,6 +222,9 @@ private:
 	std::shared_ptr<const SampleBuffer> m_userWave = SampleBuffer::emptyBuffer();
 
 	constexpr static auto NumLfoShapes = static_cast<std::size_t>(LfoShape::Count);
+
+	//! Writes @p frames levels of a bent segment (see curveValue()) to @p out
+	static void fillCurve(sample_t* out, f_cnt_t frames, float from, float to, float bend);
 
 	sample_t lfoShapeSample( f_cnt_t _frame_offset );
 	void updateLfoShapeData();

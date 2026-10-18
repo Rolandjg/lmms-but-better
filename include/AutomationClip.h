@@ -39,6 +39,7 @@ namespace lmms
 
 class AutomationTrack;
 class TimePos;
+struct FunctionGenerator;
 
 namespace gui
 {
@@ -118,6 +119,12 @@ public:
 		const bool quantPos = true,
 		const bool ignoreSurroundingPoints = true
 	);
+
+	//! @brief Replaces the nodes of the whole clip with a generated shape. Does not touch the
+	//! journal; callers that want undo add a checkpoint first.
+	//! Stepped interpolation would hide the ramps, so a discrete clip is switched to linear.
+	//! @return number of nodes created
+	int generate(const FunctionGenerator& generator);
 
 	void removeNode(const TimePos & time);
 

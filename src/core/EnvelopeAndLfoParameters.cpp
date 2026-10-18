@@ -26,6 +26,7 @@
 
 #include <QDomElement>
 #include <QFileInfo>
+#include <cmath>
 
 #include "AudioEngine.h"
 #include "Engine.h"
@@ -103,6 +104,9 @@ EnvelopeAndLfoParameters::EnvelopeAndLfoParameters(
 	m_sustainModel(0.5f, 0.f, 1.f, 0.001f, this, tr("Env sustain")),
 	m_releaseModel(0.1f, 0.f, 2.f, 0.001f, this, tr("Env release")),
 	m_amountModel(0.f, -1.f, 1.f, 0.005f, this, tr("Env mod amount")),
+	m_attackCurveModel(0.f, -1.f, 1.f, 0.001f, this, tr("Env attack curve")),
+	m_decayCurveModel(0.f, -1.f, 1.f, 0.001f, this, tr("Env decay curve")),
+	m_releaseCurveModel(0.f, -1.f, 1.f, 0.001f, this, tr("Env release curve")),
 	m_valueForZeroAmount( _value_for_zero_amount ),
 	m_pahdFrames( 0 ),
 	m_rFrames( 0 ),
@@ -125,6 +129,9 @@ EnvelopeAndLfoParameters::EnvelopeAndLfoParameters(
 {
 	m_amountModel.setCenterValue( 0 );
 	m_lfoAmountModel.setCenterValue( 0 );
+	m_attackCurveModel.setCenterValue(0);
+	m_decayCurveModel.setCenterValue(0);
+	m_releaseCurveModel.setCenterValue(0);
 
 	if( s_lfoInstances == nullptr )
 	{
@@ -147,6 +154,10 @@ EnvelopeAndLfoParameters::EnvelopeAndLfoParameters(
 			this, SLOT(updateSampleVars()), Qt::DirectConnection );
 	connect( &m_amountModel, SIGNAL(dataChanged()),
 			this, SLOT(updateSampleVars()), Qt::DirectConnection );
+	for (auto curveModel : {&m_attackCurveModel, &m_decayCurveModel, &m_releaseCurveModel})
+	{
+		connect(curveModel, SIGNAL(dataChanged()), this, SLOT(updateSampleVars()), Qt::DirectConnection);
+	}
 
 	connect( &m_lfoPredelayModel, SIGNAL(dataChanged()),
 			this, SLOT(updateSampleVars()), Qt::DirectConnection );
@@ -345,6 +356,9 @@ void EnvelopeAndLfoParameters::saveSettings( QDomDocument & _doc,
 	m_sustainModel.saveSettings( _doc, _parent, "sustain" );
 	m_releaseModel.saveSettings( _doc, _parent, "rel" );
 	m_amountModel.saveSettings( _doc, _parent, "amt" );
+	m_attackCurveModel.saveSettings(_doc, _parent, "attcurve");
+	m_decayCurveModel.saveSettings(_doc, _parent, "deccurve");
+	m_releaseCurveModel.saveSettings(_doc, _parent, "relcurve");
 	m_lfoWaveModel.saveSettings( _doc, _parent, "lshp" );
 	m_lfoPredelayModel.saveSettings( _doc, _parent, "lpdel" );
 	m_lfoAttackModel.saveSettings( _doc, _parent, "latt" );
@@ -367,6 +381,13 @@ void EnvelopeAndLfoParameters::loadSettings( const QDomElement & _this )
 	m_sustainModel.loadSettings( _this, "sustain" );
 	m_releaseModel.loadSettings( _this, "rel" );
 	m_amountModel.loadSettings( _this, "amt" );
+	// Curves are newer than the rest: settings without them get straight segments
+	for (auto [model, name] : {std::pair{&m_attackCurveModel, "attcurve"}, std::pair{&m_decayCurveModel, "deccurve"},
+		std::pair{&m_releaseCurveModel, "relcurve"}})
+	{
+		model->reset();
+		model->loadSettings(_this, name);
+	}
 	m_lfoWaveModel.loadSettings( _this, "lshp" );
 	m_lfoPredelayModel.loadSettings( _this, "lpdel" );
 	m_lfoAttackModel.loadSettings( _this, "latt" );
@@ -394,6 +415,52 @@ void EnvelopeAndLfoParameters::loadSettings( const QDomElement & _this )
 	}
 
 	updateSampleVars();
+}
+
+
+
+
+namespace
+{
+
+//! How strongly a bend of 1 curves a segment: at the middle of the segment, an exponential
+//! curve with this steepness has covered 98% of its way instead of 50%
+constexpr double CurveSteepness = 8.0;
+
+//! Steepness of the exponential that bulges a segment from @p from to @p to by @p bend
+double curveSteepness(float from, float to, float bend)
+{
+	// Rising segments bulge upwards by starting fast, falling ones by starting slow
+	return bend * CurveSteepness * (to >= from ? 1.0 : -1.0);
+}
+
+} // namespace
+
+float EnvelopeAndLfoParameters::curveValue(float t, float from, float to, float bend)
+{
+	const double k = curveSteepness(from, to, bend);
+	if (std::abs(k) < 1e-6) { return from + (to - from) * t; }
+	return from + (to - from) * static_cast<float>((1.0 - std::exp(-k * t)) / (1.0 - std::exp(-k)));
+}
+
+void EnvelopeAndLfoParameters::fillCurve(sample_t* out, f_cnt_t frames, float from, float to, float bend)
+{
+	if (frames == 0) { return; }
+	const double k = curveSteepness(from, to, bend);
+	if (std::abs(k) < 1e-6)
+	{
+		for (f_cnt_t i = 0; i < frames; ++i) { out[i] = from + (to - from) * i / frames; }
+		return;
+	}
+	// exp(-k * i / frames) by repeated multiplication instead of an exp() per frame
+	const double scale = (to - from) / (1.0 - std::exp(-k));
+	const double step = std::exp(-k / frames);
+	double e = 1.0;
+	for (f_cnt_t i = 0; i < frames; ++i)
+	{
+		out[i] = static_cast<sample_t>(from + (1.0 - e) * scale);
+		e *= step;
+	}
 }
 
 
@@ -466,10 +533,17 @@ void EnvelopeAndLfoParameters::updateSampleVars()
 
 	f_cnt_t add = predelay_frames;
 
-	const float afI = ( 1.0f / attack_frames ) * m_amount;
-	for( f_cnt_t i = 0; i < attack_frames; ++i )
+	if (m_attackCurveModel.value() != 0.f)
 	{
-		m_pahdEnv[add+i] = i * afI + aa;
+		fillCurve(m_pahdEnv + add, attack_frames, aa, aa + m_amount, m_attackCurveModel.value());
+	}
+	else
+	{
+		const float afI = ( 1.0f / attack_frames ) * m_amount;
+		for( f_cnt_t i = 0; i < attack_frames; ++i )
+		{
+			m_pahdEnv[add+i] = i * afI + aa;
+		}
 	}
 
 	add += attack_frames;
@@ -480,22 +554,31 @@ void EnvelopeAndLfoParameters::updateSampleVars()
 	}
 
 	add += hold_frames;
-	const float dfI = ( 1.0 / decay_frames ) * ( m_sustainLevel -1 ) * m_amount;
-	for( f_cnt_t i = 0; i < decay_frames; ++i )
+	if (m_decayCurveModel.value() != 0.f)
 	{
-/*
-		m_pahdEnv[add + i] = ( m_sustainLevel + ( 1.0f -
-						(float)i / decay_frames ) *
-						( 1.0f - m_sustainLevel ) ) *
-							m_amount + m_amountAdd;
-*/
-		m_pahdEnv[add + i] = amsum + i*dfI;
+		fillCurve(m_pahdEnv + add, decay_frames, amsum, amsum + (m_sustainLevel - 1) * m_amount,
+			m_decayCurveModel.value());
+	}
+	else
+	{
+		const float dfI = ( 1.0 / decay_frames ) * ( m_sustainLevel -1 ) * m_amount;
+		for( f_cnt_t i = 0; i < decay_frames; ++i )
+		{
+			m_pahdEnv[add + i] = amsum + i*dfI;
+		}
 	}
 
-	const float rfI = ( 1.0f / m_rFrames ) * m_amount;
-	for( f_cnt_t i = 0; i < m_rFrames; ++i )
+	if (m_releaseCurveModel.value() != 0.f)
 	{
-		m_rEnv[i] = (float)( m_rFrames - i ) * rfI;
+		fillCurve(m_rEnv, m_rFrames, m_amount, 0.f, m_releaseCurveModel.value());
+	}
+	else
+	{
+		const float rfI = ( 1.0f / m_rFrames ) * m_amount;
+		for( f_cnt_t i = 0; i < m_rFrames; ++i )
+		{
+			m_rEnv[i] = (float)( m_rFrames - i ) * rfI;
+		}
 	}
 
 	// save this calculation in real-time-part

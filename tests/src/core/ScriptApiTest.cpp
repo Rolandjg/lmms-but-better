@@ -193,6 +193,17 @@ private slots:
 		QCOMPARE(automation["points"].toArray().size(), 2);
 		QCOMPARE(automation["targets"].toArray()[0].toInt(), volume);
 
+		// the function generator: a fade-in sine, then a formula, then a bad request
+		const auto gen = call("clip.generate", {{"id", clip["id"]}, {"shape", "sine"}, {"cycles", 4},
+			{"amplitude", QJsonArray{QJsonArray{0, 0}, QJsonArray{1, 1}}}, {"low", 0}, {"high", 100}}).toObject();
+		QVERIFY(gen["nodes"].toInt() > 16);
+		auto pts = call("clip.automation", {{"id", clip["id"]}}).toObject()["points"].toArray();
+		QVERIFY(pts.size() > 16);
+		QCOMPARE(pts[0].toArray()[1].toDouble(), 50.0);
+		call("clip.generate", {{"id", clip["id"]}, {"expression", "50 + 50 * sin(tau * p) * (1 - t)"}, {"cycles", 2}});
+		QVERIFY(callError("clip.generate", {{"id", clip["id"]}, {"expression", "sin("}}).contains("expression"));
+		QVERIFY(callError("clip.generate", {{"id", clip["id"]}, {"shape", "wobble"}}).contains("shape"));
+
 		const auto pattern = call("song.add_track", {{"type", "pattern"}}).toObject();
 		const auto kick = call("song.add_track", {{"instrument", "kicker"}, {"container", "pattern"}}).toObject();
 		const auto steps = call("track.pattern_clip", {{"id", kick["id"]}, {"pattern", pattern["pattern_index"]}}).toObject();

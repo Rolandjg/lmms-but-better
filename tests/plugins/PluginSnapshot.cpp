@@ -142,6 +142,27 @@ void applyInstrumentParams(Instrument* instrument, const QStringList& params)
 	instrument->loadSettings(element);
 }
 
+//! PLUGINSNAPSHOT_TRACK="<element>:<attribute>=<value>;..." edits the saved track settings before the
+//! snapshot, e.g. "elvol:amt=1;arpeggiator:arp-enabled=1", to show the window tabs in other states
+void applyTrackParams(InstrumentTrack* track)
+{
+	const auto spec = qEnvironmentVariable("PLUGINSNAPSHOT_TRACK");
+	if (spec.isEmpty()) { return; }
+	QDomDocument doc;
+	auto root = doc.createElement("root");
+	doc.appendChild(root);
+	auto element = track->saveState(doc, root);
+	for (const auto& item : spec.split(';', Qt::SkipEmptyParts))
+	{
+		const auto tagAndValue = item.split(':');
+		const auto kv = tagAndValue.value(1).split('=');
+		if (tagAndValue.size() != 2 || kv.size() != 2) { continue; }
+		auto target = element.elementsByTagName(tagAndValue[0]).item(0).toElement();
+		if (!target.isNull()) { target.setAttribute(kv[0], kv[1]); }
+	}
+	track->restoreState(element);
+}
+
 //! Plays a note through the instrument (bypassing the audio engine thread) and checks the output
 bool runInstrument(InstrumentTrack* track, const QString& name)
 {
@@ -304,6 +325,8 @@ int main(int argc, char** argv)
 				++failures;
 				continue;
 			}
+			applyTrackParams(track);
+			instrument = track->instrument();
 			applyInstrumentParams(instrument, params);
 			const bool audioOk = runInstrument(track, tag);
 			if (!audioOk) { ++failures; }

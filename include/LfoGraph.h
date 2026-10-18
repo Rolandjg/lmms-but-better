@@ -29,7 +29,6 @@
 #include <QWidget>
 
 #include "ModelView.h"
-#include "embed.h"
 
 namespace lmms
 {
@@ -39,6 +38,7 @@ class EnvelopeAndLfoParameters;
 namespace gui
 {
 
+//! LFO display: drag up/down to set the modulation amount, double-click to switch it on/off
 class LfoGraph : public QWidget, public ModelView
 {
 	Q_OBJECT
@@ -48,18 +48,25 @@ class LfoGraph : public QWidget, public ModelView
 public:
 	LfoGraph(QWidget* parent);
 
+	QSize sizeHint() const override { return QSize(120, 44); }
+	QSize minimumSizeHint() const override { return QSize(80, 36); }
+
 protected:
 	void mousePressEvent(QMouseEvent* me) override;
+	void mouseMoveEvent(QMouseEvent* me) override;
+	void mouseReleaseEvent(QMouseEvent* me) override;
+	void mouseDoubleClickEvent(QMouseEvent* me) override;
 	void paintEvent(QPaintEvent* pe) override;
 
 private:
-	void drawInfoText(const EnvelopeAndLfoParameters&);
+	void drawInfoText(QPainter& p, const EnvelopeAndLfoParameters&);
 	void toggleAmountModel();
 
 private:
-	QPixmap m_lfoGraph = embed::getIconPixmap("lfo_graph");
-
 	float m_randomGraph {0.};
+	bool m_dragging = false;
+	int m_dragStartY = 0;
+	float m_dragStartAmount = 0.f;
 	QColor m_noAmountColor;
 	QColor m_fullAmountColor;
 };

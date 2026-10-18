@@ -1125,16 +1125,32 @@ lmms--gui--SubWindow > QPushButton:hover{
 
 /* Envelope graph */
 lmms--gui--EnvelopeGraph {
-	qproperty-noAmountColor: rgb(96, 91, 96);
-	qproperty-fullAmountColor: rgb(0, 255, 128);
-	qproperty-markerFillColor: rgb(153, 175, 255);
-	qproperty-markerOutlineColor: rgb(0, 0, 0);
+	qproperty-noAmountColor: rgb(96, 101, 110);
+	qproperty-fullAmountColor: #1de276;
+	qproperty-markerFillColor: #0e1013;
+	qproperty-markerOutlineColor: #dce2ea;
 }
 
 /* LFO graph */
 lmms--gui--LfoGraph {
-	qproperty-noAmountColor: rgb(96, 91, 96);
-	qproperty-fullAmountColor: rgb(0, 255, 128);
+	qproperty-noAmountColor: rgb(96, 101, 110);
+	qproperty-fullAmountColor: #1de276;
+}
+
+/* flat preset-save button in the instrument window header */
+QPushButton#instrumentPresetSave {
+	background: #262a30;
+	border: 1px solid #0a0b0d;
+	border-radius: 2px;
+	padding: 0px;
+}
+
+QPushButton#instrumentPresetSave:hover {
+	background: #30353c;
+}
+
+QPushButton#instrumentPresetSave:pressed {
+	background: #173d2b;
 }
 
 /* Plugins */
@@ -1147,28 +1163,6 @@ lmms--gui--TripleOscillatorView lmms--gui--Knob {
 	qproperty-centerPointX: 13.0;
 	qproperty-centerPointY: 14.0;
 	qproperty-lineWidth: 2;
-}
-
-
-lmms--gui--KickerInstrumentView lmms--gui--Knob#smallKnob {
-	color: #595959;
-	qproperty-outerColor: black;
-	qproperty-innerRadius: 3;
-	qproperty-outerRadius: 11.0;
-	qproperty-centerPointX: 14.5;
-	qproperty-centerPointY: 14.5;
-	qproperty-lineWidth: 2;
-}
-
-
-lmms--gui--KickerInstrumentView lmms--gui--Knob#largeKnob {
-	color: #0c3b89;
-	qproperty-outerColor: #519fff;
-	qproperty-innerRadius: 12.0;
-	qproperty-outerRadius: 14.5;
-	qproperty-centerPointX: 17.0;
-	qproperty-centerPointY: 17.0;
-	qproperty-lineWidth: 3;
 }
 
 
