@@ -27,18 +27,23 @@
 
 #include "AudioBuffer.h"
 #include "EffectChain.h"
+#include "PdcDelay.h"
 #include "JournallingObject.h"
 #include "Model.h"
 #include "ThreadableJob.h"
 
 #include <atomic>
+#include <limits>
+#include <mutex>
 #include <optional>
+#include <vector>
 #include <QColor>
 
 namespace lmms
 {
 
 
+class AudioBusHandle;
 class MixerRoute;
 using MixerRouteVector = std::vector<MixerRoute*>;
 
@@ -128,10 +133,19 @@ public:
 
 	void updateName();
 
+	//! Delay that lines this send up with the slowest input of the receiver (set by the mixer)
+	void setCompensation(f_cnt_t frames) { m_pdc.setDelay(frames); }
+	f_cnt_t compensation() const { return m_pdc.delay(); }
+	//! The sender's output as it should be mixed into the receiver: @p input itself when no delay is
+	//! needed, otherwise a delayed copy
+	const SampleFrame* compensated(const SampleFrame* input, f_cnt_t frames);
+
 	private:
 		MixerChannel * m_from;
 		MixerChannel * m_to;
 		FloatModel m_amount;
+		PdcDelay m_pdc;
+		std::vector<SampleFrame> m_pdcBuffer;
 };
 
 
@@ -212,9 +226,42 @@ public:
 		return m_mixerChannels.size();
 	}
 
+	// Bounce capture. While a tap is set, masterMix() outputs the signal at the tap instead of the
+	// processed master output, and the engine skips its master gain:
+	// - with handles, the sum of those tracks' outputs before they enter the mixer
+	// - without handles, the master channel's input before the master effects and fader
+	// Only change the tap while the engine is stopped or inside requestChangeInModel().
+	void setBounceTap(std::vector<const AudioBusHandle*> handles);
+	void clearBounceTap();
+	bool hasBounceTap() const { return m_bounceTap != BounceTap::None; }
+	// called by AudioBusHandle for every buffer it sends to the mixer
+	void captureBounceTap(const AudioBusHandle* handle, const AudioBuffer& buffer);
+
+	//! How late the master output is because of plugin latencies, in frames (after compensation all
+	//! paths arrive equally late). With a bounce tap, the latency of the tapped signal instead.
+	f_cnt_t outputLatency() const;
+
+	//! Plugin delay compensation: works out every channel's input latency and sets the delays of the
+	//! audio buses and sends so all inputs of a channel arrive in time. Runs at the end of each period;
+	//! call it directly (with the engine stopped) to have it in place before the first period.
+	void updateLatencyCompensation();
+
 	MixerRouteVector m_mixerRoutes;
 
 private:
+	f_cnt_t channelOutputLatency(mix_ch_t channel);
+	std::vector<f_cnt_t> m_channelInputLatency;
+	std::vector<f_cnt_t> m_channelOutputLatency; //!< NotComputed until worked out in this pass
+	static constexpr auto NotComputed = std::numeric_limits<f_cnt_t>::max();
+	f_cnt_t m_masterLatency = 0;
+	f_cnt_t m_tapLatency = 0;
+
+	enum class BounceTap { None, Master, Handles };
+	BounceTap m_bounceTap = BounceTap::None;
+	std::vector<const AudioBusHandle*> m_bounceTapHandles;
+	std::vector<SampleFrame> m_bounceTapBuffer;
+	std::mutex m_bounceTapMutex;
+
 	// the mixer channels in the mixer. index 0 is always master.
 	std::vector<MixerChannel*> m_mixerChannels;
 
@@ -222,6 +269,8 @@ private:
 	void allocateChannelsTo(int num);
 
 	int m_lastSoloed;
+
+	friend class MixerChannel;
 } ;
 
 

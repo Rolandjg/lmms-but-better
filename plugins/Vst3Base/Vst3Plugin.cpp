@@ -671,7 +671,16 @@ void Vst3Plugin::componentRestartRequested(int32 flags)
 			catch (...) { fail(QStringLiteral("MIDI mapping refresh threw an unknown exception")); }
 		}, Qt::QueuedConnection);
 	}
-	// kLatencyChanged, kIoChanged etc. are not handled yet
+	// The spec wants the processor restarted before the new latency is read; activate() reads it
+	if ((flags & Vst::kLatencyChanged) && !m_latencyRefreshQueued.exchange(true))
+	{
+		QMetaObject::invokeMethod(this, [this]()
+		{
+			m_latencyRefreshQueued = false;
+			reconfigure();
+		}, Qt::QueuedConnection);
+	}
+	// kIoChanged etc. are not handled yet
 }
 
 
@@ -893,6 +902,7 @@ void Vst3Plugin::activate()
 	{
 		throw std::runtime_error("VST3 plugin could not start processing");
 	}
+	m_latency = static_cast<int>(std::max<uint32>(0, std::min<uint32>(m_processor->getLatencySamples(), 1u << 20)));
 }
 
 

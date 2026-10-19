@@ -31,6 +31,7 @@
 
 #include "AutomationEditor.h"
 #include "ConfigManager.h"
+#include "ControlAccessibility.h"
 #include "ControllerRackView.h"
 #include "MixerView.h"
 #include "MainWindow.h"
@@ -115,6 +116,8 @@ GuiApplication::GuiApplication()
 
 	QApplication::setPalette( *lpal );
 	LmmsStyle::s_palette = lpal;
+
+	installControlAccessibility();
 
 #ifdef LMMS_BUILD_APPLE
 	QApplication::setAttribute(Qt::AA_DontShowIconsInMenus, true);

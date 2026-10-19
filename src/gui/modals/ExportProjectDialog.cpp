@@ -31,6 +31,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QLabel>
+#include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSpinBox>
@@ -263,7 +264,13 @@ void ExportProjectDialog::onStartButtonClicked()
 
 	connect(m_renderManager.get(), &RenderManager::progressChanged, m_progressBar, &QProgressBar::setValue);
 	connect(m_renderManager.get(), &RenderManager::progressChanged, this, &ExportProjectDialog::updateTitleBar);
-	connect(m_renderManager.get(), &RenderManager::finished, this, &QDialog::accept);
+	connect(m_renderManager.get(), &RenderManager::finished, this, [this] {
+		const auto error = m_renderManager->errorString();
+		if (error.isEmpty()) { accept(); return; }
+		m_renderManager.reset(nullptr);
+		QMessageBox::critical(this, tr("Export failed"), error);
+		QDialog::reject();
+	});
 
 	switch (m_mode)
 	{

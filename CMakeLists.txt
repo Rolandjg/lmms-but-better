@@ -751,6 +751,8 @@ include(CompileCache)
 ADD_SUBDIRECTORY(cmake)
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(plugins)
+# enable_testing() here lets `ctest --test-dir build` find the tests, not only `ctest --test-dir build/tests`
+enable_testing()
 ADD_SUBDIRECTORY(tests)
 ADD_SUBDIRECTORY(data)
 

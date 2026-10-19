@@ -107,10 +107,20 @@ bool AudioBusHandle::processEffects()
 }
 
 
+f_cnt_t AudioBusHandle::latency() const
+{
+	return (m_sourceLatency ? m_sourceLatency() : 0) + (m_effects ? m_effects->latency() : 0);
+}
+
+
+
+
 void AudioBusHandle::doProcessing()
 {
 	if (m_mutedModel && m_mutedModel->value())
 	{
+		// don't let old delayed audio come out when unmuted
+		if (m_pdcPending > 0) { m_pdc.clear(); m_pdcPending = 0; }
 		return;
 	}
 
@@ -241,9 +251,23 @@ void AudioBusHandle::doProcessing()
 
 	// handle effects
 	const bool anyOutputAfterEffects = processEffects();
-	if (anyOutputAfterEffects || m_bufferUsage)
+	const bool hasOutput = anyOutputAfterEffects || m_bufferUsage;
+	if (hasOutput || m_pdcPending > 0)
 	{
+		if (m_pdc.delay() > 0)
+		{
+			// Hold this bus back to line it up with slower inputs of its mixer channel, and keep sending
+			// until the delayed signal has come out
+			if (!hasOutput) { m_buffer.silenceAllChannels(); }
+			m_pdc.process(m_buffer.groupBuffers(0));
+			toInterleaved(m_buffer.groupBuffers(0), m_buffer.interleavedBuffer());
+			m_buffer.updateAllSilenceFlags();
+			m_pdcPending = hasOutput ? m_pdc.delay() : m_pdcPending - std::min(m_pdcPending, fpp);
+		}
+		else { m_pdcPending = 0; }
+
 		// TODO: improve the flow here - convert to pull model
+		Engine::mixer()->captureBounceTap(this, m_buffer);
 		Engine::mixer()->mixToChannel(m_buffer, m_nextMixerChannel); // send output to mixer
 		m_bufferUsage = false;
 	}

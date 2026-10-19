@@ -123,6 +123,11 @@ public:
 		return isEnabled() && isAwake() && isOkay() && !dontRun();
 	}
 
+	//! Processing delay this effect adds, in frames at the engine sample rate (e.g. a lookahead limiter).
+	//! May change at any time; the mixer re-aligns parallel signal paths every period
+	//! (plugin delay compensation). Called on the audio thread.
+	virtual f_cnt_t latency() const { return 0; }
+
 	inline TempoSyncKnobModel* autoQuitModel()
 	{
 		return &m_autoQuitModel;

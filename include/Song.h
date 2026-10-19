@@ -26,8 +26,10 @@
 #define LMMS_SONG_H
 
 #include <array>
+#include <atomic>
 #include <memory>
 
+#include <QDomDocument>
 #include <QString>
 #include <QHash>  // IWYU pragma: keep
 
@@ -44,6 +46,8 @@
 
 namespace lmms
 {
+
+class DataFile;
 
 class AutomationTrack;
 class Keymap;
@@ -256,6 +260,11 @@ public:
 	void createEmptyProject();
 	void createNewProjectFromTemplate( const QString & templ );
 	void loadProject( const QString & filename );
+	//! Replace the project's contents with @p filename (e.g. a checkpoint) but keep its file name and
+	//! leave the recent-projects list alone. The project counts as modified afterwards.
+	void restoreProjectState(const QString& filename);
+	//! The project as it would be saved (for inspecting it without writing a file)
+	DataFile toDataFile();
 	bool guiSaveProject();
 	bool guiSaveProjectAs(const QString & filename);
 	bool saveProjectFile(const QString & filename, bool withResources = false);
@@ -429,15 +438,16 @@ private:
 	bool m_modified;
 	bool m_loadOnLaunch;
 
-	volatile bool m_recording;
-	volatile bool m_exporting;
-	volatile bool m_exportLoop;
-	volatile bool m_renderBetweenMarkers;
-	volatile bool m_playing;
-	volatile bool m_paused;
+	std::atomic<bool> m_recording;
+	std::atomic<bool> m_exporting;
+	std::atomic<bool> m_exportLoop;
+	std::atomic<bool> m_renderBetweenMarkers;
+	std::atomic<bool> m_playing;
+	std::atomic<bool> m_paused;
 
 	bool m_savingProject;
 	bool m_loadingProject;
+	bool m_restoringState = false;
 	bool m_isCancelled;
 
 	SaveOptions m_saveOptions;
@@ -445,6 +455,10 @@ private:
 	QHash<QString, int> m_errors;
 
 	std::array<Timeline, PlayModeCount> m_timelines;
+
+	// Editor/notes state read from a project while running without a GUI, written back unchanged on save
+	// so headless open/save round trips don't drop it
+	QDomDocument m_headlessGuiState;
 
 	PlayMode m_playMode;
 	bar_t m_length;

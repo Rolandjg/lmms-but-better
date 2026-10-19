@@ -81,7 +81,7 @@ bool AudioFileWave::startEncoding()
 
 	if (!m_sf)
 	{
-		qWarning("Error: AudioFileWave::startEncoding: %s", sf_strerror(nullptr));
+		setError(sf_strerror(nullptr));
 		return false;
 	}
 
@@ -107,7 +107,7 @@ void AudioFileWave::writeBuffer(const SampleFrame* _ab, const f_cnt_t _frames)
 				buf[frame * channels() + chnl] = _ab[frame][chnl];
 			}
 		}
-		sf_writef_float( m_sf, buf, _frames );
+		if (sf_writef_float(m_sf, buf, _frames) != static_cast<sf_count_t>(_frames)) { setError(sf_strerror(m_sf)); }
 		delete[] buf;
 	}
 	else
@@ -115,7 +115,7 @@ void AudioFileWave::writeBuffer(const SampleFrame* _ab, const f_cnt_t _frames)
 		auto buf = new int_sample_t[_frames * channels()];
 		convertToS16(_ab, _frames, buf, isBigEndian());
 
-		sf_writef_short( m_sf, buf, _frames );
+		if (sf_writef_short(m_sf, buf, _frames) != static_cast<sf_count_t>(_frames)) { setError(sf_strerror(m_sf)); }
 		delete[] buf;
 	}
 }

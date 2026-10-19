@@ -26,11 +26,13 @@
 
 #include "ComboBox.h"
 
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
 
 #include "CaptionMenu.h"
+#include "ControlAccessibility.h"
 #include "FontHelper.h"
 #include "DeprecationHelper.h"
 
@@ -53,6 +55,9 @@ ComboBox::ComboBox( QWidget * _parent, const QString & _name ) :
 				this, SLOT(setItem(QAction*)));
 
 	setWindowTitle( _name );
+	// Tab only: clicking must not take focus, or Space would stop reaching the transport
+	setFocusPolicy(Qt::TabFocus);
+	attachFocusRing(this);
 	doConnections();
 }
 
@@ -76,9 +81,82 @@ void ComboBox::selectPrevious()
 
 
 
+void ComboBox::showMenu()
+{
+	m_pressed = true;
+	update();
+
+	m_menu.clear();
+	for( int i = 0; i < model()->size(); ++i )
+	{
+		QAction * a = m_menu.addAction( model()->itemPixmap( i ) ? model()->itemPixmap( i )->pixmap() : QPixmap(),
+											model()->itemText( i ) );
+		a->setData( i );
+		if (i == model()->value()) { m_menu.setActiveAction(a); }
+	}
+
+	QPoint gpos = mapToGlobal(QPoint(0, height()));
+
+	bool const menuCanBeFullyShown = screen()->geometry().contains(QRect(gpos, m_menu.sizeHint()));
+	if (menuCanBeFullyShown)
+	{
+		m_menu.exec(gpos);
+	}
+	else
+	{
+		m_menu.exec(mapToGlobal(QPoint(width(), 0)));
+	}
+
+	m_pressed = false;
+	update();
+}
+
+
+
+
+void ComboBox::keyPressEvent(QKeyEvent* event)
+{
+	if (model() == nullptr) { QWidget::keyPressEvent(event); return; }
+	switch (event->key())
+	{
+		case Qt::Key_Down:
+		case Qt::Key_Right:
+			if (event->modifiers() & Qt::AltModifier) { showMenu(); }
+			else { selectNext(); }
+			break;
+		case Qt::Key_Up:
+		case Qt::Key_Left:
+			selectPrevious();
+			break;
+		case Qt::Key_Home:
+			model()->setValue(model()->minValue());
+			break;
+		case Qt::Key_End:
+			model()->setValue(model()->maxValue());
+			break;
+		case Qt::Key_Space:
+		case Qt::Key_Return:
+		case Qt::Key_Enter:
+		case Qt::Key_F4:
+			showMenu();
+			break;
+		default:
+			QWidget::keyPressEvent(event);
+			return;
+	}
+	event->accept();
+	announceValueChange(this, model()->value());
+	update();
+}
+
+
+
+
 void ComboBox::contextMenuEvent( QContextMenuEvent * event )
 {
-	if( model() == nullptr || event->x() <= width() - CB_ARROW_BTN_WIDTH )
+	// a keyboard-triggered menu (Menu key, Shift+F10) has no meaningful position: show the model menu
+	if (model() == nullptr
+		|| (event->reason() != QContextMenuEvent::Keyboard && event->x() <= width() - CB_ARROW_BTN_WIDTH))
 	{
 		QWidget::contextMenuEvent( event );
 		return;
@@ -105,31 +183,7 @@ void ComboBox::mousePressEvent( QMouseEvent* event )
 	{
 		if (pos.x() > width() - CB_ARROW_BTN_WIDTH)
 		{
-			m_pressed = true;
-			update();
-
-			m_menu.clear();
-			for( int i = 0; i < model()->size(); ++i )
-			{
-				QAction * a = m_menu.addAction( model()->itemPixmap( i ) ? model()->itemPixmap( i )->pixmap() : QPixmap(),
-													model()->itemText( i ) );
-				a->setData( i );
-			}
-
-			QPoint gpos = mapToGlobal(QPoint(0, height()));
-
-			bool const menuCanBeFullyShown = screen()->geometry().contains(QRect(gpos, m_menu.sizeHint()));
-			if (menuCanBeFullyShown)
-			{
-				m_menu.exec(gpos);
-			}
-			else
-			{
-				m_menu.exec(mapToGlobal(QPoint(width(), 0)));
-			}
-
-			m_pressed = false;
-			update();
+			showMenu();
 		}
 		else if( event->button() == Qt::LeftButton )
 		{

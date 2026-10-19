@@ -1023,8 +1023,8 @@ lmms--gui--TimeLineWidget {
 
 /* The song editor's timeline carries the arrangement marker lane on top */
 lmms--gui--TimeLineWidget#songEditorTimeLine {
-	min-height: 2.75em;
-	max-height: 2.75em;
+	min-height: 3em;
+	max-height: 3em;
 }
 
 lmms--gui--TrackContainerView QLabel
@@ -1389,6 +1389,22 @@ lmms--gui--BarModelEditor {
 
 
 /* palette information  */
+
+/* Colors of the modern plugin/editor widgets (ModernWidgets.h) */
+lmms--gui--ModernPalette {
+	qproperty-window: #1d2025;
+	qproperty-section: #171a1e;
+	qproperty-sectionBorder: #0a0b0d;
+	qproperty-display: #0e1013;
+	qproperty-grid: rgba(255, 255, 255, 22);
+	qproperty-text: #dce2ea;
+	qproperty-dimText: #8d96a3;
+	qproperty-button: #2a2f36;
+	qproperty-activeButton: #173d2b;
+	qproperty-accent: #1de276;
+	qproperty-secondary: #40c4d6;
+	qproperty-warning: #d6ec52;
+}
 
 lmms--gui--LmmsPalette {
 	qproperty-background: #1d2025;

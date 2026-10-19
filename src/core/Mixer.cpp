@@ -27,6 +27,7 @@
 #include <QDomElement>
 
 #include "AudioEngine.h"
+#include "AudioBusHandle.h"
 #include "AudioEngineWorkerThread.h"
 #include "Mixer.h"
 #include "Song.h"
@@ -49,6 +50,15 @@ MixerRoute::MixerRoute( MixerChannel * from, MixerChannel * to, float amount ) :
 {
 	//qDebug( "created: %d to %d", m_from->m_channelIndex, m_to->m_channelIndex );
 	// create send amount model
+}
+
+
+const SampleFrame* MixerRoute::compensated(const SampleFrame* input, f_cnt_t frames)
+{
+	if (m_pdc.delay() == 0) { return input; }
+	m_pdcBuffer.assign(input, input + frames);
+	m_pdc.process(m_pdcBuffer.data(), frames);
+	return m_pdcBuffer.data();
 }
 
 
@@ -173,7 +183,8 @@ void MixerChannel::doProcessing()
 			FloatModel * sendModel = senderRoute->amount();
 			if( ! sendModel ) qFatal( "Error: no send model found from %d to %d", senderRoute->senderIndex(), m_channelIndex );
 
-			if (sender->m_buffer.hasAnySignal() || sender->m_stillRunning)
+			// a delayed send keeps going while its delay line still holds signal
+			if (sender->m_buffer.hasAnySignal() || sender->m_stillRunning || senderRoute->compensation() > 0)
 			{
 				auto buffer = m_buffer.interleavedBuffer().asSampleFrames();
 
@@ -181,28 +192,29 @@ void MixerChannel::doProcessing()
 				ValueBuffer * sendBuf = sendModel->valueBuffer();
 				ValueBuffer * volBuf = sender->m_volumeModel.valueBuffer();
 
-				// mix it's output with this one's output
-				auto ch_buf = sender->m_buffer.interleavedBuffer().asSampleFrames();
+				// mix it's output with this one's output (delayed to line up with this channel's other inputs)
+				const auto senderFrames = sender->m_buffer.interleavedBuffer().asSampleFrames();
+				const SampleFrame* const ch_buf = senderRoute->compensated(senderFrames.data(), fpp);
 
 				// use sample-exact mixing if sample-exact values are available
 				if( ! volBuf && ! sendBuf ) // neither volume nor send has sample-exact data...
 				{
 					const float v = sender->m_volumeModel.value() * sendModel->value();
-					MixHelpers::addMultiplied(buffer.data(), ch_buf.data(), v, fpp);
+					MixHelpers::addMultiplied(buffer.data(), ch_buf, v, fpp);
 				}
 				else if( volBuf && sendBuf ) // both volume and send have sample-exact data
 				{
-					MixHelpers::addMultipliedByBuffers(buffer.data(), ch_buf.data(), volBuf, sendBuf, fpp);
+					MixHelpers::addMultipliedByBuffers(buffer.data(), ch_buf, volBuf, sendBuf, fpp);
 				}
 				else if( volBuf ) // volume has sample-exact data but send does not
 				{
 					const float v = sendModel->value();
-					MixHelpers::addMultipliedByBuffer(buffer.data(), ch_buf.data(), v, volBuf, fpp);
+					MixHelpers::addMultipliedByBuffer(buffer.data(), ch_buf, v, volBuf, fpp);
 				}
 				else // vice versa
 				{
 					const float v = sender->m_volumeModel.value();
-					MixHelpers::addMultipliedByBuffer(buffer.data(), ch_buf.data(), v, sendBuf, fpp);
+					MixHelpers::addMultipliedByBuffer(buffer.data(), ch_buf, v, sendBuf, fpp);
 				}
 				toPlanar(m_buffer.interleavedBuffer(), m_buffer.groupBuffers(0));
 				m_buffer.mixSilenceFlags(sender->m_buffer);
@@ -211,6 +223,13 @@ void MixerChannel::doProcessing()
 
 
 		const float v = m_volumeModel.value();
+
+		auto mixer = Engine::mixer();
+		if (m_channelIndex == 0 && mixer->m_bounceTap == Mixer::BounceTap::Master)
+		{
+			const auto input = m_buffer.interleavedBuffer().asSampleFrames();
+			std::copy(input.begin(), input.begin() + fpp, mixer->m_bounceTapBuffer.begin());
+		}
 
 		m_stillRunning = m_fxChain.processAudioBuffer(m_buffer);
 
@@ -661,6 +680,50 @@ void Mixer::mixToChannel(const AudioBuffer& buffer, mix_ch_t dest)
 void Mixer::prepareMasterMix()
 {
 	m_mixerChannels[0]->m_buffer.silenceAllChannels();
+	if (m_bounceTap != BounceTap::None)
+	{
+		std::fill(m_bounceTapBuffer.begin(), m_bounceTapBuffer.end(), SampleFrame{});
+	}
+}
+
+
+
+
+void Mixer::setBounceTap(std::vector<const AudioBusHandle*> handles)
+{
+	m_bounceTap = handles.empty() ? BounceTap::Master : BounceTap::Handles;
+	m_bounceTapHandles = std::move(handles);
+	m_bounceTapBuffer.assign(Engine::audioEngine()->framesPerPeriod(), SampleFrame{});
+}
+
+
+
+
+void Mixer::clearBounceTap()
+{
+	m_bounceTap = BounceTap::None;
+	m_bounceTapHandles.clear();
+	m_bounceTapBuffer.clear();
+}
+
+
+
+
+void Mixer::captureBounceTap(const AudioBusHandle* handle, const AudioBuffer& buffer)
+{
+	if (m_bounceTap != BounceTap::Handles
+		|| std::find(m_bounceTapHandles.begin(), m_bounceTapHandles.end(), handle) == m_bounceTapHandles.end())
+	{
+		return;
+	}
+	const auto input = buffer.groupBuffers(0);
+	const auto frames = std::min<std::size_t>(input.frames(), m_bounceTapBuffer.size());
+	const auto lock = std::lock_guard{m_bounceTapMutex};
+	for (std::size_t f = 0; f < frames; ++f)
+	{
+		m_bounceTapBuffer[f][0] += input.sample(0, f);
+		m_bounceTapBuffer[f][1] += input.sample(1, f);
+	}
 }
 
 
@@ -728,7 +791,14 @@ void Mixer::masterMix( SampleFrame* _buf )
 	const float v = volBuf
 		? 1.0f
 		: m_mixerChannels[0]->m_volumeModel.value();
-	MixHelpers::addMultiplied(_buf, buffer.data(), v, fpp);
+	if (m_bounceTap != BounceTap::None)
+	{
+		MixHelpers::add(_buf, m_bounceTapBuffer.data(), fpp);
+	}
+	else
+	{
+		MixHelpers::addMultiplied(_buf, buffer.data(), v, fpp);
+	}
 
 	// clear all channel buffers and
 	// reset channel process state
@@ -739,6 +809,75 @@ void Mixer::masterMix( SampleFrame* _buf )
 		m_mixerChannels[i]->m_queued = false;
 		m_mixerChannels[i]->m_dependenciesMet = 0;
 	}
+
+	// nothing is processing right now, so the delays can be changed safely for the next period
+	updateLatencyCompensation();
+}
+
+
+
+
+void Mixer::updateLatencyCompensation()
+{
+	const auto count = m_mixerChannels.size();
+	m_channelInputLatency.assign(count, 0);
+	m_channelOutputLatency.assign(count, NotComputed);
+
+	const auto& handles = Engine::audioEngine()->audioBusHandles();
+	for (const auto handle : handles)
+	{
+		const auto channel = handle->nextMixerChannel();
+		if (channel < 0 || static_cast<std::size_t>(channel) >= count) { continue; }
+		m_channelInputLatency[channel] = std::max(m_channelInputLatency[channel], handle->latency());
+	}
+	for (mix_ch_t channel = 0; channel < static_cast<mix_ch_t>(count); ++channel) { channelOutputLatency(channel); }
+
+	for (const auto handle : handles)
+	{
+		const auto channel = handle->nextMixerChannel();
+		if (channel < 0 || static_cast<std::size_t>(channel) >= count) { continue; }
+		handle->setCompensation(m_channelInputLatency[channel] - handle->latency());
+	}
+	for (const auto route : m_mixerRoutes)
+	{
+		route->setCompensation(m_channelInputLatency[route->receiverIndex()]
+			- m_channelOutputLatency[route->senderIndex()]);
+	}
+
+	m_masterLatency = m_channelOutputLatency[0];
+	m_tapLatency = 0;
+	if (m_bounceTap == BounceTap::Master) { m_tapLatency = m_channelInputLatency[0]; }
+	else if (m_bounceTap == BounceTap::Handles && !m_bounceTapHandles.empty())
+	{
+		// tapped buses are compensated up to the input latency of their channel
+		const auto channel = m_bounceTapHandles.front()->nextMixerChannel();
+		if (channel >= 0 && static_cast<std::size_t>(channel) < count) { m_tapLatency = m_channelInputLatency[channel]; }
+	}
+}
+
+
+
+
+f_cnt_t Mixer::channelOutputLatency(mix_ch_t channel)
+{
+	auto& output = m_channelOutputLatency[channel];
+	if (output != NotComputed) { return output; }
+	// The mixer refuses routing loops, so this recursion ends
+	auto& input = m_channelInputLatency[channel];
+	for (const auto route : m_mixerChannels[channel]->m_receives)
+	{
+		input = std::max(input, channelOutputLatency(route->senderIndex()));
+	}
+	output = input + m_mixerChannels[channel]->m_fxChain.latency();
+	return output;
+}
+
+
+
+
+f_cnt_t Mixer::outputLatency() const
+{
+	return m_bounceTap == BounceTap::None ? m_masterLatency : m_tapLatency;
 }
 
 

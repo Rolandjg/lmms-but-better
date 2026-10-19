@@ -66,6 +66,10 @@ known_no_namespace_lmms = {
     'include/versioninfo.h',
     'plugins/CarlaBase/CarlaConfig/config.h',
     'plugins/CarlaBase/DummyCarla.cpp',
+    # stand-alone scanner executable (main)
+    'plugins/Vst3Base/Vst3Scanner.cpp',
+    # defines Steinberg's interface ids, which must live in their namespace
+    'plugins/Vst3Base/Vst3SdkIids.cpp',
     # unclear why it has no namespace
     'plugins/ZynAddSubFx/RemoteZynAddSubFx.cpp',
 }
@@ -77,6 +81,7 @@ exclude_files = re.compile(
     'plugins/MidiExport/MidiFile.hpp|'
     'plugins/ReverbSC/[a-z]|'
     'plugins/Sf2Player/fluidsynthshims.h|'
+    'plugins/Vst3Base/vst3sdk/|'
     '/portsmf/|'
     # only forward to headers that are not ours:
     'plugins/ZynAddSubFx/ThreadShims.h'

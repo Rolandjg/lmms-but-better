@@ -52,8 +52,13 @@ public:
 	//! Write `size` sample frames from `buf` into the output file.
 	virtual void writeBuffer(const SampleFrame* buf, const f_cnt_t frames) = 0;
 
+	//! Description of the first failure opening or writing the file; empty while everything worked
+	QString errorString() const { return m_error; }
+
 protected:
 	int writeData( const void* data, int len );
+	//! Record a failure; only the first one is kept
+	void setError(const QString& error);
 
 	inline bool outputFileOpened() const
 	{
@@ -71,6 +76,7 @@ private:
 
 	QFile m_outputFile;
 	OutputSettings m_outputSettings;
+	QString m_error;
 } ;
 
 using AudioFileDeviceInstantiaton

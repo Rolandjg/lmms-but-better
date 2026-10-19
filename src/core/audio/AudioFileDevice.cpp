@@ -23,11 +23,9 @@
  *
  */
 
-#include <QMessageBox>
+#include <QCoreApplication>
 
 #include "AudioFileDevice.h"
-#include "ExportProjectDialog.h"
-#include "GuiApplication.h"
 
 namespace lmms
 {
@@ -40,33 +38,13 @@ AudioFileDevice::AudioFileDevice( OutputSettings const & outputSettings,
 	m_outputFile( _file ),
 	m_outputSettings(outputSettings)
 {
-	using gui::ExportProjectDialog;
-
 	setSampleRate( outputSettings.getSampleRate() );
 
+	// Failures are reported by whoever started the export (see ProjectRenderer::errorString())
 	if( m_outputFile.open( QFile::WriteOnly | QFile::Truncate ) == false )
 	{
-		QString title, message;
-		title = ExportProjectDialog::tr( "Could not open file" );
-		message = ExportProjectDialog::tr( "Could not open file %1 "
-						"for writing.\nPlease make "
-						"sure you have write "
-						"permission to the file and "
-						"the directory containing the "
-						"file and try again!"
-								).arg( _file );
-
-		if (gui::getGUI() != nullptr)
-		{
-			QMessageBox::critical( nullptr, title, message,
-						QMessageBox::Ok,
-						QMessageBox::NoButton );
-		}
-		else
-		{
-			fprintf( stderr, "%s\n", message.toUtf8().constData() );
-			exit( EXIT_FAILURE );
-		}
+		setError(QCoreApplication::translate("AudioFileDevice", "Could not open %1 for writing: %2")
+			.arg(_file, m_outputFile.errorString()));
 	}
 }
 
@@ -85,10 +63,24 @@ int AudioFileDevice::writeData( const void* data, int len )
 {
 	if( m_outputFile.isOpen() )
 	{
-		return m_outputFile.write( (const char *) data, len );
+		const auto written = m_outputFile.write( (const char *) data, len );
+		if (written != len)
+		{
+			setError(QCoreApplication::translate("AudioFileDevice", "Could not write to %1: %2")
+				.arg(m_outputFile.fileName(), m_outputFile.errorString()));
+		}
+		return written;
 	}
 
 	return -1;
+}
+
+
+
+
+void AudioFileDevice::setError(const QString& error)
+{
+	if (m_error.isEmpty()) { m_error = error; }
 }
 
 } // namespace lmms

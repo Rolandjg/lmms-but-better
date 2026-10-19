@@ -71,6 +71,8 @@ public slots:
 	void stop();
 	void restart();
 	void clearOutput();
+	//! Put the project back to how it was before the last run
+	void undoRun();
 
 protected:
 	bool eventFilter(QObject* watched, QEvent* event) override;
@@ -91,6 +93,8 @@ private:
 	QLabel* m_status;
 	QToolButton* m_runButton;
 	QToolButton* m_stopButton;
+	QToolButton* m_undoRunButton;
+	int m_runCheckpoint = 0; //!< taken before the last run, 0 = none
 	QString m_fileName;
 	QStringList m_history;
 	int m_historyPos = 0;

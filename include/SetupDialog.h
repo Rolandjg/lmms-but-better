@@ -154,6 +154,7 @@ private:
 	QString m_loopMarkerMode;
 	QComboBox* m_loopMarkerComboBox;
 	QString m_autoScroll;
+	int m_textScale;
 	QComboBox* m_autoScrollComboBox;
 	QString m_lang;
 	QStringList m_languages;

@@ -136,6 +136,9 @@ public:
 	//! Re-setup processing after sample rate / period size changes
 	void reconfigure();
 
+	//! Processing latency the plugin reports, in samples (for plugin delay compensation)
+	int latency() const { return m_latency.load(std::memory_order_relaxed); }
+
 	/*
 		host callbacks, do not call directly
 	*/
@@ -185,6 +188,8 @@ private:
 	bool m_settingFromController = false;
 	std::atomic<bool> m_paramRefreshQueued{false};
 	std::atomic<bool> m_mappingRefreshQueued{false};
+	std::atomic<bool> m_latencyRefreshQueued{false};
+	std::atomic<int> m_latency{0};
 	using MidiMappingCache = std::array<std::array<Steinberg::Vst::ParamID, Steinberg::Vst::kCountCtrlNumber>, 16>;
 	MidiMappingCache m_midiMappingCache{};
 	QTimer* m_controllerSyncTimer = nullptr;

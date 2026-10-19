@@ -784,8 +784,8 @@ lmms--gui--TimeLineWidget {
 
 /* The song editor's timeline carries the arrangement marker lane on top */
 lmms--gui--TimeLineWidget#songEditorTimeLine {
-	min-height: 2.6em;
-	max-height: 2.6em;
+	min-height: 2.9em;
+	max-height: 2.9em;
 }
 
 QTreeView {

@@ -77,6 +77,10 @@ public:
 		return m_isPlaying;
 	}
 
+	//! Name of the track this one is a frozen rendering of (see gui::freezeTrack()); empty if none
+	const QString& frozenFrom() const { return m_frozenFrom; }
+	void setFrozenFrom(const QString& source) { m_frozenFrom = source; }
+
 	void setPlaying(bool playing)
 	{
 		if (m_isPlaying != playing) { emit playingChanged(); }
@@ -97,6 +101,7 @@ private:
 	IntModel m_mixerChannelModel;
 	AudioBusHandle m_audioBusHandle;
 	bool m_isPlaying;
+	QString m_frozenFrom;
 
 
 

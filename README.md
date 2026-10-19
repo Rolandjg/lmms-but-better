@@ -13,9 +13,10 @@
 * **Command palette** (Ctrl+K or Ctrl+Shift+P, or the search field in the toolbar): fuzzy-search every menu
   entry, editor tool, instrument, effect, track and mixer channel. Type `tempo 128` to set the tempo.
   Recently used commands come first.
-* **MIDI Capture** (Ctrl+Shift+R, or the REC button in the toolbar): LMMS always listens to MIDI input, so you
-  can turn what you just played into a clip after the fact, even if you weren't recording. Takes played during
-  playback land where you played them; free playing lands at the song position marker.
+* **MIDI Capture** (Ctrl+Shift+R, or the circular-arrow button in the toolbar): LMMS always listens to MIDI input,
+  so you can turn what you just played into a clip after the fact, even if you weren't recording. Takes played during
+  playback land where you played them; free playing lands at the song position marker. Notes played on a Pattern
+  Editor instrument go into the current pattern. The button's tooltip says what it would recover.
 * **Pumper** effect: tempo-locked volume shaping for sidechain-style pumping, with an editable curve
   (depth, attack, hold, release, curve, offset), rates from 1/1 to 1/16 including triplets, and optional
   ducking of only the lows or highs.
@@ -25,6 +26,17 @@
 * **Limiter** effect: transparent lookahead brickwall limiter for mastering, with 4x oversampled true-peak
   detection, gain, ceiling, release, lookahead and stereo link, plus a scrolling input / output / gain
   reduction display. Drag the display up to push the level, or drag the ceiling line.
+* **Formant Shifter** effect with two engines:
+  	- *Spectral*: moves a sound's own formants (±24 st) without changing its pitch, pitch-shifts while
+  	  keeping the formants (or letting them follow, for chipmunk / slowed-tape sounds), and imprints vowels
+  	  onto any sound like a talkbox. It analyses with a true spectral envelope and shifts pitch with a
+  	  phase-locked vocoder, and adds ~43 ms of latency, which LMMS compensates.
+  	- *Resonant*: the classic zero-latency formant filter (five resonant band-passes).
+  	- Vowel morph A–E–I–O–U over sung formant tables (bass to soprano), stereo spread, drive, an LFO
+  	  (7 shapes, free or tempo-synced to the song position) and an envelope follower on the vowel and the
+  	  formants, and 26 presets (Helium, Monster, Male to Female, Talkbox Vowel Sweep, Yoi Bass, Wobble Talk,
+  	  Auto-Wah Vowels, Throat Singer...). Drag the spectrum display sideways to shift the formants and scroll
+  	  it to morph the vowel. Every control can be automated.
 * **Audio clip fades and clip gain**: hover an audio clip in the Song Editor and drag the handles on its top
   edge. The corner handles set equal-power fade in / fade out, and the middle handle sets clip gain (drag up
   or down, Shift for fine steps). Double-click a handle to reset it. The context menu adds *Normalize clip
@@ -96,6 +108,9 @@ Building
 ---------
 
 See [Compiling LMMS](https://github.com/LMMS/lmms/wiki/Compiling)
+
+**Running the tests:** after building, run `QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure -j4`
+(the GUI tests need the offscreen platform when no display is available).
 
 **Missing instruments (SF2 Player, VeSTige, ...)?** The instruments panel only lists plugins that were built.
 If `PLUGIN_LIST` is set or `LMMS_MINIMAL` is `ON` in your CMake cache (e.g. left over from a quick dev build),

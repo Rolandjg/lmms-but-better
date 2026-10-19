@@ -67,6 +67,7 @@ public:
 	bool handleMidiEvent(const MidiEvent& event, const TimePos& time = TimePos(),
 		f_cnt_t offset = 0) override;
 	void play(SampleFrame* buf) override;
+	f_cnt_t latency() const override { return m_plugin ? static_cast<f_cnt_t>(m_plugin->latency()) : 0; }
 
 	gui::PluginView* instantiateView(QWidget* parent) override;
 

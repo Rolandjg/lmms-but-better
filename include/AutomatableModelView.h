@@ -71,6 +71,9 @@ public:
 		m_unit = unit;
 	}
 
+	const QString& description() const { return m_description; }
+	const QString& unit() const { return m_unit; }
+
 	void addDefaultActions( QMenu* menu );
 
 	void setConversionFactor( float factor );

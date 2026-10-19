@@ -28,6 +28,8 @@
 
 #include <memory>
 
+#include <QPointer>
+
 #include "ProjectRenderer.h"
 #include "OutputSettings.h"
 
@@ -53,8 +55,12 @@ public:
 	void abortProcessing();
 	void setRenderTail(bool tail) { m_renderTail = tail; }
 
+	//! Why the export failed; empty if it succeeded. Check this when finished() is emitted.
+	QString errorString() const { return m_error; }
+
 signals:
 	void progressChanged( int );
+	//! Emitted when the export completed or failed (but not when it was aborted)
 	void finished();
 
 private slots:
@@ -73,9 +79,11 @@ private:
 
 	std::unique_ptr<ProjectRenderer> m_activeRenderer;
 
-	std::vector<Track*> m_tracksToRender;
-	std::vector<Track*> m_unmuted;
+	// Tracks may be deleted while a stem export is running (e.g. one started by a script)
+	std::vector<QPointer<Track>> m_tracksToRender;
+	std::vector<QPointer<Track>> m_unmuted;
 	bool m_renderTail = true;
+	QString m_error;
 } ;
 
 

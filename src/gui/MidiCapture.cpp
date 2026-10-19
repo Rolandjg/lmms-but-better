@@ -29,6 +29,8 @@
 #include "InstrumentTrack.h"
 #include "MidiClip.h"
 #include "Note.h"
+#include "PatternStore.h"
+#include "PatternTrack.h"
 #include "Song.h"
 
 namespace lmms::gui
@@ -39,6 +41,21 @@ namespace
 
 constexpr std::size_t MaxNotesPerTrack = 20000;
 constexpr double TicksPerBeat = DefaultTicksPerBar / 4.0;
+
+//! Play position for notes played while the song or a pattern is playing, else -1
+double playbackTicks()
+{
+	const auto song = Engine::getSong();
+	if (!song->isPlaying()) { return -1; }
+	const auto mode = song->playMode();
+	if (mode != Song::PlayMode::Song && mode != Song::PlayMode::Pattern) { return -1; }
+	return song->getPlayPos(mode).getTicks();
+}
+
+bool inPatternEditor(const InstrumentTrack* track)
+{
+	return track->trackContainer() == Engine::patternStore();
+}
 
 }
 
@@ -51,6 +68,9 @@ MidiCapture::MidiCapture(QObject* parent) :
 	connect(song, &TrackContainer::trackAdded, this, &MidiCapture::watchTrack);
 	connect(song, &Song::playbackStateChanged, this, [this] { ++m_session; });
 	for (auto track : song->tracks()) { watchTrack(track); }
+	auto patternStore = Engine::patternStore();
+	connect(patternStore, &TrackContainer::trackAdded, this, &MidiCapture::watchTrack);
+	for (auto track : patternStore->tracks()) { watchTrack(track); }
 }
 
 
@@ -69,6 +89,7 @@ void MidiCapture::watchTrack(Track* track)
 		m_notes.erase(instrumentTrack);
 		if (m_lastTrack == instrumentTrack) { m_lastTrack = nullptr; }
 		emit availabilityChanged(hasCapture());
+		emit pendingChanged();
 	});
 }
 
@@ -93,17 +114,13 @@ void MidiCapture::onNoteOff(const Note& note)
 
 void MidiCapture::notePressed(InstrumentTrack* track, const Note& note)
 {
-	const auto song = Engine::getSong();
 	CapturedNote captured;
 	captured.key = note.key();
 	captured.volume = note.getVolume();
 	captured.panning = note.getPanning();
 	captured.startMs = m_clock.elapsed();
 	captured.session = m_session;
-	if (song->isPlaying() && song->playMode() == Song::PlayMode::Song)
-	{
-		captured.startTicks = song->getPlayPos(Song::PlayMode::Song).getTicks();
-	}
+	captured.startTicks = playbackTicks();
 
 	auto& notes = m_notes[track];
 	const bool wasAvailable = hasCapture();
@@ -111,6 +128,7 @@ void MidiCapture::notePressed(InstrumentTrack* track, const Note& note)
 	prune(notes);
 	m_lastTrack = track;
 	if (!wasAvailable) { emit availabilityChanged(true); }
+	emit pendingChanged();
 }
 
 
@@ -125,11 +143,7 @@ void MidiCapture::noteReleased(InstrumentTrack* track, const Note& note)
 	{
 		if (n->key != note.key() || n->endMs >= 0) { continue; }
 		n->endMs = m_clock.elapsed();
-		const auto song = Engine::getSong();
-		if (n->startTicks >= 0 && song->isPlaying() && song->playMode() == Song::PlayMode::Song)
-		{
-			n->endTicks = song->getPlayPos(Song::PlayMode::Song).getTicks();
-		}
+		if (const auto ticks = playbackTicks(); n->startTicks >= 0 && ticks >= 0) { n->endTicks = ticks; }
 		break;
 	}
 }
@@ -153,6 +167,24 @@ bool MidiCapture::hasCapture() const
 	if (!m_lastTrack) { return false; }
 	const auto it = m_notes.find(m_lastTrack);
 	return it != m_notes.end() && !it->second.empty();
+}
+
+
+
+
+QString MidiCapture::pendingDescription() const
+{
+	if (!hasCapture())
+	{
+		return tr("Nothing to capture yet: play something on a MIDI keyboard or the on-screen piano, then "
+			"capture it even if you weren't recording.");
+	}
+	const double ticksPerMs = Engine::getSong()->getTempo() * TicksPerBeat / 60000.0;
+	const auto count = static_cast<int>(extractTake(m_notes.at(m_lastTrack), m_clock.elapsed(), ticksPerMs).notes.size());
+	return inPatternEditor(m_lastTrack)
+		? tr("Recover the last %n note(s) you played on \"%1\" into the current pattern", "", count)
+			.arg(m_lastTrack->name())
+		: tr("Recover the last %n note(s) you played on \"%1\" as a new clip", "", count).arg(m_lastTrack->name());
 }
 
 
@@ -237,6 +269,39 @@ MidiClip* MidiCapture::capture(QString* message)
 	}
 
 	const tick_t ticksPerBar = TimePos::ticksPerBar();
+	if (inPatternEditor(track))
+	{
+		// Pattern Editor tracks have one clip per pattern: add the take to the current pattern
+		const auto patternStore = Engine::patternStore();
+		const int pattern = patternStore->currentPattern();
+		auto clip = dynamic_cast<MidiClip*>(track->getClip(pattern));
+		if (!clip)
+		{
+			setMessage(tr("Could not find the current pattern's clip."));
+			return nullptr;
+		}
+		const double patternTicks = std::max(1, patternStore->lengthOfPattern(pattern)) * ticksPerBar;
+		clip->addJournalCheckPoint();
+		for (const auto& entry : take.notes)
+		{
+			// Played along with the pattern: keep the position in it; otherwise start at the beginning
+			const double pos = take.fromPlayback ? std::fmod(entry.pos, patternTicks) : entry.pos - take.startTicks;
+			const auto length = static_cast<tick_t>(std::max<long>(1, std::lround(entry.length)));
+			clip->addNote(Note(TimePos(length), TimePos(static_cast<tick_t>(std::max(0l, std::lround(pos)))), entry.key,
+				entry.volume, entry.panning), false);
+		}
+		clip->rearrangeAllNotes();
+		clip->updateLength();
+		song->setModified();
+		const auto patternTrack = PatternTrack::findPatternTrack(pattern);
+		setMessage(tr("Captured %n note(s) into pattern \"%1\" on \"%2\"", "", static_cast<int>(take.notes.size()))
+			.arg(patternTrack ? patternTrack->name() : QString::number(pattern + 1), track->name()));
+		notes.erase(notes.begin() + static_cast<long>(take.firstIndex), notes.end());
+		emit availabilityChanged(hasCapture());
+		emit pendingChanged();
+		return clip;
+	}
+
 	TimePos clipStart;
 	if (take.fromPlayback)
 	{
@@ -273,6 +338,7 @@ MidiClip* MidiCapture::capture(QString* message)
 	// The take is used up; capturing again picks the take before it
 	notes.erase(notes.begin() + static_cast<long>(take.firstIndex), notes.end());
 	emit availabilityChanged(hasCapture());
+	emit pendingChanged();
 	return clip;
 }
 

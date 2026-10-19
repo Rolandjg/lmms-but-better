@@ -51,6 +51,8 @@ All of these use the same `lmms` Python module, and scripts behave the same way 
 * All code runs in **one persistent interpreter**, so variables you define stay around between
   runs. `lmms`, `song`, `mixer`, `patterns`, `note`, `chord` and `scale` are predefined.
 * **Stop** kills the running code. **Reset** starts a fresh interpreter.
+* Every run first takes a checkpoint of the project. **Undo run** puts the project back to how it
+  was before the last run, whatever the script did (Ctrl+Z still undoes single edits).
 * **Agent link** copies a Python snippet that connects another program to this LMMS instance.
   See [section 6](#6-guide-for-ai-agents).
 
@@ -175,6 +177,7 @@ Call `lmms.help()` for a one-screen overview, or `help(lmms.MidiClip)` for any c
 | `new(empty=False, template=None)` | New project. `empty=True` means no tracks, 140 BPM, 4/4, no template, which is what scripts usually want. Without arguments the user's default template is loaded. |
 | `open(path)` / `save(path=None) → path` | Load or save `.mmp`/`.mmpz`. `save` adds `.mmpz` when there's no extension. |
 | `import_midi(path)` / `export_midi(path)` | MIDI file import and export. |
+| `checkpoint() → id` / `restore_checkpoint(id=None)` | Remember the whole project in a temporary file (the project file isn't touched) and put it back later, e.g. when a script fails halfway. Objects from before a restore have to be looked up again. The last 10 checkpoints are kept. |
 | `render(path, format=None, sample_rate=44100, bit_depth=16, loop=False, between_loop_markers=False, loop_count=1, stems=False)` | Render and **wait** until done. The format comes from the extension (`wav`, `flac`, `ogg`, `mp3`) or `format`. It returns `{"path", "seconds", "sample_rate", "peak", "peak_db", "rms_db", "clipped_samples", "silent"}`, or only `path` if LMMS can't read the format back. `stems=True` renders each track into the directory `path` and returns `{"path", "files"}`. |
 | `play(start=None)`, `stop()`, `pause()` | Transport. |
 | `set_loop(start, end, enabled=True)` | Song-editor loop points in beats. |
@@ -456,7 +459,11 @@ The scripting interface is designed so an agent can compose without hearing or s
    individual tracks.
 6. **Look at it** when a GUI is available: `clip.open()` and `lmms.screenshot(path, "piano_roll")`
    produce images you can inspect.
-7. **Save** with `song.save(path)`. The user can open the `.mmpz` in LMMS and keep working.
+7. **Make big edits recoverable.** Call `song.checkpoint()` before a series of changes to a project the
+   user cares about, and `song.restore_checkpoint()` if something goes wrong. `lmms.batch` stops at
+   the first failing call and says how many calls were applied. While a render is running, only
+   queries are accepted; edits are refused until `song.render` returns.
+8. **Save** with `song.save(path)`. The user can open the `.mmpz` in LMMS and keep working.
 
 A complete agent session:
 
@@ -499,7 +506,7 @@ printf '{"token":"%s"}\n{"id":1,"method":"song.info"}\n' "$TOKEN" | nc -q1 127.0
 
 | Method | Description |
 |---|---|
-| `api.batch` | Run several calls at once: calls [{method, params}] → [{result} or {error}] |
+| `api.batch` | Run several calls at once: calls [{method, params}] → [{result} or {error}]; with `stop_on_error` the calls after a failure are skipped (`{skipped: true}`) |
 | `api.describe` | All methods with a one-line description |
 | `api.ping` | Returns "pong" |
 | `app.analyze` | Peak/RMS statistics of an audio file: path |
@@ -553,6 +560,8 @@ printf '{"token":"%s"}\n{"id":1,"method":"song.info"}\n' "$TOKEN" | nc -q1 127.0
 | `song.pause` | Pause/resume playback |
 | `song.play` | Start playback (optionally `from` a beat position) |
 | `song.render` | Render to an audio file (wav/flac/ogg/mp3) and return loudness statistics: path, format?, sample_rate, bit_depth (16/24/32), loop, between_loop_markers, loop_count, stems, analyze |
+| `song.checkpoint` | Remember the project state in a temporary file; returns a checkpoint id |
+| `song.restore_checkpoint` | Put the project back to a checkpoint: id (default: the latest) |
 | `song.save` | Save the project; path is optional when the project already has a file name |
 | `song.set` | Set tempo, time_signature [num, den], master_volume (0-200), master_pitch (semitones) |
 | `song.set_loop` | Set the song loop: enabled, start, end (beats) |

@@ -61,7 +61,16 @@ void RenderManager::abortProcessing()
 // Called to render each new track when rendering tracks individually.
 void RenderManager::renderNextTrack()
 {
+	if (m_activeRenderer && m_activeRenderer->failed())
+	{
+		// don't carry on with the remaining stems after a failure
+		m_error = m_activeRenderer->errorString();
+		m_tracksToRender.clear();
+	}
 	m_activeRenderer.reset();
+
+	// skip tracks deleted in the meantime
+	while (!m_tracksToRender.empty() && !m_tracksToRender.back()) { m_tracksToRender.pop_back(); }
 
 	if (m_tracksToRender.empty())
 	{
@@ -76,9 +85,9 @@ void RenderManager::renderNextTrack()
 		m_tracksToRender.pop_back();
 
 		// mute everything but the track we are about to render
-		for (auto track : m_unmuted)
+		for (const auto& track : m_unmuted)
 		{
-			track->setMuted(track != renderTrack);
+			if (track) { track->setMuted(track != renderTrack); }
 		}
 
 		// for multi-render, prefix each output file with a different number
@@ -152,7 +161,7 @@ void RenderManager::render(QString outputPath)
 	}
 	else
 	{
-		qDebug( "Renderer failed to acquire a file device!" );
+		// renderNextTrack() picks up the error and finishes
 		renderNextTrack();
 	}
 }
@@ -162,9 +171,9 @@ void RenderManager::restoreMutedState()
 {
 	while (!m_unmuted.empty())
 	{
-		Track* restoreTrack = m_unmuted.back();
+		const auto restoreTrack = m_unmuted.back();
 		m_unmuted.pop_back();
-		restoreTrack->setMuted( false );
+		if (restoreTrack) { restoreTrack->setMuted(false); }
 	}
 }
 

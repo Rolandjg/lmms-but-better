@@ -25,6 +25,8 @@
 #ifndef LMMS_PROJECT_RENDERER_H
 #define LMMS_PROJECT_RENDERER_H
 
+#include <atomic>
+
 #include "AudioFileDevice.h"
 #include "AudioEngine.h"
 #include "OutputSettings.h"
@@ -69,6 +71,11 @@ public:
 		return m_fileDev != nullptr;
 	}
 
+	//! Why the file could not be created or completely written; empty on success and after an abort.
+	//! A failed render deletes its incomplete file. Valid once the thread has finished.
+	QString errorString() const { return m_error; }
+	bool failed() const { return !m_error.isEmpty(); }
+
 	static ExportFileFormat getFileFormatFromExtension(
 							const QString & _ext );
 
@@ -82,7 +89,8 @@ public slots:
 
 	void updateConsoleProgress();
 
-	//! Keep rendering after the end until reverb/delay tails fade to silence.
+	//! Keep rendering after the end until reverb/delay tails fade to silence. Nothing new is started
+	//! during the tail: notes and samples already sounding at the end decay, later clips stay silent.
 	void setRenderTail(bool tail) { m_renderTail = tail; }
 
 
@@ -97,9 +105,10 @@ private:
 	TimePos m_begin;
 	TimePos m_end;
 
-	volatile int m_progress;
-	volatile bool m_abort;
+	std::atomic<int> m_progress;
+	std::atomic<bool> m_abort;
 	bool m_renderTail = false;
+	QString m_error;
 
 } ;
 

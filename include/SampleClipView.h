@@ -49,6 +49,8 @@ public:
 public slots:
 	void updateSample();
 	void reverseSample();
+	//! Dialog for typing fade lengths and the clip gain
+	void editFadesAndGain();
 	void setAutomationGhost();
 
 

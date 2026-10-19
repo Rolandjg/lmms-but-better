@@ -47,6 +47,7 @@
 #include "Fader.h"
 
 #include <QInputDialog>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>  // IWYU pragma: keep
@@ -54,6 +55,7 @@
 #include "lmms_math.h"
 #include "CaptionMenu.h"
 #include "ConfigManager.h"
+#include "ControlAccessibility.h"
 #include "DeprecationHelper.h"
 #include "KeyboardShortcuts.h"
 #include "SimpleTextFloat.h"
@@ -89,6 +91,9 @@ Fader::Fader(FloatModel* model, const QString& name, QWidget* parent, bool model
 	setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 	setModel(model);
 	setHintText(tr("Volume:"), "%");
+	// Tab only: clicking must not take focus, or Space would stop reaching the transport
+	setFocusPolicy(Qt::TabFocus);
+	attachFocusRing(this);
 
 	m_conversionFactor = 100.0;
 
@@ -266,6 +271,42 @@ void Fader::mouseReleaseEvent(QMouseEvent* mouseEvent)
 	s_textFloat->hide();
 }
 
+
+void Fader::keyPressEvent(QKeyEvent* ev)
+{
+	// Same steps as the mouse wheel; Page Up/Down are coarse, Delete resets, Enter asks for a value
+	const auto mods = ev->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier);
+	switch (ev->key())
+	{
+		case Qt::Key_Up:
+		case Qt::Key_Right:
+			adjust(mods, AdjustmentDirection::Up);
+			break;
+		case Qt::Key_Down:
+		case Qt::Key_Left:
+			adjust(mods, AdjustmentDirection::Down);
+			break;
+		case Qt::Key_PageUp:
+			adjust(Qt::ShiftModifier, AdjustmentDirection::Up);
+			break;
+		case Qt::Key_PageDown:
+			adjust(Qt::ShiftModifier, AdjustmentDirection::Down);
+			break;
+		case Qt::Key_Delete:
+		case Qt::Key_Backspace:
+			model()->reset();
+			break;
+		case Qt::Key_Return:
+		case Qt::Key_Enter:
+		case Qt::Key_F2:
+			adjustByDialog();
+			break;
+		default:
+			QWidget::keyPressEvent(ev);
+			return;
+	}
+	ev->accept();
+}
 
 void Fader::wheelEvent (QWheelEvent* ev)
 {
@@ -513,6 +554,7 @@ void Fader::updateTextFloat()
 void Fader::modelValueChanged()
 {
 	setToolTip(getModelValueAsDbString());
+	if (model()) { announceValueChange(this, model()->value()); }
 }
 
 QString Fader::getModelValueAsDbString() const

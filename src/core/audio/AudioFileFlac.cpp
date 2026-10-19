@@ -80,6 +80,12 @@ bool AudioFileFlac::startEncoding()
 		&m_sfinfo
 	);
 
+	if (!m_sf)
+	{
+		setError(sf_strerror(nullptr));
+		return false;
+	}
+
 	sf_command(m_sf, SFC_SET_CLIPPING, nullptr, SF_TRUE);
 
 	sf_set_string(m_sf, SF_STR_SOFTWARE, "LMMS");
@@ -105,13 +111,13 @@ void AudioFileFlac::writeBuffer(const SampleFrame* _ab, f_cnt_t const frames)
 				buf[frame*channels() + channel] = std::max(clipvalue, _ab[frame][channel]);
 			}
 		}
-		sf_writef_float(m_sf, static_cast<float*>(buf.data()), frames);
+		if (sf_writef_float(m_sf, static_cast<float*>(buf.data()), frames) != static_cast<sf_count_t>(frames)) { setError(sf_strerror(m_sf)); }
 	}
 	else // integer PCM encoding
 	{
 		auto buf = std::vector<int_sample_t>(frames * channels());
 		convertToS16(_ab, frames, buf.data(), isBigEndian());
-		sf_writef_short(m_sf, static_cast<short*>(buf.data()), frames);
+		if (sf_writef_short(m_sf, static_cast<short*>(buf.data()), frames) != static_cast<sf_count_t>(frames)) { setError(sf_strerror(m_sf)); }
 	}
 
 }

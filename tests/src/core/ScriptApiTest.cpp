@@ -228,6 +228,68 @@ private slots:
 		QVERIFY(!Engine::getSong()->isExporting());
 	}
 
+	void batchCanStopOnError()
+	{
+		const auto results = call("api.batch", {{"stop_on_error", true}, {"calls", QJsonArray{
+			QJsonObject{{"method", "api.ping"}}, QJsonObject{{"method", "nope"}}, QJsonObject{{"method", "api.ping"}}}}})
+			.toArray();
+		QCOMPARE(results.size(), 3);
+		QVERIFY(results[0].toObject().contains("result"));
+		QVERIFY(results[1].toObject().contains("error"));
+		QVERIFY(results[2].toObject()["skipped"].toBool());
+	}
+
+	void checkpointsRestoreTheProject()
+	{
+		call("song.new", {{"empty", true}});
+		call("song.set", {{"tempo", 100}});
+		const int id = call("song.checkpoint").toInt();
+		QVERIFY(id > 0);
+		call("song.set", {{"tempo", 150}});
+		call("song.add_track", {{"type", "sample"}});
+		QCOMPARE(Engine::getSong()->tracks().size(), std::size_t{1});
+
+		QVERIFY(call("song.restore_checkpoint", {{"id", id}}).toBool());
+		QCOMPARE(Engine::getSong()->getTempo(), bpm_t{100});
+		QCOMPARE(Engine::getSong()->tracks().size(), std::size_t{0});
+		// still the same (unnamed) project, now with unsaved changes, and not in the recent files
+		QVERIFY(Engine::getSong()->projectFileName().isEmpty());
+		QVERIFY(Engine::getSong()->isModified());
+		for (const auto& recent : ConfigManager::inst()->recentlyOpenedProjects()) { QVERIFY(!recent.contains("checkpoint")); }
+		QVERIFY(callError("song.restore_checkpoint", {{"id", 9999}}).contains("unknown checkpoint"));
+	}
+
+	void editsAreRefusedWhileRendering()
+	{
+		call("song.new", {{"empty", true}});
+		bool replied = false;
+		QString renderError;
+		ScriptApi::instance()->call("song.render", {{"path", m_configDir.path() + "/busy.wav"}},
+			[&](const QJsonValue&, const QString& e) { replied = true; renderError = e; });
+		if (!replied)
+		{
+			QVERIFY(callError("song.set", {{"tempo", 90}}).contains("not allowed while a render is running"));
+			QVERIFY(callError("song.render", {{"path", m_configDir.path() + "/second.wav"}}).contains("render"));
+			QVERIFY(callError("song.info").isEmpty());
+		}
+		QTRY_VERIFY_WITH_TIMEOUT(replied, 20000);
+		QVERIFY2(renderError.isEmpty(), qPrintable(renderError));
+		QVERIFY(callError("song.set", {{"tempo", 90}}).isEmpty());
+	}
+
+	void renderErrorsAreReported()
+	{
+		call("song.new", {{"empty", true}});
+		const auto blocked = m_configDir.path() + "/blocked.wav";
+		QVERIFY(QDir().mkpath(blocked));
+		bool replied = false;
+		QString renderError;
+		ScriptApi::instance()->call("song.render", {{"path", blocked}},
+			[&](const QJsonValue&, const QString& e) { replied = true; renderError = e; });
+		QTRY_VERIFY_WITH_TIMEOUT(replied, 20000);
+		QVERIFY2(renderError.contains("render failed"), qPrintable(renderError));
+	}
+
 	void liveNotesRejectInvalidPitches()
 	{
 		call("song.new", {{"empty", true}});

@@ -22,10 +22,12 @@
 
 #include "ModernWidgets.h"
 
+#include <QApplication>
 #include <QGridLayout>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QStyle>
 #include <QTimer>
 #include <QToolTip>
 #include <QHelpEvent>
@@ -44,8 +46,67 @@
 namespace lmms::gui
 {
 
+ModernPalette::ModernPalette()
+{
+	const ModernColors defaults;
+	window = defaults.window;
+	section = defaults.section;
+	sectionBorder = defaults.sectionBorder;
+	display = defaults.display;
+	grid = defaults.grid;
+	text = defaults.text;
+	dimText = defaults.dimText;
+	button = defaults.button;
+	activeButton = defaults.activeButton;
+	accent = defaults.accent;
+	secondary = defaults.secondary;
+	warning = defaults.warning;
+	// Same approach as LmmsPalette: let the application style sheet fill in the qproperties
+	setStyle(QApplication::style());
+	QApplication::style()->polish(this);
+	ensurePolished();
+}
+
+
+ModernColors ModernPalette::colors() const
+{
+	return {window, section, sectionBorder, display, grid, text, dimText, button, activeButton, accent, secondary,
+		warning};
+}
+
+
+const ModernColors& ModernColors::current()
+{
+	static ModernColors colors;
+	static bool themed = false;
+	if (!themed)
+	{
+		auto app = qobject_cast<QApplication*>(QCoreApplication::instance());
+		if (app && !app->styleSheet().isEmpty())
+		{
+			themed = true;
+			colors = ModernPalette{}.colors();
+		}
+	}
+	return colors;
+}
+
+
 namespace modern
 {
+
+QColor windowColor() { return ModernColors::current().window; }
+QColor sectionColor() { return ModernColors::current().section; }
+QColor sectionBorder() { return ModernColors::current().sectionBorder; }
+QColor displayColor() { return ModernColors::current().display; }
+QColor gridColor() { return ModernColors::current().grid; }
+QColor textColor() { return ModernColors::current().text; }
+QColor dimTextColor() { return ModernColors::current().dimText; }
+QColor buttonColor() { return ModernColors::current().button; }
+QColor activeButtonColor() { return ModernColors::current().activeButton; }
+QColor accentColor() { return ModernColors::current().accent; }
+QColor secondaryColor() { return ModernColors::current().secondary; }
+QColor warningColor() { return ModernColors::current().warning; }
 
 void applyWindowStyle(QWidget* widget)
 {

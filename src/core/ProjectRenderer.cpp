@@ -28,6 +28,7 @@
 #include <QFile>
 
 #include "ProjectRenderer.h"
+#include "Mixer.h"
 #include "Song.h"
 #include "PerfLog.h"
 
@@ -98,10 +99,13 @@ ProjectRenderer::ProjectRenderer(
 					Engine::audioEngine(), successful );
 		if( !successful )
 		{
+			m_error = m_fileDev ? m_fileDev->errorString() : QString{};
+			if (m_error.isEmpty()) { m_error = tr("Could not start encoding %1").arg(outputFilename); }
 			delete m_fileDev;
 			m_fileDev = nullptr;
 		}
 	}
+	else { m_error = tr("This build of LMMS cannot write this file format"); }
 }
 
 
@@ -160,6 +164,8 @@ void ProjectRenderer::run()
 {
 	PerfLogTimer perfLog("Project Render");
 
+	// The first period already plays the song, so the delays must be right before it
+	Engine::mixer()->updateLatencyCompensation();
 	Engine::getSong()->startExport(m_begin, m_end);
 	// Skip first empty buffer.
 	Engine::audioEngine()->renderNextPeriod();
@@ -169,11 +175,24 @@ void ProjectRenderer::run()
 	// Now start processing
 	Engine::audioEngine()->startProcessing();
 
+	const auto writeFailed = [this] { return !m_fileDev->errorString().isEmpty(); };
+
+	// Plugin latency makes the whole output late by the same amount (the mixer lines all paths up), so
+	// drop that much from the start and render as much again after the end
+	const f_cnt_t latency = Engine::mixer()->outputLatency();
+	f_cnt_t skip = latency;
+	const auto write = [&](const SampleFrame* data, f_cnt_t frames)
+	{
+		const auto skipped = std::min(skip, frames);
+		skip -= skipped;
+		if (frames > skipped) { m_fileDev->writeBuffer(data + skipped, frames - skipped); }
+	};
+
 	// Continually track and emit progress percentage to listeners.
-	while (!Engine::getSong()->isExportDone() && !m_abort)
+	while (!Engine::getSong()->isExportDone() && !m_abort && !writeFailed())
 	{
 		const auto buffer = Engine::audioEngine()->renderNextPeriod();
-		m_fileDev->writeBuffer(buffer.data(), buffer.size());
+		write(buffer.data(), buffer.size());
 
 		const int nprog = Engine::getSong()->getExportProgress();
 		if (m_progress != nprog)
@@ -184,21 +203,32 @@ void ProjectRenderer::run()
 	}
 
 	// Let reverb/delay tails ring out: stop after half a second of near-silence, or at 30 seconds.
-	if (m_renderTail && !m_abort)
+	if (m_renderTail && !m_abort && !writeFailed())
 	{
 		const auto sampleRate = Engine::audioEngine()->outputSampleRate();
 		const auto silentLimit = static_cast<f_cnt_t>(sampleRate / 2);
 		const auto maxFrames = static_cast<f_cnt_t>(sampleRate) * 30;
 		f_cnt_t silent = 0;
 		f_cnt_t total = 0;
-		while (silent < silentLimit && total < maxFrames && !m_abort)
+		while ((silent < silentLimit || total < latency) && total < maxFrames && !m_abort && !writeFailed())
 		{
 			const auto buffer = Engine::audioEngine()->renderNextPeriod();
-			m_fileDev->writeBuffer(buffer.data(), buffer.size());
+			write(buffer.data(), buffer.size());
 			float peak = 0.f;
 			for (const auto& frame : buffer) { peak = std::max({peak, std::abs(frame[0]), std::abs(frame[1])}); }
 			silent = peak < 1e-4f ? silent + buffer.size() : 0;
 			total += buffer.size();
+		}
+	}
+	else
+	{
+		// the delayed end of the song
+		for (f_cnt_t remaining = latency; remaining > 0 && !m_abort && !writeFailed();)
+		{
+			const auto buffer = Engine::audioEngine()->renderNextPeriod();
+			const auto frames = std::min<f_cnt_t>(remaining, buffer.size());
+			write(buffer.data(), frames);
+			remaining -= frames;
 		}
 	}
 
@@ -209,9 +239,13 @@ void ProjectRenderer::run()
 
 	perfLog.end();
 
-	// If the user aborted export-process, the file has to be deleted.
+	// An aborted or incompletely written file is useless: delete it.
 	const QString f = m_fileDev->outputFile();
-	if( m_abort )
+	if (!m_abort && writeFailed())
+	{
+		m_error = tr("%1\nThe incomplete file was deleted.").arg(m_fileDev->errorString());
+	}
+	if (m_abort || writeFailed())
 	{
 		QFile( f ).remove();
 	}
@@ -235,15 +269,16 @@ void ProjectRenderer::updateConsoleProgress()
 	auto buf = std::array<char, 80>{};
 	auto prog = std::array<char, cols + 1>{};
 
+	const int progress = m_progress;
 	for( int i = 0; i < cols; ++i )
 	{
-		prog[i] = ( i*100/cols <= m_progress ? '-' : ' ' );
+		prog[i] = ( i*100/cols <= progress ? '-' : ' ' );
 	}
 	prog[cols] = 0;
 
 	const auto activity = "|/-\\";
 	std::fill(buf.begin(), buf.end(), 0);
-	std::snprintf(buf.data(), buf.size(), "\r|%s|    %3d%%   %c  ", prog.data(), m_progress,
+	std::snprintf(buf.data(), buf.size(), "\r|%s|    %3d%%   %c  ", prog.data(), progress,
 							activity[rot] );
 	rot = ( rot+1 ) % 4;
 

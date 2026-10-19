@@ -82,6 +82,9 @@ InstrumentTrack::InstrumentTrack(TrackContainer* tc) :
 
 	m_mixerChannelModel.setRange( 0, Engine::mixer()->numChannels()-1, 1);
 
+	// the mixer compensates the instrument's own processing delay (plugin delay compensation)
+	m_audioBusHandle.setSourceLatency([this] { return m_instrument ? m_instrument->latency() : 0; });
+
 	for( int i = 0; i < NumKeys; ++i )
 	{
 		m_notes[i] = nullptr;

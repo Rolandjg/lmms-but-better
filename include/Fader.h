@@ -124,6 +124,7 @@ private:
 	void mousePressEvent(QMouseEvent* ev) override;
 	void mouseDoubleClickEvent(QMouseEvent* mouseEvent) override;
 	void mouseMoveEvent(QMouseEvent* ev) override;
+	void keyPressEvent(QKeyEvent* ev) override;
 	void mouseReleaseEvent(QMouseEvent* me) override;
 	void wheelEvent(QWheelEvent* ev) override;
 	void paintEvent(QPaintEvent* ev) override;

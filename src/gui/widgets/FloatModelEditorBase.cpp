@@ -28,12 +28,14 @@
 
 #include <QApplication>
 #include <QInputDialog>
+#include <QKeyEvent>
 #include <QPainter>
 #include <QTimerEvent>
 
 #include "lmms_math.h"
 #include "DeprecationHelper.h"
 #include "CaptionMenu.h"
+#include "ControlAccessibility.h"
 #include "ControllerConnection.h"
 #include "GuiApplication.h"
 #include "KeyboardShortcuts.h"
@@ -78,7 +80,9 @@ void FloatModelEditorBase::initUi(const QString & name)
 
 	setWindowTitle(name);
 
-	setFocusPolicy(Qt::ClickFocus);
+	// reachable with Tab so the value can be changed with the keyboard (see keyPressEvent())
+	setFocusPolicy(Qt::StrongFocus);
+	attachFocusRing(this);
 
 	doConnections();
 }
@@ -289,7 +293,86 @@ void FloatModelEditorBase::focusOutEvent(QFocusEvent * fe)
 {
 	// make sure we don't loose mouse release event
 	mouseReleaseEvent(nullptr);
+	if (s_textFloat->source() == this && m_interaction == InteractionType::Keyboard) { s_textFloat->hide(); }
+	m_interaction = InteractionType::None;
 	QWidget::focusOutEvent(fe);
+}
+
+
+void FloatModelEditorBase::keyPressEvent(QKeyEvent * ke)
+{
+	// Arrows step like the mouse wheel (Shift: coarse, Ctrl: fine), Page Up/Down jump by a tenth of the
+	// range, Home/End go to the limits, Delete/Backspace resets and Enter/F2 asks for a number.
+	// The context menu (automation, controllers) opens with the Menu key or Shift+F10 as usual.
+	const auto mods = ke->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier);
+	const float sweep = mods == Qt::ShiftModifier ? 10.f
+		: mods == Qt::ControlModifier ? 1000.f
+		: mods == Qt::AltModifier ? 2000.f
+		: 100.f;
+	auto* m = model();
+	switch (ke->key())
+	{
+		case Qt::Key_Up:
+		case Qt::Key_Right:
+			stepValue(1, sweep);
+			break;
+		case Qt::Key_Down:
+		case Qt::Key_Left:
+			stepValue(-1, sweep);
+			break;
+		case Qt::Key_PageUp:
+			stepValue(1, 10.f);
+			break;
+		case Qt::Key_PageDown:
+			stepValue(-1, 10.f);
+			break;
+		case Qt::Key_Home:
+			m->setValue(m->minValue());
+			break;
+		case Qt::Key_End:
+			m->setValue(m->maxValue());
+			break;
+		case Qt::Key_Delete:
+		case Qt::Key_Backspace:
+			m->reset();
+			break;
+		case Qt::Key_Return:
+		case Qt::Key_Enter:
+		case Qt::Key_F2:
+			enterValue();
+			return;
+		default:
+			QWidget::keyPressEvent(ke);
+			return;
+	}
+	ke->accept();
+	const bool firstKey = m_interaction != InteractionType::Keyboard;
+	if (m_interaction != InteractionType::MouseDrag) { m_interaction = InteractionType::Keyboard; }
+	showTextFloat(0, 1500, firstKey);
+	emit sliderMoved(m->value());
+}
+
+
+void FloatModelEditorBase::stepValue(int direction, float numberOfStepsForFullSweep)
+{
+	auto* m = model();
+	const float step = m->step<float>();
+	// Compute the number of steps but make sure that we always do at least one step
+	const float currentValue = m->value();
+	const float valueOffset = m->range() / numberOfStepsForFullSweep;
+	const float scaledValueOffset = m->scaledValue(m->inverseScaledValue(currentValue) + valueOffset) - currentValue;
+	const float stepMult = std::max(scaledValueOffset / step, 1.f);
+	m->incValue(static_cast<int>(direction * stepMult));
+}
+
+
+QString FloatModelEditorBase::accessibleNameText() const
+{
+	if (!accessibleName().isEmpty()) { return accessibleName(); }
+	auto name = m_description;
+	if (name.isEmpty() && model()) { name = model()->displayName(); }
+	if (name.endsWith(':')) { name.chop(1); }
+	return name.trimmed();
 }
 
 
@@ -329,10 +412,6 @@ void FloatModelEditorBase::wheelEvent(QWheelEvent * we)
 	we->accept();
 	const int deltaY = we->angleDelta().y();
 	float direction = deltaY > 0 ? 1 : -1;
-
-	auto * m = model();
-	const float step = m->step<float>();
-	const float range = m->range();
 
 	// This is the default number of steps or mouse wheel events that it takes to sweep
 	// from the lowest value to the highest value.
@@ -374,13 +453,7 @@ void FloatModelEditorBase::wheelEvent(QWheelEvent * we)
 		direction = -direction;
 	}
 
-	// Compute the number of steps but make sure that we always do at least one step
-	const float currentValue = model()->value();
-	const float valueOffset = range / numberOfStepsForFullSweep;
-	const float scaledValueOffset = model()->scaledValue(model()->inverseScaledValue(currentValue) + valueOffset) - currentValue;
-	const float stepMult = std::max(scaledValueOffset / step, 1.f);
-	const int inc = direction * stepMult;
-	model()->incValue(inc);
+	stepValue(static_cast<int>(direction), numberOfStepsForFullSweep);
 
 	// Only force a text update for the 1st wheel event
 	showTextFloat(0, 1000, m_interaction != oldInteraction);
@@ -541,6 +614,8 @@ void FloatModelEditorBase::friendlyUpdate()
 			s_textFloat->setText(getDynamicFloatingText(*updatedText));
 		}
 	}
+
+	announceValueChange(this, model()->value());
 
 	update();
 }

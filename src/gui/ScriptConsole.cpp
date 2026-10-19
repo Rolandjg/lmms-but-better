@@ -173,6 +173,7 @@ ScriptConsole::ScriptConsole(QWidget* parent) :
 	m_runButton = makeButton(tr("▶ Run"), tr("Run the script, or the selected lines (Ctrl+Enter)"), this);
 	m_stopButton = makeButton(tr("■ Stop"), tr("Stop the running code (this also resets the interpreter)"), this);
 	auto restartButton = makeButton(tr("Reset"), tr("Start a fresh Python interpreter"), this);
+	m_undoRunButton = makeButton(tr("↶ Undo run"), tr("Put the project back to how it was before the last run"), this);
 	auto newButton = makeButton(tr("New"), tr("Start a new script"), this);
 	auto openButton = makeButton(tr("Open…"), tr("Open a Python script"), this);
 	auto saveButton = makeButton(tr("Save…"), tr("Save the script (Ctrl+S)"), this);
@@ -180,7 +181,7 @@ ScriptConsole::ScriptConsole(QWidget* parent) :
 	auto clearButton = makeButton(tr("Clear"), tr("Clear the output"), this);
 	auto connectButton = makeButton(tr("Agent link"), tr("Copy Python code that connects an external program "
 		"(e.g. an AI agent) to this LMMS instance"), this);
-	for (auto b : {m_runButton, m_stopButton, restartButton}) { toolbar->addWidget(b); }
+	for (auto b : {m_runButton, m_stopButton, restartButton, m_undoRunButton}) { toolbar->addWidget(b); }
 	toolbar->addSpacing(10);
 	for (auto b : {newButton, openButton, saveButton, examplesButton}) { toolbar->addWidget(b); }
 	toolbar->addStretch(1);
@@ -190,6 +191,7 @@ ScriptConsole::ScriptConsole(QWidget* parent) :
 	connect(m_runButton, &QToolButton::clicked, this, &ScriptConsole::run);
 	connect(m_stopButton, &QToolButton::clicked, this, &ScriptConsole::stop);
 	connect(restartButton, &QToolButton::clicked, this, &ScriptConsole::restart);
+	connect(m_undoRunButton, &QToolButton::clicked, this, &ScriptConsole::undoRun);
 	connect(newButton, &QToolButton::clicked, this, [this] {
 		m_fileName.clear();
 		setScript("import lmms\n\n");
@@ -364,8 +366,40 @@ void ScriptConsole::run()
 	else { code = m_editor->toPlainText(); }
 
 	const QString name = m_fileName.isEmpty() ? tr("script") : QFileInfo(m_fileName).fileName();
+	// A script can change a lot at once; keep a copy of the project so the whole run can be undone
+	if (!m_runner->isBusy())
+	{
+		try { m_runCheckpoint = scripting::ScriptApi::instance()->createCheckpoint(); }
+		catch (const std::exception& e)
+		{
+			m_runCheckpoint = 0;
+			appendOutput(tr("(this run can't be undone: %1)").arg(QString::fromUtf8(e.what())) + "\n", Style::Error);
+		}
+	}
 	appendOutput(tr("▶ running %1").arg(name) + "\n", Style::Info);
 	runCode(code, false);
+	updateState();
+}
+
+
+
+
+void ScriptConsole::undoRun()
+{
+	auto api = scripting::ScriptApi::instance();
+	if (m_runner->isBusy() || m_runCheckpoint == 0 || !api->hasCheckpoint(m_runCheckpoint)) { return; }
+	try
+	{
+		api->restoreCheckpoint(m_runCheckpoint);
+		appendOutput(tr("↶ project restored to before the last run (objects held in Python variables are "
+			"no longer valid)") + "\n", Style::Info);
+	}
+	catch (const std::exception& e)
+	{
+		appendOutput(tr("could not undo the run: %1").arg(QString::fromUtf8(e.what())) + "\n", Style::Error);
+	}
+	m_runCheckpoint = 0;
+	updateState();
 }
 
 
@@ -550,6 +584,8 @@ void ScriptConsole::updateState()
 	const bool busy = m_runner->isBusy();
 	m_runButton->setEnabled(!busy);
 	m_stopButton->setEnabled(m_runner->isRunning());
+	m_undoRunButton->setEnabled(!busy && m_runCheckpoint != 0
+		&& scripting::ScriptApi::instance()->hasCheckpoint(m_runCheckpoint));
 
 	QStringList parts;
 	if (busy) { parts << tr("running…"); }

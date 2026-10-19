@@ -37,6 +37,8 @@ public:
 	~LimiterEffect() override = default;
 
 	ProcessStatus processImpl(SampleFrame* buf, const f_cnt_t frames) override;
+	//! The lookahead (wet and dry are delayed alike), compensated by the mixer
+	f_cnt_t latency() const override { return static_cast<f_cnt_t>(m_dsp.latency()); }
 
 	EffectControls* controls() override { return &m_controls; }
 

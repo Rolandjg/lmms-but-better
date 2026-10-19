@@ -24,12 +24,14 @@
  */
 
 #include <cmath>
+#include <QKeyEvent>
 #include <QMouseEvent>
 #include <QInputDialog>
 
 #include "LcdSpinBox.h"
 #include "KeyboardShortcuts.h"
 #include "CaptionMenu.h"
+#include "ControlAccessibility.h"
 #include "DeprecationHelper.h"
 
 
@@ -44,6 +46,9 @@ LcdSpinBox::LcdSpinBox( int numDigits, QWidget* parent, const QString& name ) :
 	m_lastMousePos(),
 	m_displayOffset( 0 )
 {
+	// Tab only: clicking must not take focus, or Space would stop reaching the transport
+	setFocusPolicy(Qt::TabFocus);
+	attachFocusRing(this);
 }
 
 
@@ -57,6 +62,9 @@ LcdSpinBox::LcdSpinBox( int numDigits, const QString& style, QWidget* parent, co
 	m_lastMousePos(),
 	m_displayOffset( 0 )
 {
+	// Tab only: clicking must not take focus, or Space would stop reaching the transport
+	setFocusPolicy(Qt::TabFocus);
+	attachFocusRing(this);
 }
 
 void LcdSpinBox::update()
@@ -149,6 +157,45 @@ void LcdSpinBox::wheelEvent(QWheelEvent * we)
 	const int direction = (we->angleDelta().y() > 0 ? 1 : -1) * (we->inverted() ? -1 : 1);
 
 	model()->setValue(model()->value() + direction * model()->step<int>());
+	emit manualChange();
+}
+
+void LcdSpinBox::keyPressEvent(QKeyEvent* event)
+{
+	const int step = model()->step<int>();
+	switch (event->key())
+	{
+		case Qt::Key_Up:
+		case Qt::Key_Right:
+			model()->setValue(model()->value() + step);
+			break;
+		case Qt::Key_Down:
+		case Qt::Key_Left:
+			model()->setValue(model()->value() - step);
+			break;
+		case Qt::Key_PageUp:
+			model()->setValue(model()->value() + 10 * step);
+			break;
+		case Qt::Key_PageDown:
+			model()->setValue(model()->value() - 10 * step);
+			break;
+		case Qt::Key_Home:
+			model()->setValue(model()->minValue());
+			break;
+		case Qt::Key_End:
+			model()->setValue(model()->maxValue());
+			break;
+		case Qt::Key_Return:
+		case Qt::Key_Enter:
+		case Qt::Key_F2:
+			enterValue();
+			break;
+		default:
+			QWidget::keyPressEvent(event);
+			return;
+	}
+	event->accept();
+	announceValueChange(this, model()->value());
 	emit manualChange();
 }
 

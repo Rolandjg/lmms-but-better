@@ -343,7 +343,6 @@ bool DataFile::writeFile(const QString& filename, bool withResources)
 	const QString fullName = withResources
 		? nameWithExtension(bundleDir + "/" + fInfo.fileName())
 		: nameWithExtension(filename);
-	const QString fullNameTemp = fullName + ".new";
 	const QString fullNameBak = fullName + ".bak";
 
 	using gui::SongEditor;
@@ -389,7 +388,9 @@ bool DataFile::writeFile(const QString& filename, bool withResources)
 		}
 	}
 
-	QSaveFile outfile(fullNameTemp);
+	// QSaveFile writes to a temporary file and atomically renames it over the destination on commit(), so
+	// the previous project stays intact until the new one is complete and in place
+	QSaveFile outfile(fullName);
 
 	if (!outfile.open(QIODevice::WriteOnly | QIODevice::Truncate))
 	{
@@ -415,27 +416,26 @@ bool DataFile::writeFile(const QString& filename, bool withResources)
 		write( ts );
 	}
 
+	// Keep a copy of the previous version. Copying (rather than moving) the old file means the destination
+	// is never missing, even if the save fails below.
+	if (!ConfigManager::inst()->value("app", "disablebackup").toInt() && QFileInfo(fullName).isFile())
+	{
+		const bool oldBackupGone = !QFileInfo::exists(fullNameBak) || QFile::remove(fullNameBak);
+		if (!oldBackupGone || !QFile::copy(fullName, fullNameBak))
+		{
+			// The save itself can still succeed; just make sure the user knows there's no backup
+			showError(SongEditor::tr("Could not create backup"),
+				SongEditor::tr("Could not write the backup file %1. The project will be saved "
+					"without a backup of the previous version.").arg(fullNameBak));
+		}
+	}
+
 	if (!outfile.commit())
 	{
 		showError(SongEditor::tr("Could not write file"),
-			SongEditor::tr("An unknown error has occurred and the file could not be saved."));
+			SongEditor::tr("%1 could not be saved: %2").arg(fullName, outfile.errorString()));
 		return false;
 	}
-
-	if (ConfigManager::inst()->value("app", "disablebackup").toInt())
-	{
-		// remove current file
-		QFile::remove(fullName);
-	}
-	else
-	{
-		// remove old backup file
-		QFile::remove(fullNameBak);
-		// move current file to backup file
-		QFile::rename(fullName, fullNameBak);
-	}
-	// move temporary file to current file
-	QFile::rename(fullNameTemp, fullName);
 
 	return true;
 }

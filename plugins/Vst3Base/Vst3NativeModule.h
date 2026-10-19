@@ -129,7 +129,7 @@ private:
 	bool m_done = false;
 	std::thread m_thread;
 };
-#endif
+#endif // Q_OS_LINUX
 
 class Vst3NativeModule
 {
@@ -184,7 +184,7 @@ public:
 		CFRelease(string);
 		return result;
 	}
-#endif
+#endif // Q_OS_MACOS
 
 	bool open(const QString& path, QString* error = nullptr)
 	{
@@ -226,7 +226,7 @@ public:
 			return false;
 		}
 		entryArgument = m_bundle;
-#endif
+#endif // Q_OS_MACOS
 		// Keep code mapped while asynchronous plugin threads unwind after exit.
 		m_handle = dlopen(QFile::encodeName(binary).constData(), RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
 		if (!m_handle)

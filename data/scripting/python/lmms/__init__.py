@@ -259,12 +259,16 @@ def call(method, **params):
 def batch(calls):
     """Run several raw calls in one round trip: ``batch([("song.info", {}), ...])``.
 
-    Returns a list with the result of each call (raises on the first error)."""
-    results = call("api.batch", calls=[{"method": m, "params": p} for m, p in calls])
+    Returns a list with the result of each call. LMMS stops at the first failing call; the error says
+    which one failed and how many before it were applied (use ``song.checkpoint()`` first to be able
+    to undo them)."""
+    calls = list(calls)
+    results = call("api.batch", calls=[{"method": m, "params": p} for m, p in calls], stop_on_error=True)
     out = []
-    for r in results:
+    for i, r in enumerate(results):
         if "error" in r:
-            raise LmmsError(r["error"])
+            raise LmmsError("batch call %d of %d (%s) failed: %s; the %d call(s) before it were applied, "
+                            "the rest were not run" % (i + 1, len(calls), calls[i][0], r["error"], i))
         out.append(r.get("result"))
     return out
 
@@ -1140,6 +1144,16 @@ class Song:
     def save(self, path=None):
         """Save (as .mmpz unless the name ends in .mmp). Returns the path."""
         return call("song.save", **({"path": _path(path)} if path else {}))
+
+    def checkpoint(self):
+        """Remember the project as it is now (the project file is not touched). Returns an id for
+        ``restore_checkpoint``. The Script Console takes one before every run ("Undo run")."""
+        return call("song.checkpoint")
+
+    def restore_checkpoint(self, id=None):
+        """Put the project back to a checkpoint (default: the latest). Track/clip/plugin objects from
+        before the restore are no longer valid; look them up again."""
+        call("song.restore_checkpoint", **({"id": id} if id is not None else {}))
 
     def import_midi(self, path):
         """Import a MIDI file as new tracks."""

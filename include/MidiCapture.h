@@ -42,9 +42,9 @@ class Track;
 namespace gui
 {
 
-//! Listens to the live MIDI input of every instrument track in the song, even when nothing is
-//! recording. capture() turns the most recent take into a clip, so a good idea played while
-//! noodling is never lost.
+//! Listens to the live MIDI input of every instrument track in the song and the Pattern Editor, even
+//! when nothing is recording. capture() turns the most recent take into a clip (or, for a Pattern Editor
+//! track, adds it to the current pattern), so a good idea played while noodling is never lost.
 class LMMS_EXPORT MidiCapture : public QObject
 {
 	Q_OBJECT
@@ -86,6 +86,8 @@ public:
 
 	bool hasCapture() const;
 	InstrumentTrack* lastTrack() const { return m_lastTrack; }
+	//! What capture() would do right now, for tooltips/status text
+	QString pendingDescription() const;
 
 	//! Exposed for tests: feed notes as if they came from MIDI input
 	void notePressed(InstrumentTrack* track, const Note& note);
@@ -93,6 +95,8 @@ public:
 
 signals:
 	void availabilityChanged(bool available);
+	//! The take capture() would recover changed (see pendingDescription())
+	void pendingChanged();
 
 private slots:
 	void watchTrack(lmms::Track* track);

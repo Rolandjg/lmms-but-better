@@ -860,8 +860,11 @@ int main( int argc, char * * argv )
 
 		// create renderer
 		auto r = new RenderManager(os, eff, renderOut);
-		QCoreApplication::instance()->connect( r,
-				SIGNAL(finished()), SLOT(quit()));
+		QObject::connect(r, &RenderManager::finished, qApp, [r] {
+			const auto error = r->errorString();
+			if (!error.isEmpty()) { fprintf(stderr, "\nExport failed: %s\n", error.toUtf8().constData()); }
+			QCoreApplication::exit(error.isEmpty() ? EXIT_SUCCESS : EXIT_FAILURE);
+		});
 
 		// timer for progress-updates
 		auto t = new QTimer(r);

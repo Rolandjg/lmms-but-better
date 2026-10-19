@@ -63,6 +63,7 @@
 #include "ProjectJournal.h"
 #include "ProjectNotes.h"
 #include "ScriptConsole.h"
+#include "ProjectHealthDialog.h"
 #include "ProjectRenderer.h"
 #include "RecentProjectsMenu.h"
 #include "RemotePluginBase.h"
@@ -323,6 +324,14 @@ void MainWindow::finalize()
 
 	project_menu->addSeparator();
 
+	// what the project needs besides the project file (samples, plugins), what's missing, what won't travel
+	project_menu->addAction(tr("Project &Health..."), this, [this] {
+		ProjectHealthDialog dialog(this);
+		dialog.exec();
+	});
+
+	project_menu->addSeparator();
+
 	project_menu->addAction(embed::getIconPixmap("exit"), tr("&Quit"),
 		qApp, SLOT(closeAllWindows()))->setShortcut(keySequence(Qt::CTRL, Qt::Key_Q));
 
@@ -345,7 +354,7 @@ void MainWindow::finalize()
 	commandPaletteAction->setShortcuts({keySequence(Qt::CTRL, Qt::Key_K), keySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_P)});
 	commandPaletteAction->setShortcutContext(Qt::ApplicationShortcut);
 	m_midiCapture = new MidiCapture(this);
-	auto captureAction = edit_menu->addAction(embed::getIconPixmap("clip_rec"), tr("Capture MIDI"),
+	auto captureAction = edit_menu->addAction(embed::getIconPixmap("midi_capture"), tr("Capture MIDI"),
 		this, &MainWindow::captureMidi);
 	captureAction->setShortcut(keySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_R));
 	captureAction->setShortcutContext(Qt::ApplicationShortcut);
@@ -439,11 +448,16 @@ void MainWindow::finalize()
 	m_metronomeToggle->setCheckable(true);
 	m_metronomeToggle->setChecked(Engine::getSong()->metronome().active());
 
-	auto captureButton = new ToolButton(embed::getIconPixmap("clip_rec"),
-		tr("Capture MIDI (Ctrl+Shift+R): turn what you just played into a clip, even when you weren't recording"),
+	// Not a record button: it recovers what was already played. It stays clickable and its tooltip says
+	// what it would recover (or why there's nothing yet).
+	auto captureButton = new ToolButton(embed::getIconPixmap("midi_capture"), QString{},
 		this, SLOT(captureMidi()), m_toolBar);
-	captureButton->setEnabled(m_midiCapture->hasCapture());
-	connect(m_midiCapture, &MidiCapture::availabilityChanged, captureButton, &QWidget::setEnabled);
+	captureButton->setObjectName("midiCaptureButton");
+	const auto updateCaptureTip = [this, captureButton] {
+		captureButton->setToolTip(tr("Capture MIDI (Ctrl+Shift+R)") + "\n" + m_midiCapture->pendingDescription());
+	};
+	updateCaptureTip();
+	connect(m_midiCapture, &MidiCapture::pendingChanged, captureButton, updateCaptureTip);
 
 	m_toolBarLayout->setColumnMinimumWidth( 0, 5 );
 	m_toolBarLayout->addWidget( project_new, 0, 1 );
@@ -941,7 +955,7 @@ void MainWindow::captureMidi()
 		pianoRoll->show();
 		pianoRoll->setFocus();
 	}
-	TextFloat::displayMessage(tr("MIDI Capture"), message, embed::getIconPixmap("clip_rec"), 3000);
+	TextFloat::displayMessage(tr("MIDI Capture"), message, embed::getIconPixmap("midi_capture"), 3000);
 }
 
 

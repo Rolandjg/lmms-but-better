@@ -45,6 +45,7 @@
 #include "InstrumentTrackView.h"
 #include "lmms_math.h"
 #include "KeyboardShortcuts.h"
+#include "SampleTrack.h"
 #include "Song.h"
 #include "StringPairDrag.h"
 #include "Track.h"
@@ -283,6 +284,15 @@ void TrackOperationsWidget::updateMenu()
 			|| track->type() == Track::Type::Pattern))
 	{
 		toMenu->addAction(tr("Bounce to audio"), this, [this] { bounceToAudio(m_trackView); });
+		if (track->type() != Track::Type::Sample)
+		{
+			toMenu->addAction(tr("Freeze (replace with audio, unfreeze later)"), this, [this] { freezeTrack(m_trackView); });
+		}
+	}
+	if (auto sampleTrack = dynamic_cast<SampleTrack*>(track); sampleTrack && !sampleTrack->frozenFrom().isEmpty())
+	{
+		toMenu->addAction(tr("Unfreeze (back to \"%1\")").arg(sampleTrack->frozenFrom()), this,
+			[this] { unfreezeTrack(m_trackView); });
 	}
 
 	toMenu->addAction( embed::getIconPixmap( "edit_copy", 16, 16 ),

@@ -25,6 +25,10 @@
 #include "SampleClipView.h"
 
 #include <QApplication>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
@@ -52,10 +56,12 @@ namespace lmms::gui
 namespace
 {
 
-constexpr int HandleRadius = 4;
-constexpr int HandleHitRadius = 7;
+constexpr int HandleRadius = 5;
+constexpr int HandleHitRadius = 10;
 //! Handles live in this band at the top of the clip, so the edges below still resize the clip
-constexpr int HandleBand = 12;
+constexpr int HandleBand = 16;
+//! The gain handle sits between the fade handles and needs room to stay clear of them
+constexpr int MinWidthForGainHandle = 4 * HandleHitRadius;
 constexpr float MinGainDb = -48.f;
 constexpr float MaxGainDb = 24.f;
 
@@ -120,6 +126,7 @@ void SampleClipView::constructContextMenu(QMenu* cm)
 	);
 
 	cm->addSeparator();
+	cm->addAction(tr("Fades and gain…"), this, &SampleClipView::editFadesAndGain);
 	cm->addAction(tr("Normalize clip gain"), this, [this] {
 		m_clip->addJournalCheckPoint();
 		m_clip->normalize();
@@ -186,6 +193,52 @@ void SampleClipView::dropEvent( QDropEvent * _de )
 
 
 
+void SampleClipView::editFadesAndGain()
+{
+	// The same edits as the handles, typed in: for precise values, the keyboard, and clips too short to grab
+	const float ticksPerBeat = static_cast<float>(DefaultTicksPerBar) / Engine::getSong()->getTimeSigModel().getDenominator();
+	const float lengthBeats = m_clip->length() / ticksPerBeat;
+
+	QDialog dialog(this);
+	dialog.setWindowTitle(tr("Fades and gain"));
+	auto layout = new QFormLayout(&dialog);
+	const auto beatsBox = [&](TimePos value) {
+		auto box = new QDoubleSpinBox(&dialog);
+		box->setRange(0., lengthBeats);
+		box->setDecimals(2);
+		box->setSingleStep(0.25);
+		box->setSuffix(tr(" beats"));
+		box->setValue(value / ticksPerBeat);
+		return box;
+	};
+	auto fadeIn = beatsBox(m_clip->fadeIn());
+	auto fadeOut = beatsBox(m_clip->fadeOut());
+	auto gain = new QDoubleSpinBox(&dialog);
+	gain->setRange(MinGainDb, MaxGainDb);
+	gain->setDecimals(1);
+	gain->setSingleStep(0.5);
+	gain->setSuffix(tr(" dB"));
+	gain->setSpecialValueText(tr("-inf dB"));
+	gain->setValue(m_clip->gain() <= dbfsToAmp(MinGainDb) ? MinGainDb : ampToDbfs(m_clip->gain()));
+	layout->addRow(tr("Fade in:"), fadeIn);
+	layout->addRow(tr("Fade out:"), fadeOut);
+	layout->addRow(tr("Clip gain:"), gain);
+	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+	layout->addRow(buttons);
+	if (dialog.exec() != QDialog::Accepted) { return; }
+
+	m_clip->addJournalCheckPoint();
+	m_clip->setFadeIn(static_cast<tick_t>(std::lround(fadeIn->value() * ticksPerBeat)));
+	m_clip->setFadeOut(static_cast<tick_t>(std::lround(fadeOut->value() * ticksPerBeat)));
+	m_clip->setGain(gain->value() <= MinGainDb ? 0.f : dbfsToAmp(static_cast<float>(gain->value())));
+	update();
+}
+
+
+
+
 float SampleClipView::pixelsPerTick() const
 {
 	return pixelsPerBar() / TimePos::ticksPerBar();
@@ -222,7 +275,7 @@ SampleClipView::Handle SampleClipView::handleAt(const QPoint& pos)
 	// Prefer the handle the cursor is closest to, so the fade handles stay reachable on short clips
 	auto best = Handle::None;
 	float bestDistance = HandleHitRadius;
-	const bool roomForGain = width() > 6 * HandleHitRadius;
+	const bool roomForGain = width() > MinWidthForGainHandle;
 	for (auto handle : {Handle::FadeIn, Handle::FadeOut, Handle::Gain})
 	{
 		if (handle == Handle::Gain && !roomForGain) { continue; }
@@ -635,7 +688,7 @@ void SampleClipView::paintFades(QPainter& p, int xOffset)
 		};
 		drawHandle(Handle::FadeIn, false);
 		drawHandle(Handle::FadeOut, false);
-		if (width() > 6 * HandleHitRadius) { drawHandle(Handle::Gain, true); }
+		if (width() > MinWidthForGainHandle) { drawHandle(Handle::Gain, true); }
 	}
 
 	// Show a non-default clip gain as a small badge in the lower right corner

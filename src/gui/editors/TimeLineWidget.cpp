@@ -24,6 +24,9 @@
 
 #include "TimeLineWidget.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include <QGuiApplication>
 #include <QInputDialog>
 #include <QMenu>
@@ -76,11 +79,47 @@ namespace
 		return pixmap;
 	}
 
-	QFont markerFont(QFont font)
+	//! Bold label font that grows with the marker lane (whose height follows the theme's font size)
+	QFont markerFont(QFont font, int laneHeight)
 	{
-		font = adjustedToPixelSize(font, 10);
+		font = adjustedToPixelSize(font, std::clamp(static_cast<int>(laneHeight * 0.6), 10, 18));
 		font.setBold(true);
 		return font;
+	}
+
+	//! WCAG relative luminance
+	double luminance(const QColor& color)
+	{
+		const auto channel = [](double v)
+		{
+			v /= 255.0;
+			return v <= 0.03928 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4);
+		};
+		return 0.2126 * channel(color.red()) + 0.7152 * channel(color.green()) + 0.0722 * channel(color.blue());
+	}
+
+	double contrast(const QColor& a, const QColor& b)
+	{
+		const auto la = luminance(a);
+		const auto lb = luminance(b);
+		return (std::max(la, lb) + 0.05) / (std::min(la, lb) + 0.05);
+	}
+
+	struct TagColors { QColor fill; QColor text; };
+
+	//! Picks the label color that reads best on @p fill and, where even that stays below 4.5:1 (any custom
+	//! color can be chosen), shades the tag until it doesn't
+	TagColors readableTag(QColor fill)
+	{
+		const auto light = QColor(255, 255, 255);
+		const auto dark = QColor(20, 22, 26);
+		const bool useDark = contrast(fill, dark) >= contrast(fill, light);
+		const auto text = useDark ? dark : light;
+		for (int i = 0; i < 20 && contrast(fill, text) < 4.5; ++i)
+		{
+			fill = useDark ? fill.lighter(108) : fill.darker(108);
+		}
+		return {fill, text};
 	}
 }
 
@@ -636,7 +675,7 @@ void TimeLineWidget::setMarkersEnabled(bool enabled)
 
 int TimeLineWidget::markerLaneHeight() const
 {
-	return m_markersEnabled ? static_cast<int>(height() * 0.42) : 0;
+	return m_markersEnabled ? static_cast<int>(height() * 0.46) : 0;
 }
 
 int TimeLineWidget::addMarker(TimePos pos, const QString& name, const QColor& color)
@@ -693,7 +732,7 @@ auto TimeLineWidget::markerTagRect(int index) const -> QRect
 	const auto& markers = m_timeline->markers();
 	const int lane = markerLaneHeight();
 	const int x = markerX(markers[index].pos);
-	const QFontMetrics metrics(markerFont(font()));
+	const QFontMetrics metrics(markerFont(font(), lane));
 	int width = metrics.horizontalAdvance(markers[index].name) + 12;
 	// Don't run into the next section's tag
 	const auto end = m_timeline->sectionEnd(index);
@@ -745,24 +784,23 @@ void TimeLineWidget::paintMarkers(QPainter& p)
 	}
 
 	p.setRenderHint(QPainter::Antialiasing);
-	p.setFont(markerFont(font()));
+	p.setFont(markerFont(font(), lane));
 	for (std::size_t i = 0; i < markers.size(); ++i)
 	{
 		const auto& marker = markers[i];
 		const QRect tag = markerTagRect(static_cast<int>(i));
 		if (tag.right() < m_xOffset || tag.left() > width()) { continue; }
 		const bool hot = static_cast<int>(i) == m_hoverMarker || static_cast<int>(i) == m_dragMarker;
-		QColor fill = hot ? marker.color.lighter(125) : marker.color;
+		const auto colors = readableTag(hot ? marker.color.lighter(125) : marker.color);
 
 		// Flag pole through the whole timeline, then the tag
 		QColor pole = marker.color;
 		pole.setAlpha(200);
 		p.setPen(QPen(pole, 1));
 		p.drawLine(QPointF(tag.left() + 0.5, 0), QPointF(tag.left() + 0.5, height()));
-		p.fillRect(tag, fill);
+		p.fillRect(tag, colors.fill);
 
-		const bool dark = qGray(fill.rgb()) > 150;
-		p.setPen(dark ? QColor(20, 22, 26) : QColor(255, 255, 255));
+		p.setPen(colors.text);
 		const QRect text = tag.adjusted(6, 0, -4, 0);
 		if (text.width() > 6)
 		{

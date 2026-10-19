@@ -119,6 +119,7 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 	m_detachBehavior{ConfigManager::inst()->value("ui", "detachbehavior", "show")},
 	m_loopMarkerMode{ConfigManager::inst()->value("app", "loopmarkermode", "dual")},
 	m_autoScroll(ConfigManager::inst()->value("ui", "autoscroll", "stepped")),
+	m_textScale(ConfigManager::inst()->value("ui", "textscale", "100").toInt()),
 	m_lang(ConfigManager::inst()->value(
 			"app", "language")),
 	m_saveInterval(	ConfigManager::inst()->value(
@@ -291,6 +292,23 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 
 	guiGroupLayout->addWidget(new QLabel{tr("Default Autoscroll Mode"), guiGroupBox});
 	guiGroupLayout->addWidget(m_autoScrollComboBox);
+
+	// Larger labels in knobs, the timeline and plugin windows without scaling the whole display
+	auto textScaleComboBox = new QComboBox{guiGroupBox};
+	for (int percent : {100, 115, 130, 150, 175})
+	{
+		textScaleComboBox->addItem(QString("%1%").arg(percent), percent);
+	}
+	const int textScaleIndex = textScaleComboBox->findData(m_textScale);
+	if (textScaleIndex >= 0) { textScaleComboBox->setCurrentIndex(textScaleIndex); }
+	else { textScaleComboBox->insertItem(0, QString("%1%").arg(m_textScale), m_textScale); textScaleComboBox->setCurrentIndex(0); }
+	connect(textScaleComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, textScaleComboBox] {
+		m_textScale = textScaleComboBox->currentData().toInt();
+		showRestartWarning();
+	});
+
+	guiGroupLayout->addWidget(new QLabel{tr("Text size in editors and plugins"), guiGroupBox});
+	guiGroupLayout->addWidget(textScaleComboBox);
 
 	generalControlsLayout->addWidget(guiGroupBox);
 
@@ -993,6 +1011,7 @@ void SetupDialog::accept()
 	ConfigManager::inst()->setValue("app", "loopmarkermode", m_loopMarkerMode);
 	ConfigManager::inst()->setValue("app", "language", m_lang);
 	ConfigManager::inst()->setValue("ui", "autoscroll", m_autoScroll);
+	ConfigManager::inst()->setValue("ui", "textscale", QString::number(m_textScale));
 	ConfigManager::inst()->setValue("ui", "saveinterval",
 					QString::number(m_saveInterval));
 	ConfigManager::inst()->setValue("ui", "enableautosave",

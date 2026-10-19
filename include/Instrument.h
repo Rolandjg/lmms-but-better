@@ -120,6 +120,10 @@ public:
 		return 0.f;
 	}
 
+	//! Processing delay of the instrument's output, in frames at the engine sample rate.
+	//! Used for plugin delay compensation; called on the audio thread.
+	virtual f_cnt_t latency() const { return 0; }
+
 	// Converts the desired release time in milliseconds to the corresponding
 	// number of frames depending on the sample rate.
 	f_cnt_t desiredReleaseFrames() const

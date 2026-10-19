@@ -12,6 +12,7 @@
 #include "MidiCapture.h"
 #include "MidiClip.h"
 #include "Note.h"
+#include "PatternStore.h"
 #include "Song.h"
 
 using namespace lmms;
@@ -134,6 +135,36 @@ private slots:
 		QCOMPARE(clip->notes()[0]->getVolume(), volume_t{90});
 		QCOMPARE(clip->startPosition().getTicks() % TimePos::ticksPerBar(), 0);
 		// The take is consumed
+		QVERIFY(!capture->hasCapture());
+	}
+
+	void capturesPatternEditorTracks()
+	{
+		auto capture = m_gui->mainWindow()->findChild<MidiCapture*>();
+		QVERIFY(capture);
+		auto patternStore = Engine::patternStore();
+		Track::create(Track::Type::Pattern, Engine::getSong());
+		auto track = dynamic_cast<InstrumentTrack*>(Track::create(Track::Type::Instrument, patternStore));
+		QVERIFY(track);
+		patternStore->updateAfterTrackAdd();
+		QCoreApplication::sendPostedEvents();
+		QSignalSpy pending(capture, &MidiCapture::pendingChanged);
+
+		for (int key : {48, 55})
+		{
+			capture->notePressed(track, Note(TimePos(0), TimePos(0), key, 80));
+			capture->noteReleased(track, Note(TimePos(0), TimePos(0), key));
+		}
+		QVERIFY(pending.count() >= 2);
+		QVERIFY(capture->pendingDescription().contains("pattern"));
+
+		const auto clipsBefore = track->getClips().size();
+		QString message;
+		auto clip = capture->capture(&message);
+		QVERIFY2(clip, qPrintable(message));
+		QCOMPARE(track->getClips().size(), clipsBefore);
+		QCOMPARE(clip, track->getClip(patternStore->currentPattern()));
+		QCOMPARE(clip->notes().size(), std::size_t{2});
 		QVERIFY(!capture->hasCapture());
 	}
 

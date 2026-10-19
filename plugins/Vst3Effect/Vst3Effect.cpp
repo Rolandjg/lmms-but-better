@@ -133,6 +133,14 @@ void Vst3Effect::onSampleRateChanged()
 
 
 
+f_cnt_t Vst3Effect::latency() const
+{
+	return m_controls.m_plugin ? static_cast<f_cnt_t>(m_controls.m_plugin->latency()) : 0;
+}
+
+
+
+
 Effect::ProcessStatus Vst3Effect::processImpl(SampleFrame* buf, const f_cnt_t frames)
 {
 	if (frames > static_cast<f_cnt_t>(m_tmpOutput.size()))

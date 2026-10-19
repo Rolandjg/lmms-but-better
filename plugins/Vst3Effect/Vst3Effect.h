@@ -77,6 +77,7 @@ public:
 	Vst3Effect(Model* parent, const Descriptor::SubPluginFeatures::Key* key);
 
 	EffectControls* controls() override { return &m_controls; }
+	f_cnt_t latency() const override;
 
 protected:
 	ProcessStatus processImpl(SampleFrame* buf, const f_cnt_t frames) override;

@@ -577,7 +577,7 @@ tresult PLUGIN_API Vst3EditorWindow::unregisterTimer(Linux::ITimerHandler* handl
 
 
 
-#endif
+#endif // Q_OS_MACOS
 
 /*
 	Vst3PluginWidget

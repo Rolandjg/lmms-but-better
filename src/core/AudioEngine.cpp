@@ -303,7 +303,11 @@ void AudioEngine::renderStageMix()
 	Mixer *mixer = Engine::mixer();
 	mixer->masterMix(m_outputBufferWrite.get());
 
-	MixHelpers::multiply(m_outputBufferWrite.get(), m_masterGain, m_framesPerPeriod);
+	// a bounce tap captures the signal before the master section, master gain included
+	if (!mixer->hasBounceTap())
+	{
+		MixHelpers::multiply(m_outputBufferWrite.get(), m_masterGain, m_framesPerPeriod);
+	}
 
 	emit nextAudioBuffer(m_outputBufferRead.get());
 

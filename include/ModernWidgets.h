@@ -48,7 +48,8 @@ class SampleFrame;
 
 
 //! Lock-free ring of recent samples that the audio thread fills and a scope widget reads.
-//! Torn reads are harmless because the data is only visualized.
+//! Every sample is an atomic (relaxed loads/stores compile to plain moves), so concurrent access is
+//! well-defined; a reader may still see a mix of older and newer samples, which is fine for a display.
 class ScopeBuffer
 {
 public:
@@ -57,18 +58,18 @@ public:
 	void push(float left, float right)
 	{
 		const auto i = m_write.load(std::memory_order_relaxed);
-		m_left[i] = left;
-		m_right[i] = right;
-		m_write.store((i + 1) % Size, std::memory_order_relaxed);
+		m_left[i].store(left, std::memory_order_relaxed);
+		m_right[i].store(right, std::memory_order_relaxed);
+		m_write.store((i + 1) % Size, std::memory_order_release);
 	}
 
-	std::size_t writePosition() const { return m_write.load(std::memory_order_relaxed); }
-	float left(std::size_t i) const { return m_left[i % Size]; }
-	float right(std::size_t i) const { return m_right[i % Size]; }
+	std::size_t writePosition() const { return m_write.load(std::memory_order_acquire); }
+	float left(std::size_t i) const { return m_left[i % Size].load(std::memory_order_relaxed); }
+	float right(std::size_t i) const { return m_right[i % Size].load(std::memory_order_relaxed); }
 
 private:
-	std::array<float, Size> m_left{};
-	std::array<float, Size> m_right{};
+	std::array<std::atomic<float>, Size> m_left{};
+	std::array<std::atomic<float>, Size> m_right{};
 	std::atomic<std::size_t> m_write{0};
 };
 
@@ -81,24 +82,24 @@ class Knob;
 namespace modern
 {
 
-// Colors follow the default LMMS theme (style.css / LmmsPalette) so these plugins sit
-// next to the native ones without standing out
-inline QColor windowColor() { return QColor(29, 32, 37); }      // #1d2025, theme panel
-inline QColor sectionColor() { return QColor(23, 26, 30); }     // #171a1e, recessed panel
-inline QColor sectionBorder() { return QColor(10, 11, 13); }    // #0a0b0d, hairline
-inline QColor displayColor() { return QColor(14, 16, 19); }     // #0e1013, graph screens
-inline QColor gridColor() { return QColor(255, 255, 255, 22); }
-inline QColor textColor() { return QColor(220, 226, 234); }     // #dce2ea
-inline QColor dimTextColor() { return QColor(141, 150, 163); }  // #8d96a3
-inline QColor buttonColor() { return QColor(42, 47, 54); }      // #2a2f36, theme button
-inline QColor activeButtonColor() { return QColor(23, 61, 43); } // #173d2b, selected item
+// Colors come from the theme (lmms--gui--ModernPalette in style.css, see ModernPalette below) so these
+// plugins sit next to the native ones and follow other or high-contrast themes
+LMMS_EXPORT QColor windowColor();       //!< panel background
+LMMS_EXPORT QColor sectionColor();      //!< recessed panel
+LMMS_EXPORT QColor sectionBorder();     //!< hairline
+LMMS_EXPORT QColor displayColor();      //!< graph screens
+LMMS_EXPORT QColor gridColor();
+LMMS_EXPORT QColor textColor();
+LMMS_EXPORT QColor dimTextColor();
+LMMS_EXPORT QColor buttonColor();
+LMMS_EXPORT QColor activeButtonColor(); //!< selected item
 
 //! The LMMS green, used for values, curves and active states
-inline QColor accentColor() { return QColor(29, 226, 118); }    // #1de276
+LMMS_EXPORT QColor accentColor();
 //! Secondary trace color where a display has to tell two signals apart (e.g. right channel)
-inline QColor secondaryColor() { return QColor(64, 196, 214); }
+LMMS_EXPORT QColor secondaryColor();
 //! Highlight for exceptional states such as freeze
-inline QColor warningColor() { return QColor(214, 236, 82); }   // #d6ec52, fader warn color
+LMMS_EXPORT QColor warningColor();
 
 //! Give a plugin dialog the flat dark background shared by all modern plugins
 LMMS_EXPORT void applyWindowStyle(QWidget* widget);
@@ -111,6 +112,57 @@ LMMS_EXPORT Knob* makeKnob(QWidget* parent, FloatModel* model, const QString& la
 	const QString& hint, const QString& unit);
 
 } // namespace modern
+
+
+//! The modern:: colors. Defaults are the default theme's.
+struct LMMS_EXPORT ModernColors
+{
+	QColor window{29, 32, 37};
+	QColor section{23, 26, 30};
+	QColor sectionBorder{10, 11, 13};
+	QColor display{14, 16, 19};
+	QColor grid{255, 255, 255, 22};
+	QColor text{220, 226, 234};
+	QColor dimText{141, 150, 163};
+	QColor button{42, 47, 54};
+	QColor activeButton{23, 61, 43};
+	QColor accent{29, 226, 118};
+	QColor secondary{64, 196, 214};
+	QColor warning{214, 236, 82};
+
+	//! The current theme's colors. Until the GUI and its style sheet exist (headless, or static
+	//! initializers in plugins) this returns the defaults.
+	static const ModernColors& current();
+};
+
+
+//! Theme hook for the modern:: colors: style sheets set them with qproperty-<name> on
+//! lmms--gui--ModernPalette, like LmmsPalette. Unset properties keep the defaults.
+class LMMS_EXPORT ModernPalette : public QWidget
+{
+	Q_OBJECT
+	Q_PROPERTY(QColor window MEMBER window)
+	Q_PROPERTY(QColor section MEMBER section)
+	Q_PROPERTY(QColor sectionBorder MEMBER sectionBorder)
+	Q_PROPERTY(QColor display MEMBER display)
+	Q_PROPERTY(QColor grid MEMBER grid)
+	Q_PROPERTY(QColor text MEMBER text)
+	Q_PROPERTY(QColor dimText MEMBER dimText)
+	Q_PROPERTY(QColor button MEMBER button)
+	Q_PROPERTY(QColor activeButton MEMBER activeButton)
+	Q_PROPERTY(QColor accent MEMBER accent)
+	Q_PROPERTY(QColor secondary MEMBER secondary)
+	Q_PROPERTY(QColor warning MEMBER warning)
+public:
+	//! Reads the style sheet's colors; needs a QApplication
+	ModernPalette();
+
+	ModernColors colors() const;
+
+private:
+	QColor window, section, sectionBorder, display, grid, text, dimText, button, activeButton, accent,
+		secondary, warning;
+};
 
 
 //! A recessed panel with a small caps title, like the group boxes of native effect dialogs. Put child widgets into layout().

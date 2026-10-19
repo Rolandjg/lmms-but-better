@@ -82,6 +82,16 @@ public:
 
 	QString toolTip() const { return m_staticToolTip.value_or(QString{}); }
 
+	//! Name, value text (with unit) and help text for assistive technology
+	QString accessibleNameText() const;
+	QString accessibleValueText() { return currentValueToText() + m_unit; }
+
+	/**
+	 * Moves the value by one keyboard/wheel step. @p numberOfStepsForFullSweep is how many steps it takes
+	 * to sweep the whole range; at least one model step is always taken.
+	 */
+	void stepValue(int direction, float numberOfStepsForFullSweep = 100.f);
+
 	/**
 	 * Removes the static tooltip set by a previous call to setToolTip().
 	 * The dynamic floating text will be used in its place.
@@ -99,6 +109,7 @@ protected:
 	void dragEnterEvent(QDragEnterEvent * dee) override;
 	void dropEvent(QDropEvent * de) override;
 	void focusOutEvent(QFocusEvent * fe) override;
+	void keyPressEvent(QKeyEvent * ke) override;
 	void mousePressEvent(QMouseEvent * me) override;
 	void mouseReleaseEvent(QMouseEvent * me) override;
 	void mouseMoveEvent(QMouseEvent * me) override;
@@ -182,7 +193,11 @@ protected:
 
 		//! The user is using the mouse wheel on the control to adjust the model's value.
 		//! This always results in dynamic floating text, not a static tooltip.
-		MouseWheel
+		MouseWheel,
+
+		//! The user is adjusting the control with the keyboard.
+		//! This always results in dynamic floating text, not a static tooltip.
+		Keyboard
 	};
 
 	//! @returns how the user is interacting with the control

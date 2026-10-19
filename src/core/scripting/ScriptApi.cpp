@@ -33,6 +33,7 @@
 #include <QJsonArray>
 #include <QPixmap>
 #include <QRegularExpression>
+#include <QSet>
 #include <QTimer>
 #include <QWidget>
 
@@ -907,12 +908,83 @@ QJsonObject ScriptApi::describe() const
 
 
 
+int ScriptApi::createCheckpoint()
+{
+	constexpr std::size_t MaxCheckpoints = 10;
+	if (!m_checkpointDir) { m_checkpointDir = std::make_unique<QTemporaryDir>(); }
+	if (!m_checkpointDir->isValid()) { throw ScriptError("could not create a folder for checkpoints"); }
+	const int id = m_nextCheckpoint++;
+	const auto path = m_checkpointDir->filePath(QString("checkpoint-%1.mmpz").arg(id));
+	auto song = Engine::getSong();
+	// saving touches neither the project's file name nor its modified flag
+	if (!song->saveProjectFile(path)) { throw ScriptError("could not save the checkpoint"); }
+	m_checkpoints[id] = path;
+	while (m_checkpoints.size() > MaxCheckpoints)
+	{
+		QFile::remove(m_checkpoints.begin()->second);
+		m_checkpoints.erase(m_checkpoints.begin());
+	}
+	return id;
+}
+
+
+
+
+bool ScriptApi::hasCheckpoint(int id) const
+{
+	return id == 0 ? !m_checkpoints.empty() : m_checkpoints.count(id) > 0;
+}
+
+
+
+
+void ScriptApi::restoreCheckpoint(int id)
+{
+	if (!hasCheckpoint(id))
+	{
+		throw ScriptError(id == 0 ? QString("there is no checkpoint") : QString("unknown checkpoint %1").arg(id));
+	}
+	const auto it = id == 0 ? std::prev(m_checkpoints.end()) : m_checkpoints.find(id);
+	auto song = Engine::getSong();
+	song->stop();
+	song->restoreProjectState(it->second);
+	// later checkpoints describe a state that no longer exists
+	for (auto later = std::next(it); later != m_checkpoints.end(); later = m_checkpoints.erase(later))
+	{
+		QFile::remove(later->second);
+	}
+}
+
+
+
+
+bool ScriptApi::renderInProgress() const
+{
+	return m_activeRenders > 0 || Engine::getSong()->isExporting();
+}
+
+
+
+
 void ScriptApi::call(const QString& method, const QJsonObject& params, const Reply& reply)
 {
 	const auto it = m_methods.find(method);
 	if (it == m_methods.end())
 	{
 		reply(QJsonValue(), QString("unknown method \"%1\" (call \"api.describe\" for the list)").arg(method));
+		return;
+	}
+	// The renderer reads the project from another thread (and mutes tracks for stem exports), so only
+	// queries may run until it is done. api.batch passes each of its commands through here again.
+	static const auto allowedWhileRendering = QSet<QString>{
+		"song.info", "song.params", "song.tracks", "patterns.info", "track.info", "track.params", "track.clips",
+		"track.instrument", "track.effects", "clip.info", "clip.notes", "clip.automation", "plugins.list",
+		"plugin.info", "plugin.params", "plugin.get_state", "param.get", "param.find", "mixer.channels",
+		"mixer.channel", "api.describe", "api.ping", "api.batch", "app.paths", "app.analyze", "app.message"};
+	if (renderInProgress() && !allowedWhileRendering.contains(method))
+	{
+		reply(QJsonValue(), QString("\"%1\" is not allowed while a render is running; wait for song.render to finish")
+			.arg(method));
 		return;
 	}
 	try
@@ -1026,6 +1098,17 @@ void ScriptApi::registerSongMethods()
 		return QJsonValue(true);
 	});
 
+	add("song.checkpoint", "Remember the current state of the project (in a temporary file, the project file is "
+		"not touched) and return a checkpoint id for song.restore_checkpoint", [this](const QJsonObject&) {
+		return QJsonValue(createCheckpoint());
+	});
+
+	add("song.restore_checkpoint", "Put the project back to a checkpoint: id (default: the latest). Handles of tracks, "
+		"clips and plugins from before become invalid", [this](const QJsonObject& p) {
+		restoreCheckpoint(static_cast<int>(num(p, "id", 0)));
+		return QJsonValue(true);
+	});
+
 	add("song.save", "Save the project; path is optional when the project already has a file name", [](const QJsonObject& p) {
 		auto song = Engine::getSong();
 		QString path = has(p, "path") ? filePath(str(p, "path")) : song->projectFileName();
@@ -1052,9 +1135,9 @@ void ScriptApi::registerSongMethods()
 
 	addAsync("song.render", "Render the song to an audio file (wav/flac/ogg/mp3) and return loudness statistics. "
 		"Options: sample_rate, bit_depth (16/24/32), loop, between_loop_markers, loop_count, stems (render each track into the directory 'path')",
-		[](const QJsonObject& p, const Reply& reply) {
+		[this](const QJsonObject& p, const Reply& reply) {
 		auto song = Engine::getSong();
-		if (song->isExporting()) { throw ScriptError("a render is already running"); }
+		if (renderInProgress()) { throw ScriptError("a render is already running"); }
 		QString path = filePath(str(p, "path"));
 		const bool stems = flag(p, "stems", false);
 
@@ -1087,8 +1170,15 @@ void ScriptApi::registerSongMethods()
 
 		auto rm = new RenderManager(os, format, path);
 		const bool analyze = flag(p, "analyze", true) && !stems;
-		QObject::connect(rm, &RenderManager::finished, rm, [rm, reply, path, analyze, stems] {
+		++m_activeRenders;
+		QObject::connect(rm, &RenderManager::finished, rm, [this, rm, reply, path, analyze, stems] {
 			rm->deleteLater();
+			--m_activeRenders;
+			if (const auto error = rm->errorString(); !error.isEmpty())
+			{
+				reply(QJsonValue(), QString("render failed: %1").arg(error));
+				return;
+			}
 			QJsonObject result;
 			if (analyze)
 			{
@@ -1886,11 +1976,20 @@ void ScriptApi::registerMiscMethods()
 
 	add("api.ping", "Returns \"pong\"", [](const QJsonObject&) { return QJsonValue("pong"); });
 
-	add("api.batch", "Run several calls at once: calls [{method, params}] -> [{result} or {error}]", [this](const QJsonObject& p) {
+	add("api.batch", "Run several calls at once: calls [{method, params}] -> [{result} or {error}]. With "
+		"stop_on_error, the calls after a failing one are not run and report {skipped: true}; combine with "
+		"song.checkpoint to undo a partial batch", [this](const QJsonObject& p) {
 		QJsonArray out;
+		const bool stopOnError = flag(p, "stop_on_error", false);
+		bool failed = false;
 		for (const auto& c : p.value("calls").toArray())
 		{
 			const auto o = c.toObject();
+			if (failed && stopOnError)
+			{
+				out.append(QJsonObject{{"skipped", true}});
+				continue;
+			}
 			const QString method = o.value("method").toString();
 			if (method == "api.batch") { throw ScriptError("api.batch cannot be nested"); }
 			QJsonObject entry;
@@ -1898,6 +1997,7 @@ void ScriptApi::registerMiscMethods()
 			if (const auto it = m_methods.find(method); it != m_methods.end() && it->second.async)
 			{
 				entry["error"] = "asynchronous methods cannot be batched";
+				failed = true;
 				out.append(entry);
 				continue;
 			}
@@ -1905,6 +2005,7 @@ void ScriptApi::registerMiscMethods()
 				if (e.isEmpty()) { entry["result"] = r; }
 				else { entry["error"] = e; }
 			});
+			failed = failed || entry.contains("error");
 			out.append(entry);
 		}
 		return out;

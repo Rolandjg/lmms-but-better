@@ -30,7 +30,10 @@
 #include <QString>
 #include <QMutex>
 
+#include <functional>
+
 #include "AudioBuffer.h"
+#include "PdcDelay.h"
 #include "PlayHandle.h"
 
 namespace lmms
@@ -84,6 +87,15 @@ public:
 	//! @returns true if the processing outputted corrupted audio (infs/nans).
 	bool isCorrupted() const { return m_corrupted.load(std::memory_order_relaxed); }
 
+	//! Latency of whatever feeds this bus (e.g. the instrument), in frames
+	void setSourceLatency(std::function<f_cnt_t()> latency) { m_sourceLatency = std::move(latency); }
+	//! Latency of the source plus the effect chain, in frames
+	f_cnt_t latency() const;
+	//! Extra delay applied before the mixer to line this bus up with the slowest input of its channel.
+	//! Set by the mixer on the audio thread.
+	void setCompensation(f_cnt_t frames) { m_pdc.setDelay(frames); }
+	f_cnt_t compensation() const { return m_pdc.delay(); }
+
 private:
 	volatile bool m_bufferUsage;
 
@@ -104,6 +116,11 @@ private:
 	BoolModel* m_mutedModel;
 	
 	std::atomic<bool> m_corrupted = false;
+
+	std::function<f_cnt_t()> m_sourceLatency;
+	PdcDelay m_pdc;
+	//! Frames of delayed signal still to be flushed after the input went silent
+	f_cnt_t m_pdcPending = 0;
 
 	friend class AudioEngine;
 	friend class AudioEngineWorkerThread;

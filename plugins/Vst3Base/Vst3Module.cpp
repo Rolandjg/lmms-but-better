@@ -66,7 +66,7 @@ const char* archDirName()
 #endif
 }
 
-#endif
+#endif // Q_OS_MACOS
 
 } // namespace
 
@@ -138,7 +138,7 @@ QString Vst3Module::hostPath(const QString& path)
 		}
 	}
 
-#endif
+#endif // Q_OS_MACOS
 	return bundle;
 }
 

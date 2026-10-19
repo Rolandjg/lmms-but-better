@@ -13,16 +13,21 @@ set(LMMS_TESTS
 	src/core/RelativePathsTest.cpp
 	src/core/LoudnessAnalyzerTest.cpp
 	src/core/LimiterDspTest.cpp
+	src/core/FormantDspTest.cpp
 	src/core/TimelineTest.cpp
 	src/core/SongExportTest.cpp
+	src/core/ProjectPersistenceTest.cpp
+	src/core/LatencyCompensationTest.cpp
 	src/core/SampleClipFadeTest.cpp
 	src/core/ScriptApiTest.cpp
 	src/gui/PianoRollRenderingTest.cpp
 	src/gui/MixerChannelLcdSpinBoxTest.cpp
 	src/gui/CommandPaletteTest.cpp
 	src/gui/MidiCaptureTest.cpp
+	src/gui/BounceFreezeTest.cpp
 	src/gui/ScriptConsoleTest.cpp
 	src/gui/AudioFileProcessorViewTest.cpp
+	src/gui/FormantShifterViewTest.cpp
 	src/gui/InstrumentWindowTabsTest.cpp
 	src/gui/FunctionGeneratorTest.cpp
 	src/tracks/AutomationTrackTest.cpp
@@ -60,6 +65,11 @@ set_tests_properties(MixerChannelLcdSpinBoxTest PROPERTIES
 
 set_target_properties(CommandPaletteTest PROPERTIES ENABLE_EXPORTS ON)
 set_tests_properties(CommandPaletteTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
+
+set_target_properties(FormantShifterViewTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(FormantShifterViewTest PROPERTIES
 	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
 	TIMEOUT 60)
 
@@ -135,4 +145,9 @@ set_target_properties(UiSnapshot PROPERTIES ENABLE_EXPORTS ON)
 
 set_tests_properties(FunctionGeneratorTest PROPERTIES
 	ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+	TIMEOUT 60)
+
+set_target_properties(BounceFreezeTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(BounceFreezeTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
 	TIMEOUT 60)

@@ -73,6 +73,7 @@ public slots:
 protected:
 	void contextMenuEvent( QContextMenuEvent* event ) override;
 	void mousePressEvent( QMouseEvent* event ) override;
+	void keyPressEvent(QKeyEvent* event) override;
 	void paintEvent( QPaintEvent* event ) override;
 	void wheelEvent( QWheelEvent* event ) override;
 
@@ -88,6 +89,8 @@ private:
 	QMenu m_menu;
 
 	bool m_pressed;
+
+	void showMenu();
 
 
 private slots:

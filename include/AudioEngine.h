@@ -146,6 +146,8 @@ public:
 
 	void removeAudioBusHandle(AudioBusHandle* busHandle);
 
+	const std::vector<AudioBusHandle*>& audioBusHandles() const { return m_audioBusHandles; }
+
 
 	// MIDI-client-stuff
 	inline const QString & midiClientName() const

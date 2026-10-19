@@ -27,6 +27,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QFile>
+#include <QFileInfo>
 #include <QMessageBox>
 
 #include <algorithm>
@@ -330,7 +331,11 @@ void Song::processNextBuffer()
 			m_vstSyncController.update();
 		}
 
-		if (static_cast<f_cnt_t>(frameOffsetInTick) == 0)
+		// Past the end of an export only the render tail is left: let what is already sounding decay, but
+		// don't start anything new
+		const bool pastExportEnd = m_exporting && getPlayPos() >= m_exportSongEnd;
+
+		if (static_cast<f_cnt_t>(frameOffsetInTick) == 0 && !pastExportEnd)
 		{
 			// First frame of tick: process automation and play tracks
 			processAutomations(trackList, getPlayPos(), framesToPlay);
@@ -888,6 +893,7 @@ void Song::clearProject()
 		setPlayPos( 0, ( PlayMode )i );
 		m_timelines[i].clearMarkers();
 	}
+	m_headlessGuiState.setContent(QStringLiteral("<gui/>"));
 
 
 	Engine::audioEngine()->requestChangeInModel();
@@ -1191,6 +1197,10 @@ void Song::loadProject( const QString & fileName )
 			{
 				restoreKeymapStates(node.toElement());
 			}
+			else if (node.nodeName() == getTimeline(PlayMode::Song).nodeName())
+			{
+				getTimeline(PlayMode::Song).restoreState(node.toElement());
+			}
 			else if( getGUI() != nullptr )
 			{
 				if( node.nodeName() == getGUI()->getControllerRackView()->nodeName() )
@@ -1209,10 +1219,10 @@ void Song::loadProject( const QString & fileName )
 				{
 					 getGUI()->getProjectNotes()->SerializingObject::restoreState( node.toElement() );
 				}
-				else if (node.nodeName() == getTimeline(PlayMode::Song).nodeName())
-				{
-					getTimeline(PlayMode::Song).restoreState(node.toElement());
-				}
+			}
+			else if (node.nodeName() != Engine::mixer()->nodeName())
+			{
+				m_headlessGuiState.documentElement().appendChild(m_headlessGuiState.importNode(node, true));
 			}
 		}
 		node = node.nextSibling();
@@ -1236,7 +1246,7 @@ void Song::loadProject( const QString & fileName )
 
 	Engine::audioEngine()->doneChangeInModel();
 
-	ConfigManager::inst()->addRecentlyOpenedProject( fileName );
+	if (!m_restoringState) { ConfigManager::inst()->addRecentlyOpenedProject( fileName ); }
 
 	Engine::projectJournal()->setJournalling( true );
 
@@ -1269,17 +1279,50 @@ void Song::loadProject( const QString & fileName )
 }
 
 
+void Song::restoreProjectState(const QString& filename)
+{
+	const auto projectFile = m_fileName;
+	m_restoringState = true;
+	loadProject(filename);
+	m_restoringState = false;
+	m_oldFileName = projectFile;
+	setProjectFileName(projectFile);
+	setModified(true);
+}
+
+
+
+
 // only save current song as filename and do nothing else
 bool Song::saveProjectFile(const QString & filename, bool withResources)
 {
-	using gui::getGUI;
-
 	// ensure property order in file is consistent across saves
 #if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
 	qSetGlobalQHashSeed(0);
 #else
 	QHashSeed::setDeterministicGlobalSeed();
 #endif
+
+	auto dataFile = toDataFile();
+
+	bool writeStatus = dataFile.writeFile(filename, withResources);
+
+	// revert to a randomized global seed for Qt
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+	qSetGlobalQHashSeed(-1);
+#else
+	QHashSeed::resetRandomGlobalSeed();
+#endif
+
+	return writeStatus;
+}
+
+
+
+
+DataFile Song::toDataFile()
+{
+	using gui::getGUI;
 
 	DataFile dataFile( DataFile::Type::SongProject );
 	m_savingProject = true;
@@ -1298,8 +1341,15 @@ bool Song::saveProjectFile(const QString & filename, bool withResources)
 		getGUI()->pianoRoll()->saveState( dataFile, dataFile.content() );
 		getGUI()->automationEditor()->m_editor->saveState( dataFile, dataFile.content() );
 		getGUI()->getProjectNotes()->SerializingObject::saveState( dataFile, dataFile.content() );
-		getTimeline(PlayMode::Song).saveState(dataFile, dataFile.content());
 	}
+	else
+	{
+		for (auto node = m_headlessGuiState.documentElement().firstChild(); !node.isNull(); node = node.nextSibling())
+		{
+			dataFile.content().appendChild(dataFile.importNode(node, true));
+		}
+	}
+	getTimeline(PlayMode::Song).saveState(dataFile, dataFile.content());
 
 	saveControllerStates( dataFile, dataFile.content() );
 
@@ -1308,16 +1358,7 @@ bool Song::saveProjectFile(const QString & filename, bool withResources)
 
 	m_savingProject = false;
 
-	bool writeStatus = dataFile.writeFile(filename, withResources);
-
-	// revert to a randomized global seed for Qt
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
-	qSetGlobalQHashSeed(-1);
-#else
-	QHashSeed::resetRandomGlobalSeed();
-#endif
-
-	return writeStatus;
+	return dataFile;
 }
 
 
@@ -1334,6 +1375,9 @@ bool Song::guiSaveProject()
 // Save the current song with the given filename
 bool Song::guiSaveProjectAs(const QString & filename)
 {
+	// An unnamed project has to go through the Save As dialog; never invent a hidden ".mmpz" here
+	if (QFileInfo(filename).completeBaseName().isEmpty()) { return false; }
+
 	DataFile dataFile(DataFile::Type::SongProject);
 	QString fileNameWithExtension = dataFile.nameWithExtension(filename);
 

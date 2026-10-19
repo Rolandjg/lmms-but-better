@@ -16,6 +16,7 @@ SET(LMMS_SRCS
 	gui/EffectView.cpp
 	gui/embed.cpp
 	gui/FileBrowser.cpp
+	gui/FontHelper.cpp
 	gui/FileRevealer.cpp
 	gui/FileSearchJob.cpp
 	gui/GuiApplication.cpp
@@ -87,6 +88,7 @@ SET(LMMS_SRCS
 	gui/modals/EffectSelectDialog.cpp
 	gui/modals/ExportProjectDialog.cpp
 	gui/modals/FileDialog.cpp
+	gui/modals/ProjectHealthDialog.cpp
 	gui/modals/RenameDialog.cpp
 	gui/modals/SetupDialog.cpp
 	gui/modals/VersionedSaveDialog.cpp
@@ -110,6 +112,7 @@ SET(LMMS_SRCS
 	gui/widgets/CaptionMenu.cpp
 	gui/widgets/ComboBox.cpp
 	gui/widgets/Draggable.cpp
+	gui/widgets/ControlAccessibility.cpp
 	gui/widgets/Fader.cpp
 	gui/widgets/FloatModelEditorBase.cpp
 	gui/widgets/Graph.cpp

@@ -25,8 +25,12 @@
 #ifndef LMMS_GUI_FONT_HELPER_H
 #define LMMS_GUI_FONT_HELPER_H
 
+#include <cmath>
+
 #include <QApplication>
 #include <QFont>
+
+#include "lmms_export.h"
 
 constexpr int DEFAULT_FONT_SIZE = 12;
 constexpr int SMALL_FONT_SIZE = 10;
@@ -35,10 +39,14 @@ constexpr int LARGE_FONT_SIZE = 14;
 namespace lmms::gui
 {
 
-// Convenience method to set the font size in pixels
+//! Factor for the fixed-size text of custom-drawn widgets (Settings > "Text size in editors and plugins"),
+//! so it can be made larger independently of display scaling. Read once at startup.
+LMMS_EXPORT float customTextScale();
+
+// Convenience method to set the font size in pixels (scaled by customTextScale())
 inline QFont adjustedToPixelSize(QFont font, int size)
 {
-	font.setPixelSize(size);
+	font.setPixelSize(std::max(1, static_cast<int>(std::lround(size * customTextScale()))));
 	return font;
 }
 

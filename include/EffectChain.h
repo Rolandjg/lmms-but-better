@@ -65,6 +65,9 @@ public:
 	void moveUp( Effect * _effect );
 	bool processAudioBuffer(AudioBuffer& buffer);
 
+	//! Total latency of the enabled effects, in frames
+	f_cnt_t latency() const;
+
 	void clear();
 
 	using EffectList = std::vector<Effect*>;

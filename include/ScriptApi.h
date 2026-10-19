@@ -25,6 +25,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <stdexcept>
 
 #include <QHash>
@@ -32,6 +33,7 @@
 #include <QJsonValue>
 #include <QObject>
 #include <QPointer>
+#include <QTemporaryDir>
 
 #include "lmms_export.h"
 
@@ -73,6 +75,12 @@ public:
 	//! Method name -> one-line description
 	QJsonObject describe() const;
 
+	//! Save the project to a temporary checkpoint (scripts call song.checkpoint); returns its id
+	int createCheckpoint();
+	//! Put the project back to checkpoint @p id (0 = the latest); throws ScriptError if there is none
+	void restoreCheckpoint(int id = 0);
+	bool hasCheckpoint(int id = 0) const;
+
 	//! Handle for @p object (allocated on first use)
 	int handleFor(QObject* object);
 	//! Object for @p handle, nullptr if unknown or deleted
@@ -107,10 +115,18 @@ private:
 	void registerMixerMethods();
 	void registerMiscMethods();
 
+	//! True while a render started by song.render (or the GUI) is running
+	bool renderInProgress() const;
+
 	std::map<QString, Method> m_methods;
 	QHash<int, QPointer<QObject>> m_objects;
 	QHash<QObject*, int> m_handles;
 	int m_nextHandle = 1;
+	int m_activeRenders = 0;
+
+	std::unique_ptr<QTemporaryDir> m_checkpointDir;
+	std::map<int, QString> m_checkpoints; //!< id -> file
+	int m_nextCheckpoint = 1;
 };
 
 

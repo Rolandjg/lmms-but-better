@@ -63,6 +63,7 @@ set(LMMS_SRCS
 	core/PresetPreviewPlayHandle.cpp
 	core/ProjectJournal.cpp
 	core/ProjectRenderer.cpp
+	core/ProjectResources.cpp
 	core/ProjectVersion.cpp
 	core/RemotePlugin.cpp
 	core/RenderManager.cpp
