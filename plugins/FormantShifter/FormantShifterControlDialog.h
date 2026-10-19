@@ -29,6 +29,7 @@
 
 #include "AutomatableModelView.h"
 #include "EffectControlDialog.h"
+#include "WheelAccumulator.h"
 
 namespace lmms
 {
@@ -80,6 +81,9 @@ private:
 	void* m_plan = nullptr;
 	QPointF m_dragStart;
 	float m_formantAtPress = 0.f;
+
+private:
+	WheelAccumulator m_wheelSteps;
 };
 
 
@@ -107,6 +111,9 @@ private:
 	float xFor(float value) const;
 
 	FormantShifterControls* m_controls;
+
+private:
+	WheelAccumulator m_wheelSteps;
 };
 
 } // namespace gui

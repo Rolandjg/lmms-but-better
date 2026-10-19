@@ -27,7 +27,7 @@
 
 #include "ComboBoxModel.h"
 #include "EffectControls.h"
-#include "EqSpectrumView.h"
+#include "EqAnalyser.h"
 
 namespace lmms
 {
@@ -38,6 +38,7 @@ class EqEffect;
 namespace gui
 {
 class EqControlsDialog;
+class EqDisplay;
 }
 
 class EqControls : public EffectControls
@@ -70,21 +71,13 @@ public:
 	float m_outPeakL;
 	float m_outPeakR;
 
-	// The following are linear peaks
-	float m_lowShelfPeakL, m_lowShelfPeakR;
-	float m_para1PeakL, m_para1PeakR;
-	float m_para2PeakL, m_para2PeakR;
-	float m_para3PeakL, m_para3PeakR;
-	float m_para4PeakL, m_para4PeakR;
-	float m_highShelfPeakL, m_highShelfPeakR;
-
 	EqAnalyser m_inFftBands;
 	EqAnalyser m_outFftBands;
 
-	bool m_inProgress;
-	bool visable();
-
 private:
+	//! Makes the cascaded sections of the pass filters follow the chosen slope
+	void updatePassFilterSlopes();
+
 	EqEffect *m_effect;
 
 	FloatModel m_inGainModel;
@@ -143,6 +136,7 @@ private:
 	IntModel m_soloBandModel;
 
 	friend class gui::EqControlsDialog;
+	friend class gui::EqDisplay;
 	friend class EqEffect;
 };
 

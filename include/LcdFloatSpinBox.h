@@ -30,6 +30,7 @@
 
 #include "LcdWidget.h"
 #include "AutomatableModelView.h"
+#include "WheelAccumulator.h"
 
 namespace lmms::gui
 {
@@ -84,6 +85,9 @@ private:
 signals:
 	void manualChange();
 
+
+private:
+	WheelAccumulator m_wheelSteps;
 };
 
 using LcdFloatSpinBoxModel = FloatModel;

@@ -32,6 +32,7 @@
 #include <optional>
 
 #include "AutomatableModelView.h"
+#include "WheelAccumulator.h"
 
 namespace lmms::gui
 {
@@ -240,6 +241,9 @@ private:
 	std::optional<QString> m_staticToolTip;
 
 	static SimpleTextFloat* s_textFloat;
+
+private:
+	WheelAccumulator m_wheelSteps;
 };
 
 } // namespace lmms::gui

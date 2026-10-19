@@ -4673,7 +4673,8 @@ void PianoRoll::wheelEvent(QWheelEvent * we )
 
 		if( nv.size() > 0 )
 		{
-			const int step = (we->angleDelta().y() > 0 ? 1 : -1) * (we->inverted() ? -1 : 1);
+			const int step = m_wheelSteps.steps(we) * (we->inverted() ? -1 : 1);
+			if (step == 0) { return; }
 
 			if( m_noteEditMode == NoteEditMode::Volume )
 			{
@@ -4724,42 +4725,23 @@ void PianoRoll::wheelEvent(QWheelEvent * we )
 	if( we->modifiers() & Qt::ControlModifier && we->modifiers() & Qt::AltModifier )
 	{
 		int q = m_quantizeModel.value();
-		if((we->angleDelta().x() + we->angleDelta().y()) > 0) // alt + scroll becomes horizontal scroll on KDE
-		{
-			q--;
-		}
-		else if((we->angleDelta().x() + we->angleDelta().y()) < 0) // alt + scroll becomes horizontal scroll on KDE
-		{
-			q++;
-		}
+		// alt + scroll becomes horizontal scroll on KDE
+		q -= m_wheelSteps.steps(we, we->angleDelta().x() + we->angleDelta().y());
 		q = qBound( 0, q, m_quantizeModel.size() - 1 );
 		m_quantizeModel.setValue( q );
 	}
 	else if( we->modifiers() & Qt::ControlModifier && we->modifiers() & Qt::ShiftModifier )
 	{
 		int l = m_noteLenModel.value();
-		if(we->angleDelta().y() > 0)
-		{
-			l--;
-		}
-		else if(we->angleDelta().y() < 0)
-		{
-			l++;
-		}
+		l -= m_wheelSteps.steps(we);
 		l = qBound( 0, l, m_noteLenModel.size() - 1 );
 		m_noteLenModel.setValue( l );
 	}
 	else if( we->modifiers() & Qt::ControlModifier )
 	{
-		int z = m_zoomingModel.value();
-		if(we->angleDelta().y() > 0)
-		{
-			z++;
-		}
-		else if(we->angleDelta().y() < 0)
-		{
-			z--;
-		}
+		const int steps = m_wheelSteps.steps(we);
+		if (steps == 0) { return; }
+		int z = m_zoomingModel.value() + steps;
 		z = qBound( 0, z, m_zoomingModel.size() - 1 );
 
 		int x = (pos.x() - m_whiteKeyWidth) * TimePos::ticksPerBar();
@@ -4785,7 +4767,7 @@ void PianoRoll::wheelEvent(QWheelEvent * we )
 	else
 	{
 		m_topBottomScroll->setValue(m_topBottomScroll->value() -
-							we->angleDelta().y() / 30);
+							m_wheelSteps.steps(we, we->angleDelta().y(), 30, true));
 	}
 }
 

@@ -69,6 +69,23 @@ namespace lmms::gui
 {
 const std::array<float, 7> AutomationEditor::m_zoomXLevels =
 		{ 0.125f, 0.25f, 0.5f, 1.0f, 2.0f, 4.0f, 8.0f };
+const std::array<float, 9> AutomationEditor::m_zoomYLevels =
+		{ 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 16.0f, 32.0f };
+
+namespace
+{
+//! Smallest "nice" step (1, 2 or 5 times a power of ten) that is at least minStep
+float niceStep(float minStep)
+{
+	if (!(minStep > 0.0f) || !std::isfinite(minStep)) { return 1.0f; }
+	const float magnitude = std::pow(10.0f, std::floor(std::log10(minStep)));
+	for (const float mantissa : {1.0f, 2.0f, 5.0f})
+	{
+		if (mantissa * magnitude >= minStep * 0.9999f) { return mantissa * magnitude; }
+	}
+	return 10.0f * magnitude;
+}
+} // namespace
 
 
 
@@ -81,7 +98,6 @@ AutomationEditor::AutomationEditor() :
 	m_minLevel( 0 ),
 	m_maxLevel( 0 ),
 	m_step( 1 ),
-	m_scrollLevel( 0 ),
 	m_bottomLevel( 0 ),
 	m_topLevel( 0 ),
 	m_currentPosition(),
@@ -89,8 +105,7 @@ AutomationEditor::AutomationEditor() :
 	m_drawLastLevel( 0.0f ),
 	m_drawLastTick( 0 ),
 	m_ppb( DEFAULT_PPB ),
-	m_y_delta( DEFAULT_Y_DELTA ),
-	m_y_auto( true ),
+	m_y_delta( 0.0f ),
 	m_editMode( EditMode::Draw ),
 	m_mouseDownLeft(false),
 	m_mouseDownRight( false ),
@@ -219,7 +234,7 @@ void AutomationEditor::updateAfterClipChange()
 
 	if ( !validClip() )
 	{
-		m_minLevel = m_maxLevel = m_scrollLevel = 0;
+		m_minLevel = m_maxLevel = 0;
 		m_step = 1;
 		resizeEvent(nullptr);
 		return;
@@ -228,13 +243,13 @@ void AutomationEditor::updateAfterClipChange()
 	m_minLevel = m_clip->firstObject()->minValue<float>();
 	m_maxLevel = m_clip->firstObject()->maxValue<float>();
 	m_step = m_clip->firstObject()->step<float>();
-	centerTopBottomScroll();
 
 	m_tensionModel->setValue( m_clip->getTension() );
 
 	// resizeEvent() does the rest for us (scrolling, range-checking
 	// of levels and so on...)
 	resizeEvent(nullptr);
+	centerTopBottomScroll();
 
 	update();
 }
@@ -262,13 +277,13 @@ void AutomationEditor::keyPressEvent(QKeyEvent * ke )
 	{
 		case Qt::Key_Up:
 			m_topBottomScroll->setValue(
-					m_topBottomScroll->value() - 1 );
+					m_topBottomScroll->value() - m_topBottomScroll->singleStep() );
 			ke->accept();
 			break;
 
 		case Qt::Key_Down:
 			m_topBottomScroll->setValue(
-					m_topBottomScroll->value() + 1 );
+					m_topBottomScroll->value() + m_topBottomScroll->singleStep() );
 			ke->accept();
 			break;
 
@@ -945,13 +960,8 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 inline void AutomationEditor::drawCross( QPainter & p )
 {
 	QPoint mouse_pos = mapFromGlobal( QCursor::pos() );
-	int grid_bottom = height() - SCROLLBAR_SIZE - 1;
 	float level = getLevel( mouse_pos.y() );
-	float cross_y = m_y_auto ?
-		grid_bottom - ( ( grid_bottom - TOP_MARGIN )
-				* ( level - m_minLevel )
-				/ (float)( m_maxLevel - m_minLevel ) ) :
-		grid_bottom - ( level - m_bottomLevel ) * m_y_delta;
+	float cross_y = yCoordOfLevel(level);
 
 	p.setPen(m_crossColor);
 	p.drawLine( VALUES_WIDTH, (int) cross_y, width(), (int) cross_y );
@@ -1107,37 +1117,26 @@ void AutomationEditor::paintEvent(QPaintEvent * pe )
 	int font_height = p.fontMetrics().height();
 	auto text_flags = (Qt::Alignment)(Qt::AlignRight | Qt::AlignVCenter);
 
-	if (m_y_auto)
+	// Grid steps are picked in pixels so the density stays the same no matter
+	// how large the model's value range is (e.g. 0..1 vs. 0..20000)
+	const float labelStep = niceStep(std::max(m_step, 3.0f * font_height / std::max(m_y_delta, 1e-6f)));
+	const float lineStep = niceStep(std::max(m_step, 10.0f / std::max(m_y_delta, 1e-6f)));
+	const auto drawLabel = [&](float level, int y)
 	{
-		auto y = std::array{grid_bottom, TOP_MARGIN + font_height / 2};
-		auto level = std::array{m_minLevel, m_maxLevel};
-		for (int i = 0; i < 2; ++i)
-		{
-			const QString& label = m_clip->firstObject()->displayValue(level[i]);
-			p.setPen(QApplication::palette().color(QPalette::Active, QPalette::Shadow));
-			p.drawText(1, y[i] - font_height + 1, VALUES_WIDTH - 10, 2 * font_height, text_flags, label);
-			p.setPen(fgColor);
-			p.drawText(0, y[i] - font_height, VALUES_WIDTH - 10, 2 * font_height, text_flags, label);
-		}
-	}
-	else
+		const QString& label = m_clip->firstObject()->displayValue(level);
+		p.setPen(QApplication::palette().color(QPalette::Active, QPalette::Shadow));
+		p.drawText(1, y - font_height + 1, VALUES_WIDTH - 10, 2 * font_height, text_flags, label);
+		p.setPen(fgColor);
+		p.drawText(0, y - font_height, VALUES_WIDTH - 10, 2 * font_height, text_flags, label);
+	};
+	if (m_y_delta > 0.0f)
 	{
-		int level = (int)m_bottomLevel;
-		auto printable = static_cast<int>(std::max(1.0f, 5 * DEFAULT_Y_DELTA / m_y_delta));
-		int module = level % printable;
-		if (module)
+		for (auto i = static_cast<long long>(std::ceil(m_bottomLevel / labelStep));
+			i * labelStep <= m_topLevel + labelStep * 1e-3f; ++i)
 		{
-			int inv_module = (printable - module) % printable;
-			level += inv_module;
-		}
-		for (; level <= m_topLevel; level += printable)
-		{
-			const QString& label = m_clip->firstObject()->displayValue(level);
-			int y = yCoordOfLevel(level);
-			p.setPen(QApplication::palette().color(QPalette::Active, QPalette::Shadow));
-			p.drawText(1, y - font_height + 1, VALUES_WIDTH - 10, 2 * font_height, text_flags, label);
-			p.setPen(fgColor);
-			p.drawText(0, y - font_height, VALUES_WIDTH - 10, 2 * font_height, text_flags, label);
+			const float level = i * labelStep;
+			const int y = std::max(static_cast<int>(yCoordOfLevel(level)), TOP_MARGIN + font_height / 2);
+			drawLabel(level, y);
 		}
 	}
 
@@ -1151,9 +1150,7 @@ void AutomationEditor::paintEvent(QPaintEvent * pe )
 	if( m_clip )
 	{
 		int q;
-		int x_line_end = (int)( m_y_auto || m_topLevel < m_maxLevel ?
-			TOP_MARGIN :
-			grid_bottom - ( m_topLevel - m_bottomLevel ) * m_y_delta );
+		const int x_line_end = TOP_MARGIN;
 
 		if( m_zoomingXModel.value() > 3 )
 		{
@@ -1182,28 +1179,20 @@ void AutomationEditor::paintEvent(QPaintEvent * pe )
 		}
 
 		/// \todo move this horizontal line drawing code into the same loop as the value ticks?
-		if( m_y_auto )
+		if (m_y_delta > 0.0f)
 		{
-			QPen pen(m_beatLineColor);
-			pen.setStyle( Qt::DotLine );
-			p.setPen( pen );
-			float y_delta = ( grid_bottom - TOP_MARGIN ) / 8.0f;
-			for( int i = 1; i < 8; ++i )
+			for (auto i = static_cast<long long>(std::ceil(m_bottomLevel / lineStep));
+				i * lineStep <= m_topLevel + lineStep * 1e-3f; ++i)
 			{
-				int y = (int)( grid_bottom - i * y_delta );
-				p.drawLine( VALUES_WIDTH, y, width(), y );
-			}
-		}
-		else
-		{
-			for( int level = (int)m_bottomLevel; level <= m_topLevel; level++)
-			{
-				float y = yCoordOfLevel(static_cast<float>(level));
+				const float level = i * lineStep;
+				const float labelIndex = level / labelStep;
+				const bool isLabelLine = std::abs(labelIndex - std::round(labelIndex)) < 1e-3f;
 
-				p.setPen(level % 10 == 0 ? m_beatLineColor : m_lineColor);
+				p.setPen(isLabelLine ? m_beatLineColor : m_lineColor);
 
 				// draw level line
-				p.drawLine( VALUES_WIDTH, (int) y, width(), (int) y );
+				const int y = static_cast<int>(yCoordOfLevel(level));
+				p.drawLine(VALUES_WIDTH, y, width(), y);
 			}
 		}
 
@@ -1479,14 +1468,7 @@ int AutomationEditor::xCoordOfTick(int tick )
 float AutomationEditor::yCoordOfLevel(float level )
 {
 	int grid_bottom = height() - SCROLLBAR_SIZE - 1;
-	if( m_y_auto )
-	{
-		return ( grid_bottom - ( grid_bottom - TOP_MARGIN ) * ( level - m_minLevel ) / ( m_maxLevel - m_minLevel ) );
-	}
-	else
-	{
-		return ( grid_bottom - ( level - m_bottomLevel ) * m_y_delta );
-	}
+	return grid_bottom - (level - m_bottomLevel) * m_y_delta;
 }
 
 
@@ -1494,7 +1476,6 @@ float AutomationEditor::yCoordOfLevel(float level )
 
 void AutomationEditor::drawLevelTick(QPainter & p, int tick, float value)
 {
-	int grid_bottom = height() - SCROLLBAR_SIZE - 1;
 	const int x = xCoordOfTick( tick );
 	int rect_width = xCoordOfTick( tick+1 ) - x;
 
@@ -1504,8 +1485,7 @@ void AutomationEditor::drawLevelTick(QPainter & p, int tick, float value)
 			|| ( value < m_bottomLevel && m_bottomLevel <= 0 ) )
 	{
 		const int y_start = yCoordOfLevel(value);
-		const int y_end = grid_bottom + (grid_bottom - TOP_MARGIN) * m_minLevel / (m_maxLevel - m_minLevel);
-		const int rect_height = m_y_auto ? y_end - y_start : value * m_y_delta;
+		const int rect_height = static_cast<int>(yCoordOfLevel(0.0f)) - y_start;
 
 		QBrush currentColor = m_graphColor;
 		p.fillRect( x, y_start, rect_width, rect_height, currentColor );
@@ -1524,22 +1504,25 @@ void AutomationEditor::drawLevelTick(QPainter & p, int tick, float value)
 // Center the vertical scroll position on the first object's inValue
 void AutomationEditor::centerTopBottomScroll()
 {
-	// default to the m_scrollLevel position
-	int pos = static_cast<int>(m_scrollLevel);
-	// If a clip exists...
-	if (m_clip)
+	float level = (m_minLevel + m_maxLevel) / 2;
+	if (m_clip && !m_clip->getTimeMap().empty())
 	{
-		// get time map of current clip
-		timeMap & time_map = m_clip->getTimeMap();
-		// If time_map is not empty...
-		if (!time_map.empty())
-		{
-			// set the position to the inverted value ((max + min) - value)
-			// If we set just (max - value), we're off by m_clip's minimum
-			pos = m_clip->getMax() + m_clip->getMin() - static_cast<int>(INVAL(time_map.begin()));
-		}
+		level = INVAL(m_clip->getTimeMap().begin());
 	}
-	m_topBottomScroll->setValue(pos);
+	scrollToLevel(level);
+}
+
+
+
+
+// Scroll vertically so that the given level is in the middle of the view
+void AutomationEditor::scrollToLevel(float level)
+{
+	const int grid_height = height() - SCROLLBAR_SIZE - 1 - TOP_MARGIN;
+	m_topBottomScroll->setValue(static_cast<int>(
+		std::round((m_maxLevel - level) * m_y_delta - grid_height / 2.0f)));
+	updateTopBottomLevels();
+	update();
 }
 
 
@@ -1556,28 +1539,22 @@ void AutomationEditor::resizeEvent(QResizeEvent * re)
 	m_topBottomScroll->setGeometry( width() - SCROLLBAR_SIZE, TOP_MARGIN,
 						SCROLLBAR_SIZE, grid_height );
 
-	int half_grid = grid_height / 2;
-	int total_pixels = (int)( ( m_maxLevel - m_minLevel ) * m_y_delta + 1 );
-	if( !m_y_auto && grid_height < total_pixels )
-	{
-		int min_scroll = (int)( m_minLevel + floorf( half_grid
-							/ (float)m_y_delta ) );
-		int max_scroll = (int)( m_maxLevel - (int)floorf( ( grid_height
-					- half_grid ) / (float)m_y_delta ) );
-		m_topBottomScroll->setRange( min_scroll, max_scroll );
-	}
-	else
-	{
-		m_topBottomScroll->setRange( (int) m_scrollLevel,
-							(int) m_scrollLevel );
-	}
-	centerTopBottomScroll();
+	// Keep whatever is in the middle of the view there while resizing/zooming
+	const float centerLevel = (m_bottomLevel + m_topLevel) / 2;
+
+	updateYDelta();
+
+	// The vertical scrollbar works in pixels, so it behaves the same for
+	// every value range
+	const int view_height = grid_height - 1;
+	const int total_pixels = static_cast<int>(std::round((m_maxLevel - m_minLevel) * m_y_delta));
+	m_topBottomScroll->setRange(0, std::max(0, total_pixels - view_height));
+	m_topBottomScroll->setPageStep(std::max(1, view_height));
+	m_topBottomScroll->setSingleStep(std::max(1, view_height / 40));
 
 	m_timeLine->setFixedWidth(width());
 
-	updateTopBottomLevels();
-	updateYDelta();
-	update();
+	scrollToLevel(centerLevel);
 }
 
 void AutomationEditor::adjustLeftRightScoll(int value)
@@ -1593,44 +1570,24 @@ void AutomationEditor::wheelEvent(QWheelEvent * we )
 	we->accept();
 	if( we->modifiers() & Qt::ControlModifier && we->modifiers() & Qt::ShiftModifier )
 	{
-		int y = m_zoomingYModel.value();
-		if(we->angleDelta().y() > 0)
-		{
-			y++;
-		}
-		else if(we->angleDelta().y() < 0)
-		{
-			y--;
-		}
+		int y = m_zoomingYModel.value() + m_wheelSteps.steps(we);
 		y = qBound( 0, y, m_zoomingYModel.size() - 1 );
 		m_zoomingYModel.setValue( y );
 	}
 	else if( we->modifiers() & Qt::ControlModifier && we->modifiers() & Qt::AltModifier )
 	{
 		int q = m_quantizeModel.value();
-		if((we->angleDelta().x() + we->angleDelta().y()) > 0) // alt + scroll becomes horizontal scroll on KDE
-		{
-			q--;
-		}
-		else if((we->angleDelta().x() + we->angleDelta().y()) < 0) // alt + scroll becomes horizontal scroll on KDE
-		{
-			q++;
-		}
+		// alt + scroll becomes horizontal scroll on KDE
+		q -= m_wheelSteps.steps(we, we->angleDelta().x() + we->angleDelta().y());
 		q = qBound( 0, q, m_quantizeModel.size() - 1 );
 		m_quantizeModel.setValue( q );
 		update();
 	}
 	else if( we->modifiers() & Qt::ControlModifier )
 	{
-		int x = m_zoomingXModel.value();
-		if(we->angleDelta().y() > 0)
-		{
-			x++;
-		}
-		else if(we->angleDelta().y() < 0)
-		{
-			x--;
-		}
+		const int steps = m_wheelSteps.steps(we);
+		if (steps == 0) { return; }
+		int x = m_zoomingXModel.value() + steps;
 		x = qBound( 0, x, m_zoomingXModel.size() - 1 );
 
 		int mouseX = (we->position().toPoint().x() - VALUES_WIDTH) * TimePos::ticksPerBar();
@@ -1657,8 +1614,8 @@ void AutomationEditor::wheelEvent(QWheelEvent * we )
 	}
 	else
 	{
-		m_topBottomScroll->setValue(m_topBottomScroll->value() -
-							(we->angleDelta().x() + we->angleDelta().y()) / 30);
+		m_topBottomScroll->setValue(m_topBottomScroll->value() - m_topBottomScroll->singleStep() *
+							m_wheelSteps.steps(we, we->angleDelta().x() + we->angleDelta().y(), 30, true));
 	}
 }
 
@@ -1669,12 +1626,10 @@ float AutomationEditor::getLevel(int y )
 {
 	int level_line_y = height() - SCROLLBAR_SIZE - 1;
 	// pressed level
-	float level = std::roundf( ( m_bottomLevel + ( m_y_auto ?
-			( m_maxLevel - m_minLevel ) * ( level_line_y - y )
-					/ (float)( level_line_y - ( TOP_MARGIN + 2 ) ) :
-			( level_line_y - y ) / (float)m_y_delta ) ) / m_step ) * m_step;
+	if (m_y_delta <= 0.0f) { return m_minLevel; }
+	float level = std::roundf((m_bottomLevel + (level_line_y - y) / m_y_delta) / m_step) * m_step;
 	// some range-checking-stuff
-	level = qBound(std::roundf(m_bottomLevel), level, std::roundf(m_topLevel));
+	level = qBound(m_minLevel, level, m_maxLevel);
 
 	return level;
 }
@@ -1765,7 +1720,6 @@ void AutomationEditor::horScrolled(int new_pos )
 
 void AutomationEditor::verScrolled(int new_pos )
 {
-	m_scrollLevel = new_pos;
 	updateTopBottomLevels();
 	update();
 }
@@ -1875,22 +1829,17 @@ void AutomationEditor::zoomingYChanged()
 
 void AutomationEditor::updateYDelta()
 {
-	const QString & zfac = m_zoomingYModel.currentText();
-	m_y_auto = zfac == "Auto";
-	if( !m_y_auto )
-	{
-		m_y_delta = zfac.left( zfac.length() - 1 ).toInt()
-							* DEFAULT_Y_DELTA / 100;
-	}
-	else if (m_maxLevel - m_minLevel == 0)
+	// Zoom is relative to the model's value range: 100% always fits the whole
+	// range into the view, regardless of whether it is 0..1 or 0..20000
+	const float range = m_maxLevel - m_minLevel;
+	if (range <= 0.0f)
 	{
 		m_y_delta = 0.0f;
+		return;
 	}
-	else
-	{
-		const int gridBottom = height() - SCROLLBAR_SIZE - 1;
-		m_y_delta = static_cast<float>(gridBottom - TOP_MARGIN) / (m_maxLevel - m_minLevel);
-	}
+	const int gridBottom = height() - SCROLLBAR_SIZE - 1;
+	const float zoom = m_zoomYLevels[std::clamp(m_zoomingYModel.value(), 0, static_cast<int>(m_zoomYLevels.size()) - 1)];
+	m_y_delta = zoom * std::max(0, gridBottom - TOP_MARGIN) / range;
 }
 
 
@@ -1908,45 +1857,21 @@ void AutomationEditor::setQuantization()
 
 void AutomationEditor::updateTopBottomLevels()
 {
-	if( m_y_auto )
+	if (m_y_delta <= 0.0f)
 	{
 		m_bottomLevel = m_minLevel;
 		m_topLevel = m_maxLevel;
 		return;
 	}
 
-	int total_pixels = (int)( ( m_maxLevel - m_minLevel ) * m_y_delta + 1 );
-	int grid_height = height() - TOP_MARGIN - SCROLLBAR_SIZE;
-	int half_grid = grid_height / 2;
-
-	if( total_pixels > grid_height )
-	{
-		int centralLevel = (int)( m_minLevel + m_maxLevel - m_scrollLevel );
-
-		m_bottomLevel = centralLevel - ( half_grid
-							/ (float)m_y_delta );
-		if( m_bottomLevel < m_minLevel )
-		{
-			m_bottomLevel = m_minLevel;
-			m_topLevel = m_minLevel + (int)floorf( grid_height
-							/ (float)m_y_delta );
-		}
-		else
-		{
-			m_topLevel = m_bottomLevel + (int)floorf( grid_height
-							/ (float)m_y_delta );
-			if( m_topLevel > m_maxLevel )
-			{
-				m_topLevel = m_maxLevel;
-				m_bottomLevel = m_maxLevel - (int)floorf(
-					grid_height / (float)m_y_delta );
-			}
-		}
-	}
-	else
+	// The scrollbar value is the pixel offset of the view's top edge from m_maxLevel
+	const int view_height = height() - SCROLLBAR_SIZE - 1 - TOP_MARGIN;
+	m_topLevel = m_maxLevel - m_topBottomScroll->value() / m_y_delta;
+	m_bottomLevel = m_topLevel - view_height / m_y_delta;
+	if (m_bottomLevel < m_minLevel)
 	{
 		m_bottomLevel = m_minLevel;
-		m_topLevel = m_maxLevel;
+		m_topLevel = std::min(m_maxLevel, m_minLevel + view_height / m_y_delta);
 	}
 }
 
@@ -2152,14 +2077,13 @@ AutomationEditorWindow::AutomationEditorWindow() :
 
 	m_zoomingYComboBox = new ComboBox( zoomToolBar );
 	m_zoomingYComboBox->setFixedSize( 80, ComboBox::DEFAULT_HEIGHT );
-	m_zoomingYComboBox->setToolTip( tr( "Vertical zooming" ) );
+	m_zoomingYComboBox->setToolTip(tr("Vertical zooming (100% fits the parameter's whole range)"));
 
-	m_editor->m_zoomingYModel.addItem( "Auto" );
-	for( int i = 0; i < 7; ++i )
+	for (const float zoomLevel : m_editor->m_zoomYLevels)
 	{
-		m_editor->m_zoomingYModel.addItem( QString::number( 25 << i ) + "%" );
+		m_editor->m_zoomingYModel.addItem(QString("%1%").arg(zoomLevel * 100));
 	}
-	m_editor->m_zoomingYModel.setValue( m_editor->m_zoomingYModel.findText( "Auto" ) );
+	m_editor->m_zoomingYModel.setValue(m_editor->m_zoomingYModel.findText("100%"));
 
 	m_zoomingYComboBox->setModel( &m_editor->m_zoomingYModel );
 

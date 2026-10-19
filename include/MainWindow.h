@@ -53,6 +53,7 @@ class ScriptConsole;
 class MidiCapture;
 class PluginView;
 class SubWindow;
+class TilingWindowManager;
 class ToolButton;
 
 
@@ -230,6 +231,8 @@ private:
 	};
 
 	MovableQMdiArea * m_workspace;
+	//! Tiles the workspace windows when "Tile windows" is on
+	TilingWindowManager* m_tiling;
 
 	QWidget * m_toolBar;
 	QGridLayout * m_toolBarLayout;

@@ -41,15 +41,18 @@ GroupBox::GroupBox( const QString & _caption, QWidget * _parent ) :
 	m_caption( _caption ),
 	m_titleBarHeight( 11 )
 {
-	// Square LEDs, drawn to match the flat section headers (ModernHeader)
+	// Power-symbol toggle, drawn to match the flat section headers (ModernHeader)
 	auto ledPixmap = [](bool on)
 	{
 		QPixmap pixmap(11, 11);
 		pixmap.fill(Qt::transparent);
 		QPainter p(&pixmap);
-		p.setPen(on ? modern::accentColor() : modern::dimTextColor());
-		p.setBrush(on ? modern::accentColor() : Qt::transparent);
-		p.drawRect(1, 1, 8, 8);
+		p.setRenderHint(QPainter::Antialiasing);
+		QPen pen(on ? modern::accentColor() : modern::dimTextColor(), 1.4);
+		pen.setCapStyle(Qt::RoundCap);
+		p.setPen(pen);
+		p.drawArc(QRectF(1.5, 2, 8, 8), 120 * 16, 300 * 16);
+		p.drawLine(QPointF(5.5, 0.8), QPointF(5.5, 5.2));
 		return pixmap;
 	};
 	m_led = new PixmapButton( this, _caption );
@@ -58,6 +61,7 @@ GroupBox::GroupBox( const QString & _caption, QWidget * _parent ) :
 	m_led->setActiveGraphic(ledPixmap(true));
 	m_led->setInactiveGraphic(ledPixmap(false));
 	m_led->setCursor(Qt::PointingHandCursor);
+	m_led->setToolTip(tr("Turn %1 on/off").arg(_caption.toLower()));
 
 	setModel( new BoolModel( false, nullptr, _caption, true ) );
 	setAutoFillBackground( true );

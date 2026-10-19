@@ -528,7 +528,12 @@ void MidiClipView::wheelEvent(QWheelEvent * we)
 	if (step >= 0)
 	{
 		Note * n = m_clip->noteAtStep( step );
-		const int direction = (we->angleDelta().y() > 0 ? 1 : -1) * (we->inverted() ? -1 : 1);
+		const int direction = m_wheelSteps.steps(we) * (we->inverted() ? -1 : 1);
+		if (direction == 0)
+		{
+			we->accept();
+			return;
+		}
 		if(!n && direction > 0)
 		{
 			n = m_clip->addStepNote( step );
@@ -539,11 +544,11 @@ void MidiClipView::wheelEvent(QWheelEvent * we)
 			int vol = n->getVolume();
 			if(direction > 0)
 			{
-				n->setVolume( qMin( 100, vol + 5 ) );
+				n->setVolume( qMin( 100, vol + 5 * direction ) );
 			}
 			else
 			{
-				n->setVolume( qMax( 0, vol - 5 ) );
+				n->setVolume( qMax( 0, vol + 5 * direction ) );
 			}
 
 			Engine::getSong()->setModified();

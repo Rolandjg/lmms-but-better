@@ -96,14 +96,6 @@ private:
 	float m_inGain;
 	float m_outGain;
 
-	float linearPeakBand(float minF, float maxF, EqAnalyser*, int);
-
-	inline float bandToFreq ( int index , int sampleRate )
-	{
-		return index * sampleRate / ( MAX_BANDS * 2 );
-	}
-
-	void setBandPeaks( EqAnalyser * fft , int );
 };
 
 

@@ -504,9 +504,11 @@ void FormantDisplay::mouseDoubleClickEvent(QMouseEvent*)
 
 void FormantDisplay::wheelEvent(QWheelEvent* we)
 {
-	const float step = (we->modifiers() & Qt::ShiftModifier ? 0.02f : 0.1f) * (we->angleDelta().y() > 0 ? 1.f : -1.f);
-	m_controls->m_vowelModel.setValue(m_controls->m_vowelModel.value() + step);
 	we->accept();
+	const int steps = m_wheelSteps.steps(we);
+	if (steps == 0) { return; }
+	const float step = (we->modifiers() & Qt::ShiftModifier ? 0.02f : 0.1f) * steps;
+	m_controls->m_vowelModel.setValue(m_controls->m_vowelModel.value() + step);
 }
 
 
@@ -618,9 +620,11 @@ void VowelStrip::mouseDoubleClickEvent(QMouseEvent* me)
 
 void VowelStrip::wheelEvent(QWheelEvent* we)
 {
-	const float step = (we->modifiers() & Qt::ShiftModifier ? 0.01f : 0.05f) * (we->angleDelta().y() > 0 ? 1.f : -1.f);
-	model()->setValue(model()->value() + step);
 	we->accept();
+	const int steps = m_wheelSteps.steps(we);
+	if (steps == 0) { return; }
+	const float step = (we->modifiers() & Qt::ShiftModifier ? 0.01f : 0.05f) * steps;
+	model()->setValue(model()->value() + step);
 }
 
 

@@ -28,6 +28,7 @@
 
 #include "Editor.h"
 #include "TrackContainerView.h"
+#include "WheelAccumulator.h"
 
 class QLabel;
 class QScrollBar;
@@ -175,6 +176,9 @@ private:
 signals:
 	void pixelsPerBarChanged(float);
 	void proportionalSnapChanged();
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 

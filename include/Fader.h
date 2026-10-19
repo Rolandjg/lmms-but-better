@@ -55,6 +55,7 @@
 #include "AutomatableModelView.h"
 #include "embed.h"
 #include "lmms_math.h"
+#include "WheelAccumulator.h"
 
 
 namespace lmms::gui
@@ -193,6 +194,9 @@ private:
 	QColor m_unityMarker {63, 63, 63, 255};
 
 	bool m_renderUnityLine {true};
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 

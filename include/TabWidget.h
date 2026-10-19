@@ -27,6 +27,7 @@
 
 #include <QWidget>
 #include <QMap>
+#include "WheelAccumulator.h"
 
 namespace lmms::gui
 {
@@ -117,6 +118,9 @@ private:
 	QColor m_tabTextSelected;// The text color for the selected tab.
 	QColor m_tabBackground; // The TabWidget's background color.
 	QColor m_tabBorder;     // The TabWidget's borders color.
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 

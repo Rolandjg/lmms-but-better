@@ -73,6 +73,7 @@
 #include "SubWindow.h"
 #include "TemplatesMenu.h"
 #include "TextFloat.h"
+#include "TilingWindowManager.h"
 #include "ToolButton.h"
 #include "ToolPlugin.h"
 #include "VersionedSaveDialog.h"
@@ -86,6 +87,7 @@ namespace lmms::gui
 
 MainWindow::MainWindow() :
 	m_workspace( nullptr ),
+	m_tiling( nullptr ),
 	m_toolsMenu( nullptr ),
 	m_autoSaveTimer( this ),
 	m_viewMenu( nullptr ),
@@ -182,6 +184,12 @@ MainWindow::MainWindow() :
 	m_workspace->setOption( QMdiArea::DontMaximizeSubWindowOnActivation );
 	m_workspace->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	m_workspace->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+	m_tiling = new TilingWindowManager(m_workspace);
+	m_tiling->setEnabled(confMgr->value("ui", "tilingwindows").toInt());
+	connect(m_tiling, &TilingWindowManager::enabledChanged, this, [](bool enabled) {
+		ConfigManager::inst()->setValue("ui", "tilingwindows", QString::number(enabled));
+	});
 
 	hbox->addWidget(sideBar);
 	hbox->addWidget(splitter);
@@ -508,6 +516,14 @@ void MainWindow::finalize()
 	m_toolBarLayout->addWidget( mixer_window, 1, 5 );
 	m_toolBarLayout->addWidget( controllers_window, 1, 6 );
 	m_toolBarLayout->addWidget( project_notes_window, 1, 7 );
+
+	auto tileWindowsButton = new ToolButton(embed::getIconPixmap("tile_windows"),
+		tr("Tile windows: arrange the windows side by side instead of letting them float"), nullptr, nullptr, m_toolBar);
+	tileWindowsButton->setCheckable(true);
+	tileWindowsButton->setChecked(m_tiling->isEnabled());
+	connect(tileWindowsButton, &ToolButton::toggled, m_tiling, &TilingWindowManager::setEnabled);
+	connect(m_tiling, &TilingWindowManager::enabledChanged, tileWindowsButton, &ToolButton::setChecked);
+	m_toolBarLayout->addWidget(tileWindowsButton, 1, 8, Qt::AlignLeft);
 	m_toolBarLayout->setColumnStretch( 100, 1 );
 
 	auto commandPaletteButton = new CommandPaletteButton(m_toolBar);
@@ -1197,6 +1213,11 @@ void MainWindow::updateViewMenu()
 
 	detachAllAction->setShortcutContext(Qt::ApplicationShortcut);
 	attachAllAction->setShortcutContext(Qt::ApplicationShortcut);
+
+	auto tileAction = m_viewMenu->addAction(embed::getIconPixmap("tile_windows"), tr("Tile windows"));
+	tileAction->setCheckable(true);
+	tileAction->setChecked(m_tiling->isEnabled());
+	connect(tileAction, &QAction::toggled, m_tiling, &TilingWindowManager::setEnabled);
 
 	m_viewMenu->addSeparator();
 

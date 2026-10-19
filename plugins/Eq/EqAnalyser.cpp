@@ -1,4 +1,4 @@
-/* eqspectrumview.cpp - implementation of EqSpectrumView class.
+/* EqAnalyser.cpp - implementation of the EqAnalyser class
 *
 * Copyright (c) 2014-2017, David French <dave/dot/french3/at/googlemail/dot/com>
 *
@@ -20,18 +20,13 @@
 *
 */
 
-#include "EqSpectrumView.h"
+#include "EqAnalyser.h"
 
 #include <cmath>
 #include <numbers>
-#include <QPainter>
-#include <QPen>
 
 #include "AudioEngine.h"
 #include "Engine.h"
-#include "EqCurve.h"
-#include "GuiApplication.h"
-#include "MainWindow.h"
 
 namespace lmms
 {
@@ -180,130 +175,5 @@ void EqAnalyser::clear()
 }
 
 
-
-namespace gui
-{
-
-EqSpectrumView::EqSpectrumView(EqAnalyser *b, QWidget *_parent) :
-	QWidget( _parent ),
-	m_analyser( b ),
-	m_peakSum(0.),
-	m_periodicalUpdate( false )
-{
-	setFixedSize( 450, 200 );
-	connect( getGUI()->mainWindow(), SIGNAL( periodicUpdate() ), this, SLOT( periodicalUpdate() ) );
-	setAttribute( Qt::WA_TranslucentBackground, true );
-	m_skipBands = MAX_BANDS * 0.5;
-	const float totalLength = std::log10(20000);
-	m_pixelsPerUnitWidth = width() / totalLength ;
-	m_scale = 1.5;
-	m_color = QColor( 255, 255, 255, 255 );
-	for ( int i = 0 ; i < MAX_BANDS ; i++ )
-	{
-		m_bandHeight.append( 0 );
-	}
-}
-
-
-
-
-void EqSpectrumView::paintEvent(QPaintEvent *event)
-{
-	const float energy = m_analyser->getEnergy();
-	if (energy <= 0. && m_peakSum <= 0) { return; }
-
-	const int fh = height();
-	const int LOWER_Y = -36;	// dB
-	QPainter painter( this );
-	painter.setPen( QPen( m_color, 1, Qt::SolidLine, Qt::RoundCap, Qt::BevelJoin ) );
-	painter.setRenderHint(QPainter::Antialiasing, true);
-
-	if( m_analyser->getInProgress() || m_periodicalUpdate == false )
-	{
-		//only paint the cached path
-		painter.fillPath( m_path, QBrush( m_color ) );
-		return;
-	}
-
-	m_periodicalUpdate = false;
-	//Now we calculate the path
-	m_path = QPainterPath();
-	float *bands = m_analyser->m_bands;
-	m_path.moveTo( 0, height() );
-	m_peakSum = 0;
-	const float fallOff = 1.07f;
-	for( int x = 0; x < MAX_BANDS; ++x, ++bands )
-	{
-		float peak = *bands != 0. ? (fh * 2.0 / 3.0 * (20. * std::log10(*bands / energy) - LOWER_Y) / (-LOWER_Y)) : 0.;
-
-		if( peak < 0 )
-		{
-			peak = 0;
-		}
-		else if( peak >= fh )
-		{
-			continue;
-		}
-
-		if ( peak > m_bandHeight[x] )
-		{
-			m_bandHeight[x] = peak;
-		}
-		else
-		{
-			m_bandHeight[x] = m_bandHeight[x] / fallOff;
-		}
-
-		if( m_bandHeight[x] < 0 )
-		{
-			m_bandHeight[x] = 0;
-		}
-
-		m_path.lineTo( EqHandle::freqToXPixel( bandToFreq( x ), width() ), fh - m_bandHeight[x] );
-		m_peakSum += m_bandHeight[x];
-	}
-
-	m_path.lineTo( width(), height() );
-	m_path.closeSubpath();
-	painter.fillPath( m_path, QBrush( m_color ) );
-	painter.drawPath( m_path );
-}
-
-
-
-
-QColor EqSpectrumView::getColor() const
-{
-	return m_color;
-}
-
-
-
-
-void EqSpectrumView::setColor( const QColor &value )
-{
-	m_color = value;
-}
-
-
-
-
-float EqSpectrumView::bandToFreq( int index )
-{
-	return index * m_analyser->getSampleRate() / ( MAX_BANDS * 2 );
-}
-
-
-
-
-void EqSpectrumView::periodicalUpdate()
-{
-	m_periodicalUpdate = true;
-	m_analyser->setActive( isVisible() );
-	update();
-}
-
-
-} // namespace gui
 
 } // namespace lmms

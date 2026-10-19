@@ -99,14 +99,34 @@ EqControls::EqControls( EqEffect *effect ) :
 	m_inPeakR = 0;
 	m_outPeakL = 0;
 	m_outPeakR = 0;
-	m_lowShelfPeakL = 0; m_lowShelfPeakR = 0;
-	m_para1PeakL = 0; m_para1PeakR = 0;
-	m_para2PeakL = 0; m_para2PeakR = 0;
-	m_para3PeakL = 0; m_para3PeakR = 0;
-	m_para4PeakL = 0; m_para4PeakR = 0;
-	m_highShelfPeakL = 0; m_highShelfPeakR = 0;
-	m_inProgress = false;
 	m_inGainModel.setScaleLogarithmic( true );
+
+	// The slope is chosen as one value, but the audio path switches the cascaded sections on with
+	// a flag each; the type models carry the undo history for all of them
+	for (BoolModel* slope : {&m_hp12Model, &m_hp24Model, &m_hp48Model, &m_lp12Model, &m_lp24Model,
+		&m_lp48Model})
+	{
+		slope->setJournalling(false);
+	}
+	connect(&m_hpTypeModel, &Model::dataChanged, this, &EqControls::updatePassFilterSlopes);
+	connect(&m_lpTypeModel, &Model::dataChanged, this, &EqControls::updatePassFilterSlopes);
+	updatePassFilterSlopes();
+}
+
+
+
+
+void EqControls::updatePassFilterSlopes()
+{
+	const int hp = m_hpTypeModel.value();
+	m_hp12Model.setValue(hp == 0);
+	m_hp24Model.setValue(hp == 1);
+	m_hp48Model.setValue(hp == 2);
+
+	const int lp = m_lpTypeModel.value();
+	m_lp12Model.setValue(lp == 0);
+	m_lp24Model.setValue(lp == 1);
+	m_lp48Model.setValue(lp == 2);
 }
 
 
@@ -157,6 +177,9 @@ void EqControls::loadSettings( const QDomElement &_this )
 	m_analyseInModel.loadSettings( _this, "AnalyseIn" );
 	m_analyseOutModel.loadSettings( _this, "AnalyseOut" );
 	m_channelModeModel.loadSettings(_this, "ChannelMode");
+
+	// The flags were saved too, but the type models are what the GUI edits
+	updatePassFilterSlopes();
 }
 
 gui::EffectControlDialog* EqControls::createView()

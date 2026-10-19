@@ -37,6 +37,7 @@
 #include "TimePos.h"
 #include "LmmsTypes.h"
 #include "SampleThumbnail.h"
+#include "WheelAccumulator.h"
 
 class QPushButton;
 class QScrollBar;
@@ -200,7 +201,6 @@ private:
 	static const int SCROLLBAR_SIZE = 12;
 	static const int TOP_MARGIN = 16;
 
-	static const int DEFAULT_Y_DELTA = 6;
 	static const int DEFAULT_STEPS_PER_BAR = 16;
 	static const int DEFAULT_PPB = 12 * DEFAULT_STEPS_PER_BAR;
 
@@ -229,6 +229,8 @@ private:
 	ComboBoxModel m_quantizeModel;
 
 	static const std::array<float, 7> m_zoomXLevels;
+	//! Vertical zoom factors relative to fitting the model's whole value range in the view
+	static const std::array<float, 9> m_zoomYLevels;
 
 	FloatModel * m_tensionModel;
 
@@ -236,7 +238,6 @@ private:
 	float m_minLevel;
 	float m_maxLevel;
 	float m_step;
-	float m_scrollLevel;
 	float m_bottomLevel;
 	float m_topLevel;
 
@@ -245,6 +246,7 @@ private:
 	bool m_renderSample = false;
 
 	void centerTopBottomScroll();
+	void scrollToLevel(float level);
 	void updateTopBottomLevels();
 
 	QScrollBar * m_leftRightScroll;
@@ -262,8 +264,7 @@ private:
 	tick_t m_drawLastTick;
 
 	int m_ppb;
-	float m_y_delta;
-	bool m_y_auto;
+	float m_y_delta; //!< Pixels per unit of automation value
 
 	//! Time position (key) of automation node whose outValue is being dragged
 	int m_draggedOutValueKey;
@@ -310,6 +311,9 @@ private:
 
 signals:
 	void currentClipChanged();
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 

@@ -1,4 +1,4 @@
-/* eqspectrumview.h - defination of EqSpectrumView class.
+/* EqAnalyser.h - definition of the EqAnalyser class, the equalizer's spectrum analysis
 *
 * Copyright (c) 2014 David French <dave/dot/french3/at/googlemail/dot/com>
 *
@@ -20,11 +20,8 @@
 * Boston, MA 02110-1301 USA.
 *
 */
-#ifndef EQSPECTRUMVIEW_H
-#define EQSPECTRUMVIEW_H
-
-#include <QPainterPath>
-#include <QWidget>
+#ifndef EQANALYSER_H
+#define EQANALYSER_H
 
 #include "fft_helpers.h"
 #include "LmmsTypes.h"
@@ -67,42 +64,6 @@ private:
 };
 
 
-namespace gui
-{
-
-class EqSpectrumView : public QWidget
-{
-	Q_OBJECT
-public:
-	explicit EqSpectrumView( EqAnalyser *b, QWidget *_parent = 0 );
-	~EqSpectrumView() override = default;
-
-	QColor getColor() const;
-	void setColor( const QColor &value );
-
-protected:
-	void paintEvent( QPaintEvent *event ) override;
-
-private slots:
-	void periodicalUpdate();
-
-private:
-	QColor m_color;
-	EqAnalyser *m_analyser;
-	QPainterPath m_path;
-	float m_peakSum;
-	float m_pixelsPerUnitWidth;
-	float m_scale;
-	int m_skipBands;
-	bool m_periodicalUpdate;
-	QList<float> m_bandHeight;
-
-	float bandToFreq ( int index );
-};
-
-
-} // namespace gui
-
 } // namespace lmms
 
-#endif // EQSPECTRUMVIEW_H
+#endif // EQANALYSER_H

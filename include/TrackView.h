@@ -31,6 +31,7 @@
 #include "ModelView.h"
 #include "TrackContentWidget.h"
 #include "TrackOperationsWidget.h"
+#include "WheelAccumulator.h"
 
 class QMenu;
 
@@ -232,6 +233,9 @@ private slots:
 	void muteChanged();
 	void onTrackGripGrabbed();
 	void onTrackGripReleased();
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 

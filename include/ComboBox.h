@@ -30,6 +30,7 @@
 
 #include "ComboBoxModel.h"
 #include "AutomatableModelView.h"
+#include "WheelAccumulator.h"
 
 namespace lmms::gui
 {
@@ -96,6 +97,9 @@ private:
 private slots:
 	void setItem( QAction* item );
 
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 } // namespace lmms::gui

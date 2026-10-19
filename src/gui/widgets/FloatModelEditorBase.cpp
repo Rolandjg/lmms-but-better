@@ -411,7 +411,7 @@ void FloatModelEditorBase::wheelEvent(QWheelEvent * we)
 
 	we->accept();
 	const int deltaY = we->angleDelta().y();
-	float direction = deltaY > 0 ? 1 : -1;
+	int delta = deltaY;
 
 	// This is the default number of steps or mouse wheel events that it takes to sweep
 	// from the lowest value to the highest value.
@@ -440,20 +440,19 @@ void FloatModelEditorBase::wheelEvent(QWheelEvent * we)
 		// left and right. Account for this quirk.
 		if (deltaY == 0)
 		{
-			const int deltaX = we->angleDelta().x();
-			if (deltaX != 0)
-			{
-				direction = deltaX > 0 ? 1 : -1;
-			}
+			delta = we->angleDelta().x();
 		}
 	}
+
+	int direction = m_wheelSteps.steps(we, delta);
+	if (direction == 0) { return; }
 
 	// Handle "natural" scrolling, which is common on trackpads and touch devices
 	if (we->inverted()) {
 		direction = -direction;
 	}
 
-	stepValue(static_cast<int>(direction), numberOfStepsForFullSweep);
+	stepValue(direction, numberOfStepsForFullSweep);
 
 	// Only force a text update for the 1st wheel event
 	showTextFloat(0, 1000, m_interaction != oldInteraction);

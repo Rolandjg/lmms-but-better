@@ -312,14 +312,13 @@ void TrackView::wheelEvent(QWheelEvent* we)
 	// Note: we add the values because one of them will be 0. If the alt modifier
 	// is pressed x is non-zero and otherwise y.
 	const int deltaY = we->angleDelta().x() + we->angleDelta().y();
-	int const direction = deltaY < 0 ? -1 : 1;
 
 	auto const modKeys = we->modifiers();
 	int stepSize = modKeys == (Qt::ControlModifier | Qt::AltModifier) ? 1 : modKeys == (Qt::ShiftModifier | Qt::AltModifier) ? 5 : 0;
 
 	if (stepSize != 0)
 	{
-		resizeToHeight(height() + stepSize * direction);
+		resizeToHeight(height() + stepSize * m_wheelSteps.steps(we, deltaY));
 		we->accept();
 		return;
 	}

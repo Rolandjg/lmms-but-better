@@ -30,6 +30,7 @@
 #include <QPainter>
 
 #include "EffectControlDialog.h"
+#include "WheelAccumulator.h"
 
 class QLabel;
 
@@ -223,6 +224,9 @@ private:
 	int m_timeSinceLastUpdate = 0;
 
 	friend class CompressorControls;
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 

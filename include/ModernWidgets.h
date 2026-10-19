@@ -33,6 +33,7 @@
 #include "AutomatableButton.h"
 #include "AutomatableModelView.h"
 #include "lmms_export.h"
+#include "WheelAccumulator.h"
 
 class QBoxLayout;
 class QGridLayout;
@@ -270,6 +271,9 @@ private:
 	ItemPainter m_itemPainter;
 	int m_itemWidth = 0;
 	Style m_style = Style::Flat;
+
+private:
+	WheelAccumulator m_wheelSteps;
 };
 
 

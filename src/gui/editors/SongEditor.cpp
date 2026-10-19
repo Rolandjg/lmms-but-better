@@ -587,15 +587,18 @@ void SongEditor::wheelEvent( QWheelEvent * we )
 	const auto posX = we->position().toPoint().x();
 	if ((we->modifiers() & Qt::ControlModifier) && (posX > m_trackHeadWidth))
 	{
+		we->accept();
+		// when Alt is pressed, wheelEvent returns delta for x coordinate (mimics horizontal mouse wheel)
+		const int steps = m_wheelSteps.steps(we, we->angleDelta().y() + we->angleDelta().x());
+		if (steps == 0) { return; }
+
 		int x = posX - m_trackHeadWidth;
 		// tick based on the mouse x-position where the scroll wheel was used
 		int tick = x / pixelsPerBar() * TimePos::ticksPerBar();
 
 		// move zoom slider (pixelsPerBar will change automatically)
 		int step = we->modifiers() & Qt::ShiftModifier ? 1 : 5;
-		// when Alt is pressed, wheelEvent returns delta for x coordinate (mimics horizontal mouse wheel)
-		int direction = (we->angleDelta().y() + we->angleDelta().x()) > 0 ? 1 : -1;
-		m_zoomingModel->incValue(step * direction);
+		m_zoomingModel->incValue(step * steps);
 
 		// scroll to zooming around cursor's tick
 		int newTick = static_cast<int>(x / pixelsPerBar() * TimePos::ticksPerBar());

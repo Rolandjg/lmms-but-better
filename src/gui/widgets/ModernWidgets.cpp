@@ -451,9 +451,9 @@ void ModernSegmented::mouseDoubleClickEvent(QMouseEvent* event)
 void ModernSegmented::wheelEvent(QWheelEvent* event)
 {
 	if (!model()) { return; }
-	const int direction = (event->angleDelta().y() < 0 ? 1 : -1) * (event->inverted() ? -1 : 1);
-	model()->setValue(model()->value() + direction);
 	event->accept();
+	const int direction = -m_wheelSteps.steps(event) * (event->inverted() ? -1 : 1);
+	if (direction != 0) { model()->setValue(model()->value() + direction); }
 }
 
 void ModernSegmented::contextMenuEvent(QContextMenuEvent*)

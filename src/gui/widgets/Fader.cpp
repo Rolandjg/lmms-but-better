@@ -310,13 +310,13 @@ void Fader::keyPressEvent(QKeyEvent* ev)
 
 void Fader::wheelEvent (QWheelEvent* ev)
 {
-	const int direction = (ev->angleDelta().y() > 0 ? 1 : -1) * (ev->inverted() ? -1 : 1);
+	ev->accept();
+	const int direction = m_wheelSteps.steps(ev) * (ev->inverted() ? -1 : 1);
+	if (direction == 0) { return; }
 
 	const float increment = determineAdjustmentDelta(ev->modifiers()) * direction;
 
 	adjustByDecibelDelta(increment);
-
-	ev->accept();
 }
 
 float Fader::determineAdjustmentDelta(const Qt::KeyboardModifiers & modifiers) const

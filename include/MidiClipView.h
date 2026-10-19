@@ -28,6 +28,7 @@
 #include <QPixmap>
 #include <QStaticText>
 #include "ClipView.h"
+#include "WheelAccumulator.h"
 
 namespace lmms
 {
@@ -131,6 +132,9 @@ private:
 	bool isResizableBeforeStart() override { return false; }
 	
 	bool destructiveSplitClip(const TimePos pos) override;
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 

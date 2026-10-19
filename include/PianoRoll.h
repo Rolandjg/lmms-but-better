@@ -39,6 +39,7 @@
 #include "Song.h"
 #include "StepRecorder.h"
 #include "StepRecorderWidget.h"
+#include "WheelAccumulator.h"
 
 class QPushButton;
 class QScrollBar;
@@ -587,6 +588,9 @@ private:
 	QBrush m_blackKeyActiveBackground;
 	QBrush m_blackKeyInactiveBackground;
 	QBrush m_blackKeyDisabledBackground;
+
+private:
+	WheelAccumulator m_wheelSteps;
 } ;
 
 
