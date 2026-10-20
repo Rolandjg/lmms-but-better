@@ -61,7 +61,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#endif
+#endif // Q_OS_WIN
 
 namespace lmms::gui
 {
@@ -124,7 +124,7 @@ void reportContentScale(IPlugView* view, const QWidget* w)
 	}
 }
 
-#endif
+#endif // Q_OS_MACOS
 
 } // namespace
 

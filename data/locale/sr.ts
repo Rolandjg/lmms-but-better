@@ -1872,21 +1872,6 @@ Right clicking will bring up a context menu where you can change the order in wh
     </message>
 </context>
 <context>
-    <name>EqHandle</name>
-    <message>
-        <source>Reso: </source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <source>BW: </source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <source>Freq: </source>
-        <translation type="unfinished"/>
-    </message>
-</context>
-<context>
     <name>ExportProjectDialog</name>
     <message>
         <source>Export project</source>
