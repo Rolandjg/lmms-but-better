@@ -25,7 +25,6 @@
 #include <climits>
 
 #include <QApplication>
-#include <QClipboard>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -179,13 +178,10 @@ ScriptConsole::ScriptConsole(QWidget* parent) :
 	auto saveButton = makeButton(tr("Save…"), tr("Save the script (Ctrl+S)"), this);
 	auto examplesButton = makeButton(tr("Examples ▾"), tr("Load an example script"), this);
 	auto clearButton = makeButton(tr("Clear"), tr("Clear the output"), this);
-	auto connectButton = makeButton(tr("Agent link"), tr("Copy Python code that connects an external program "
-		"(e.g. an AI agent) to this LMMS instance"), this);
 	for (auto b : {m_runButton, m_stopButton, restartButton, m_undoRunButton}) { toolbar->addWidget(b); }
 	toolbar->addSpacing(10);
 	for (auto b : {newButton, openButton, saveButton, examplesButton}) { toolbar->addWidget(b); }
 	toolbar->addStretch(1);
-	toolbar->addWidget(connectButton);
 	toolbar->addWidget(clearButton);
 
 	connect(m_runButton, &QToolButton::clicked, this, &ScriptConsole::run);
@@ -201,7 +197,6 @@ ScriptConsole::ScriptConsole(QWidget* parent) :
 	connect(saveButton, &QToolButton::clicked, this, [this] { saveScript(true); });
 	connect(examplesButton, &QToolButton::clicked, this, &ScriptConsole::showExamples);
 	connect(clearButton, &QToolButton::clicked, this, &ScriptConsole::clearOutput);
-	connect(connectButton, &QToolButton::clicked, this, &ScriptConsole::copyConnectionSnippet);
 
 	// editor
 	m_editor = new QPlainTextEdit(this);
@@ -632,29 +627,6 @@ void ScriptConsole::showExamples()
 }
 
 
-
-
-void ScriptConsole::copyConnectionSnippet()
-{
-	auto server = scripting::ScriptServer::instance();
-	if (!server->start())
-	{
-		appendOutput(tr("Could not start the script server.") + "\n", Style::Error);
-		return;
-	}
-	const QString snippet = QString(
-		"import sys\n"
-		"sys.path.insert(0, r\"%1\")\n"
-		"import lmms\n"
-		"lmms.connect(port=%2, token=\"%3\")\n")
-		.arg(scripting::ScriptRunner::pythonModuleDir()).arg(server->port()).arg(server->token());
-	QApplication::clipboard()->setText(snippet);
-	appendOutput(tr("Copied to the clipboard - paste this into any Python process to control this LMMS:") + "\n", Style::Info);
-	appendOutput(snippet, Style::Echo);
-	appendOutput(tr("(Programs can also call lmms.connect() with no arguments: it reads %1)")
-		.arg(scripting::ScriptServer::connectionFile()) + "\n", Style::Info);
-	updateState();
-}
 
 
 } // namespace lmms::gui

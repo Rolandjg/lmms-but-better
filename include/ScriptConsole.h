@@ -84,7 +84,6 @@ private:
 	void updateState();
 	void updateTitle();
 	void showExamples();
-	void copyConnectionSnippet();
 
 	scripting::ScriptRunner* m_runner;
 	QPlainTextEdit* m_editor;
