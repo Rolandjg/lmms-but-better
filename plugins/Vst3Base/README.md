@@ -2,27 +2,34 @@
 
 For a short installation guide, see [VST3 setup](../../doc/VST3_SETUP.md).
 
-LMMS on Linux builds `Vst3Instrument`, `Vst3Effect`, and the shared VST3 host
-by default. Instruments appear in the instrument browser; effects appear in
-**Add effect** under VST3. The **VST3 (load file)** instrument also accepts a
-plugin selected manually.
+LMMS on Linux, macOS and Windows builds `Vst3Instrument`, `Vst3Effect`, and
+the shared VST3 host by default. Instruments appear in the instrument browser;
+effects appear in **Add effect** under VST3. The **VST3 (load file)**
+instrument also accepts a plugin selected manually.
 
 ## Finding plugins
 
 The host recursively searches:
 
-* `~/.vst3`, `/usr/lib/vst3`, `/usr/local/lib/vst3`;
+* Linux: `~/.vst3`, `/usr/lib/vst3`, `/usr/local/lib/vst3`;
+* macOS: `~/Library/Audio/Plug-Ins/VST3`, `/Library/Audio/Plug-Ins/VST3`;
+* Windows: `%LOCALAPPDATA%\Programs\Common\VST3`,
+  `%COMMONPROGRAMFILES%\VST3` (usually `C:\Program Files\Common Files\VST3`);
 * LMMS's configured VST and LADSPA directories;
-* additional directories in the colon-separated `VST3_PATH` variable.
+* additional directories in the `VST3_PATH` variable, separated like `PATH`
+  (`:` on Linux and macOS, `;` on Windows).
 
 Select the `.so` inside a native `.vst3/Contents/<architecture>-linux/`
 bundle in the file picker. Bare shared objects can also be loaded manually.
+On Windows, select the `.vst3` inside `Contents\x86_64-win` (or
+`arm64-win`/`arm64x-win` on ARM64), or a legacy single-file `.vst3` DLL.
 Only the running host's architecture is loaded. Symlinked plugin directories
 are supported. Restart LMMS after adding plugins to refresh the browser.
 
 Factories are inspected by the separate `Vst3Scanner` executable, installed
 beside the plugin libraries. Failed or crashing scans are skipped, with a
-30-second timeout per module. Processing of native plugins runs inside LMMS;
+30-second timeout per module. On Windows the scanner suppresses crash dialogs
+and finds Qt through the LMMS installation directory. Processing of native plugins runs inside LMMS;
 scan isolation does not isolate crashes during playback. Plugin instances
 and factories are released normally, but module code remains mapped until
 process exit so asynchronous toolkit cleanup cannot execute unloaded code.
@@ -63,15 +70,21 @@ installation and was safely skipped; use its tested 64-bit version here.
   Qt's `xcb` backend by default so editors work without launch overrides.
   An explicit `QT_QPA_PLATFORM` setting is respected; if native Wayland is
   forced, the editor panel explains how to restart with `xcb`.
+* Native editor embedding as an HWND child window on Windows and an NSView on
+  macOS.
 
-Editors normally choose their own display scale. `LMMS_VST3_SCALE=1.5`
-forces an explicit factor; `LMMS_VST3_SCALE=auto` uses Qt's device pixel ratio.
+On Linux, editors normally choose their own display scale. On Windows, LMMS
+reports the monitor's scale factor (Qt's device pixel ratio) as the VST3
+specification asks, and reports it again when the editor moves to a monitor
+with a different scale. `LMMS_VST3_SCALE=1.5` forces an explicit factor,
+`LMMS_VST3_SCALE=auto` uses Qt's device pixel ratio, and on Windows
+`LMMS_VST3_SCALE=none` leaves the scale to the plugin.
 Editor rendering and mouse behavior can also depend on the plugin toolkit
 and the installed Wine/yabridge versions.
 
 Not implemented: `.vstpreset` files, program/unit lists, latency compensation,
-64-bit float processing, sidechain routing, and native Windows/macOS LMMS
-hosting. Windows plugins are supported in the Linux build through yabridge.
+64-bit float processing, and sidechain routing. Windows plugins are supported
+natively in the Windows build and through yabridge in the Linux build.
 
 ## Build and test
 

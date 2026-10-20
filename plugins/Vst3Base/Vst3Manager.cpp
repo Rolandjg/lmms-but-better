@@ -24,8 +24,11 @@
 
 #include "Vst3Manager.h"
 
+#ifndef Q_OS_WIN
 #include <dlfcn.h>
+#endif
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
@@ -35,6 +38,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryFile>
+#include <iterator>
 
 #include "ConfigManager.h"
 #include "Vst3Module.h"
@@ -42,6 +46,36 @@
 
 namespace lmms::vst3
 {
+
+namespace
+{
+
+#ifdef Q_OS_WIN
+constexpr auto ExecutableSuffix = ".exe";
+#else
+constexpr auto ExecutableSuffix = "";
+#endif
+
+//! Path of the library containing this code (vst3base)
+QString libraryPath()
+{
+#ifdef Q_OS_WIN
+	HMODULE module = nullptr;
+	if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		reinterpret_cast<LPCWSTR>(&libraryPath), &module)) { return {}; }
+	wchar_t buffer[32768];
+	const DWORD length = GetModuleFileNameW(module, buffer, static_cast<DWORD>(std::size(buffer)));
+	if (length == 0 || length >= std::size(buffer)) { return {}; }
+	return QDir::fromNativeSeparators(QString::fromWCharArray(buffer, static_cast<int>(length)));
+#else
+	Dl_info library{};
+	if (!dladdr(reinterpret_cast<void*>(&libraryPath), &library)) { return {}; }
+	return QString::fromLocal8Bit(library.dli_fname);
+#endif
+}
+
+} // namespace
+
 
 Vst3Manager* Vst3Manager::instance()
 {
@@ -59,19 +93,30 @@ QStringList Vst3Manager::searchPaths()
 	const QString envPath = QProcessEnvironment::systemEnvironment().value("VST3_PATH");
 	if (!envPath.isEmpty())
 	{
-		for (const auto& p : envPath.split(':', Qt::SkipEmptyParts)) { paths << p; }
+		for (const auto& p : envPath.split(QDir::listSeparator(), Qt::SkipEmptyParts)) { paths << p; }
 	}
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS)
 	paths << QDir::homePath() + "/Library/Audio/Plug-Ins/VST3";
 	paths << "/Library/Audio/Plug-Ins/VST3";
+#elif defined(Q_OS_WIN)
+	// per-user and system-wide locations from the VST3 specification
+	const QString localAppData = qEnvironmentVariable("LOCALAPPDATA");
+	if (!localAppData.isEmpty()) { paths << QDir::fromNativeSeparators(localAppData) + "/Programs/Common/VST3"; }
+	const QString commonFiles = qEnvironmentVariable("COMMONPROGRAMFILES", "C:/Program Files/Common Files");
+	paths << QDir::fromNativeSeparators(commonFiles) + "/VST3";
 #else
 	paths << QDir::homePath() + "/.vst3";
 	paths << "/usr/lib/vst3" << "/usr/local/lib/vst3";
 #endif
 	const auto config = ConfigManager::inst();
 	paths << config->vstDir() << config->userLadspaDir();
+#ifdef Q_OS_WIN
+	// drive letters contain colons; LMMS separates these with commas
+	paths << config->ladspaDir().split(',', Qt::SkipEmptyParts);
+#else
 	paths << config->ladspaDir().split(':', Qt::SkipEmptyParts);
+#endif
 	paths.removeAll(QString());
 	paths.removeDuplicates();
 
@@ -181,15 +226,25 @@ void Vst3Manager::scanModule(const QString& path)
 	// The scanner lives alongside this library, in both the build tree and
 	// installed packages. Do not fall back to loading untrusted modules in
 	// the UI process when the scanner is missing.
-	Dl_info library{};
-	if (!dladdr(reinterpret_cast<void*>(&Vst3Manager::instance), &library)) { return; }
-	const QString scanner = QFileInfo{QString::fromLocal8Bit(library.dli_fname)}
-		.absolutePath() + "/Vst3Scanner";
+	const QString library = libraryPath();
+	if (library.isEmpty()) { return; }
+	const QString scanner = QFileInfo{library}.absolutePath() + "/Vst3Scanner" + ExecutableSuffix;
 	const QString binary = Vst3Module::resolveModulePath(canonical);
 	QTemporaryFile result;
 	if (binary.isEmpty() || !result.open()) { return; }
 	QProcess process;
 	process.setProcessChannelMode(QProcess::MergedChannels);
+#ifdef Q_OS_WIN
+	// The scanner sits in the plugin directory, but Qt's DLLs and plugins sit
+	// beside lmms.exe. Windows searches neither, so point the scanner at them.
+	auto environment = QProcessEnvironment::systemEnvironment();
+	environment.insert("PATH", QDir::toNativeSeparators(QCoreApplication::applicationDirPath())
+		+ QDir::listSeparator() + environment.value("PATH"));
+	QStringList qtPluginPaths;
+	for (const auto& dir : QCoreApplication::libraryPaths()) { qtPluginPaths << QDir::toNativeSeparators(dir); }
+	environment.insert("QT_PLUGIN_PATH", qtPluginPaths.join(QDir::listSeparator()));
+	process.setProcessEnvironment(environment);
+#endif
 	process.start(scanner, {binary, result.fileName()});
 	if (!process.waitForStarted(5000) || !process.waitForFinished(30000))
 	{

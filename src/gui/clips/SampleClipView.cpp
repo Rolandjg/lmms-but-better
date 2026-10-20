@@ -410,7 +410,11 @@ void SampleClipView::mouseMoveEvent(QMouseEvent* me)
 
 
 
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+void SampleClipView::enterEvent(QEnterEvent* e)
+#else
 void SampleClipView::enterEvent(QEvent* e)
+#endif
 {
 	m_hovered = true;
 	update();

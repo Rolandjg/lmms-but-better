@@ -56,7 +56,7 @@ namespace lmms::gui
 //! (event loop integration for plugin GUIs).
 class VST3BASE_EXPORT Vst3EditorWindow : public QWidget,
 	public Steinberg::IPlugFrame
-#ifndef LMMS_BUILD_APPLE
+#ifdef LMMS_BUILD_LINUX
 	, public Steinberg::Linux::IRunLoop
 #endif
 {
@@ -86,7 +86,7 @@ public:
 	Steinberg::tresult PLUGIN_API resizeView(Steinberg::IPlugView* view,
 		Steinberg::ViewRect* newSize) override;
 
-#ifndef LMMS_BUILD_APPLE
+#ifdef LMMS_BUILD_LINUX
 	// Linux::IRunLoop
 	Steinberg::tresult PLUGIN_API registerEventHandler(
 		Steinberg::Linux::IEventHandler* handler, Steinberg::Linux::FileDescriptor fd) override;
@@ -134,7 +134,7 @@ private:
 	QTimer* m_positionRefreshTimer = nullptr;
 	QSize m_viewSize; //!< last size communicated with the view, in native view units
 
-#ifndef LMMS_BUILD_APPLE
+#ifdef LMMS_BUILD_LINUX
 	struct EventHandlerEntry
 	{
 		Steinberg::IPtr<Steinberg::Linux::IEventHandler> handler;

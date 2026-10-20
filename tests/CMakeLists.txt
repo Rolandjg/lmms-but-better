@@ -52,6 +52,17 @@ foreach(LMMS_TEST_SRC IN LISTS LMMS_TESTS)
 
 	target_compile_features(${LMMS_TEST_NAME} PRIVATE cxx_std_20)
 	target_compile_definitions(${LMMS_TEST_NAME} PRIVATE LMMS_TESTING)
+
+	if(LMMS_BUILD_WIN32)
+		# LMMS plugin DLLs import the core from "lmms.exe". Windows binds those
+		# imports to an already running module of that name, so naming the test
+		# lmms.exe lets tests load plugins like LMMS itself does. Each test gets
+		# its own directory to keep the names apart.
+		set_target_properties(${LMMS_TEST_NAME} PROPERTIES
+			OUTPUT_NAME lmms
+			RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${LMMS_TEST_NAME}"
+			ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${LMMS_TEST_NAME}")
+	endif()
 endforeach()
 
 set_target_properties(PianoRollRenderingTest PROPERTIES ENABLE_EXPORTS ON)
@@ -100,6 +111,13 @@ set_tests_properties(ScriptConsoleTest PROPERTIES
 	TIMEOUT 90)
 
 if(TARGET vst3base)
+	# third-party SDK sources, built without warnings as in plugins/Vst3Base
+	set_source_files_properties(
+		../plugins/Vst3Base/vst3sdk/pluginterfaces/base/conststringtable.cpp
+		../plugins/Vst3Base/vst3sdk/pluginterfaces/base/coreiids.cpp
+		../plugins/Vst3Base/vst3sdk/pluginterfaces/base/funknown.cpp
+		../plugins/Vst3Base/vst3sdk/pluginterfaces/base/ustring.cpp
+		PROPERTIES COMPILE_OPTIONS "$<IF:$<CXX_COMPILER_ID:MSVC>,/wd4477,-w>")
 	add_library(Vst3TestPlugin MODULE plugins/Vst3TestPlugin.cpp
 		../plugins/Vst3Base/Vst3SdkIids.cpp
 		../plugins/Vst3Base/vst3sdk/pluginterfaces/base/coreiids.cpp
@@ -114,11 +132,41 @@ if(TARGET vst3base)
 	add_executable(Vst3HostTest plugins/Vst3HostTest.cpp)
 	target_include_directories(Vst3HostTest PRIVATE $<TARGET_PROPERTY:lmmsobjs,INCLUDE_DIRECTORIES>)
 	target_static_libraries(Vst3HostTest PRIVATE lmmsobjs)
-	target_link_libraries(Vst3HostTest PRIVATE vst3base ${QT_LIBRARIES} ${QT_QTTEST_LIBRARY})
+	target_link_libraries(Vst3HostTest PRIVATE ${QT_LIBRARIES} ${QT_QTTEST_LIBRARY})
 	target_compile_features(Vst3HostTest PRIVATE cxx_std_20)
 	target_compile_definitions(Vst3HostTest PRIVATE LMMS_TESTING VST3_TEST_MODULE="$<TARGET_FILE:Vst3TestPlugin>")
 	add_dependencies(Vst3HostTest Vst3TestPlugin)
-	if(TARGET vst3instrument AND TARGET vst3effect)
+	if(LMMS_BUILD_WIN32)
+		# LMMS plugin DLLs import the LMMS core from lmms.exe, so vst3base.dll
+		# cannot be loaded into another executable. Compile the host into the
+		# test instead, and place the test beside Vst3Scanner.exe, which the
+		# host looks for next to the module containing its code.
+		set(VST3BASE_DIR "${CMAKE_SOURCE_DIR}/plugins/Vst3Base")
+		target_sources(Vst3HostTest PRIVATE
+			${VST3BASE_DIR}/Vst3Basics.cpp
+			${VST3BASE_DIR}/Vst3HostApp.cpp
+			${VST3BASE_DIR}/Vst3Manager.cpp
+			${VST3BASE_DIR}/Vst3Module.cpp
+			${VST3BASE_DIR}/Vst3Plugin.cpp
+			${VST3BASE_DIR}/Vst3Plugin.h
+			${VST3BASE_DIR}/Vst3SdkIids.cpp
+			${VST3BASE_DIR}/Vst3SubPluginFeatures.cpp
+			${VST3BASE_DIR}/Vst3ViewBase.cpp
+			${VST3BASE_DIR}/Vst3ViewBase.h
+			${VST3BASE_DIR}/vst3sdk/pluginterfaces/base/conststringtable.cpp
+			${VST3BASE_DIR}/vst3sdk/pluginterfaces/base/coreiids.cpp
+			${VST3BASE_DIR}/vst3sdk/pluginterfaces/base/funknown.cpp
+			${VST3BASE_DIR}/vst3sdk/pluginterfaces/base/ustring.cpp)
+		target_include_directories(Vst3HostTest PRIVATE
+			"${VST3BASE_DIR}" "${CMAKE_BINARY_DIR}/plugins/Vst3Base")
+		target_include_directories(Vst3HostTest SYSTEM PRIVATE "${VST3BASE_DIR}/vst3sdk")
+		target_compile_definitions(Vst3HostTest PRIVATE VST3BASE_STATIC_DEFINE)
+		set_target_properties(Vst3HostTest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins")
+		add_dependencies(Vst3HostTest Vst3Scanner)
+	else()
+		target_link_libraries(Vst3HostTest PRIVATE vst3base)
+	endif()
+	if(TARGET vst3instrument AND TARGET vst3effect AND NOT LMMS_BUILD_WIN32)
 		add_dependencies(Vst3HostTest vst3instrument vst3effect)
 		target_compile_definitions(Vst3HostTest PRIVATE LMMS_TEST_VST3_WRAPPERS)
 	endif()

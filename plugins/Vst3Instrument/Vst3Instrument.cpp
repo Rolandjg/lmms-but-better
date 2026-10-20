@@ -147,8 +147,11 @@ void Vst3Instrument::loadFile(const QString& file)
 	const auto classes = vst3::Vst3Manager::instance()->classesInFile(path);
 	if (classes.empty())
 	{
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS)
 		collectErrorForUI(tr("No compatible macOS VST3 plugin found in \"%1\".").arg(path));
+#elif defined(Q_OS_WIN)
+		collectErrorForUI(tr("No compatible VST3 plugin found in \"%1\". "
+			"The plugin must be built for the same architecture as LMMS (usually 64-bit).").arg(path));
 #else
 		collectErrorForUI(tr("No VST3 plugin found in \"%1\". For Windows plugins, "
 			"register the plugin directory with yabridgectl add and run yabridgectl sync first.").arg(path));
@@ -319,9 +322,12 @@ void Vst3InsView::openFileDialog()
 {
 	auto instrument = castModel<Vst3Instrument>();
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS)
 	QString dir = QDir::homePath() + "/Library/Audio/Plug-Ins/VST3";
 	if (!QDir{dir}.exists()) { dir = "/Library/Audio/Plug-Ins/VST3"; }
+#elif defined(Q_OS_WIN)
+	QString dir = QDir::fromNativeSeparators(
+		qEnvironmentVariable("COMMONPROGRAMFILES", "C:/Program Files/Common Files")) + "/VST3";
 #else
 	QString dir = QDir::homePath() + "/.vst3";
 #endif
@@ -365,7 +371,7 @@ void Vst3InsView::toggleEditor(bool show)
 	}
 
 	m_errorLabel->hide();
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	if (QGuiApplication::platformName() != QStringLiteral("xcb"))
 	{
 		const QSignalBlocker blocker{m_toggleUiButton};

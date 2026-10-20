@@ -269,8 +269,10 @@ void ScriptRunner::readStdout()
 		}
 		const int end = m_stdoutBuffer.indexOf('\n');
 		if (end < 0) { return; }
-		const QByteArray line = m_stdoutBuffer.left(end);
+		QByteArray line = m_stdoutBuffer.left(end);
 		m_stdoutBuffer.remove(0, end + 1);
+		// Python writes \r\n for \n in text mode on Windows
+		if (line.endsWith('\r')) { line.chop(1); }
 		if (line.startsWith(DoneMarker))
 		{
 			m_busy = false;

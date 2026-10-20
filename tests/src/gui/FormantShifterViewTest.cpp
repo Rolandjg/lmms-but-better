@@ -163,17 +163,20 @@ private slots:
 
 	void vowelStripSetsAndSnapsTheVowel()
 	{
-		const int cell = m_vowels->width() / 5;
+		// fractional cells: the strip width (font/DPI dependent) need not divide by 5
+		const double cell = m_vowels->width() / 5.0;
 		const int y = m_vowels->height() / 2;
+		const auto at = [&](double cells) { return QPoint{qRound(cell * cells), y}; };
 		// Click the middle of the "O"
-		send(m_vowels, QEvent::MouseButtonPress, {cell * 3 + cell / 2, y}, Qt::LeftButton);
-		send(m_vowels, QEvent::MouseButtonRelease, {cell * 3 + cell / 2, y}, Qt::NoButton);
-		QVERIFY(std::abs(param("vowel") - 3.0) < 0.02);
+		send(m_vowels, QEvent::MouseButtonPress, at(3.5), Qt::LeftButton);
+		send(m_vowels, QEvent::MouseButtonRelease, at(3.5), Qt::NoButton);
+		QVERIFY2(std::abs(param("vowel") - 3.0) < 0.02,
+			qPrintable(QString("vowel %1, strip %2x%3").arg(param("vowel")).arg(m_vowels->width()).arg(m_vowels->height())));
 
-		drag(m_vowels, {cell / 2, y}, {cell + cell / 4, y});
+		drag(m_vowels, at(0.5), at(1.25));
 		QVERIFY(std::abs(param("vowel") - 0.75) < 0.03);
 
-		doubleClick(m_vowels, {cell + cell / 3, y});
+		doubleClick(m_vowels, at(1 + 1. / 3));
 		QCOMPARE(param("vowel"), 1.0);
 	}
 

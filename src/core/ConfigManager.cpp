@@ -719,7 +719,12 @@ void ConfigManager::initDevelopmentWorkingDir()
 	// If we're in development (lmms is not installed) let's get the source and
 	// binary directories by reading the CMake Cache
 	QDir appPath = qApp->applicationDirPath();
-	// If in tests, get parent directory
+	// If in tests, get parent directory. On Windows each test runs from its
+	// own build/tests/<test name> directory (see tests/CMakeLists.txt).
+	if (appPath.dirName() != "tests")
+	{
+		if (QDir parent = appPath; parent.cdUp() && parent.dirName() == "tests") { appPath = parent; }
+	}
 	if (appPath.dirName() == "tests") {
 		appPath.cdUp();
 	}

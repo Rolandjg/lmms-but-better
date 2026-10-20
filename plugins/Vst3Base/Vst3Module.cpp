@@ -50,23 +50,41 @@ std::map<QString, std::weak_ptr<Vst3Module>>& moduleCache()
 	return s_cache;
 }
 
-#ifndef Q_OS_MACOS
-const char* archDirName()
+#if defined(Q_OS_WIN)
+//! Bundle subdirectories this process can load, in order of preference
+QStringList archDirNames()
 {
-#if defined(__x86_64__)
-	return "x86_64-linux";
-#elif defined(__i386__)
-	return "i386-linux";
-#elif defined(__aarch64__)
-	return "aarch64-linux";
-#elif defined(__arm__)
-	return "arm-linux";
+#if defined(_M_X64) || defined(__x86_64__)
+	return {"x86_64-win"};
+#elif defined(_M_IX86) || defined(__i386__)
+	return {"x86-win"};
+#elif defined(_M_ARM64) || defined(__aarch64__)
+	// arm64x binaries are hybrids that also load into native ARM64 hosts
+	return {"arm64-win", "arm64x-win"};
 #else
-	return "unknown-linux";
+	return {};
 #endif
 }
 
-#endif // Q_OS_MACOS
+const char* binarySuffix() { return ".vst3"; }
+#elif !defined(Q_OS_MACOS)
+QStringList archDirNames()
+{
+#if defined(__x86_64__)
+	return {"x86_64-linux"};
+#elif defined(__i386__)
+	return {"i386-linux"};
+#elif defined(__aarch64__)
+	return {"aarch64-linux"};
+#elif defined(__arm__)
+	return {"arm-linux"};
+#else
+	return {"unknown-linux"};
+#endif
+}
+
+const char* binarySuffix() { return ".so"; }
+#endif
 
 } // namespace
 
@@ -74,21 +92,27 @@ const char* archDirName()
 QString Vst3Module::resolveModulePath(const QString& path)
 {
 	const QFileInfo info{path};
+	// on Windows this includes legacy single-file .vst3 DLLs
 	if (!info.isDir()) { return path; }
 
 #ifdef Q_OS_MACOS
 	return Vst3NativeModule::executablePath(path);
 #else
 	// bundle format: Foo.vst3/Contents/<arch>-linux/Foo.so
+	// or, on Windows: Foo.vst3/Contents/<arch>-win/Foo.vst3
 	const QDir contents{info.absoluteFilePath() + "/Contents"};
-	QDir archDir{contents.absolutePath() + "/" + archDirName()};
-	if (!archDir.exists()) { return {}; }
+	const QString suffix = binarySuffix();
+	for (const auto& arch : archDirNames())
+	{
+		const QDir archDir{contents.absolutePath() + "/" + arch};
+		if (!archDir.exists()) { continue; }
 
-	const QString soName = info.completeBaseName() + ".so";
-	if (archDir.exists(soName)) { return archDir.absoluteFilePath(soName); }
+		const QString binaryName = info.completeBaseName() + suffix;
+		if (archDir.exists(binaryName)) { return archDir.absoluteFilePath(binaryName); }
 
-	const auto soFiles = archDir.entryList({"*.so"}, QDir::Files);
-	if (!soFiles.isEmpty()) { return archDir.absoluteFilePath(soFiles.first()); }
+		const auto binaries = archDir.entryList({"*" + suffix}, QDir::Files);
+		if (!binaries.isEmpty()) { return archDir.absoluteFilePath(binaries.first()); }
+	}
 
 	return QString();
 #endif
@@ -100,10 +124,14 @@ QString Vst3Module::resolveModulePath(const QString& path)
 QString Vst3Module::hostPath(const QString& path)
 {
 	QString bundle = QFileInfo{path}.absoluteFilePath();
+#ifdef Q_OS_WIN
+	const int contents = bundle.indexOf(".vst3/Contents/", 0, Qt::CaseInsensitive);
+#else
 	const int contents = bundle.indexOf(".vst3/Contents/");
+#endif
 	if (contents >= 0) { bundle.truncate(contents + 5); }
 
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	const QString binary = resolveModulePath(bundle);
 	QFile file{binary};
 	if (!binary.isEmpty() && file.open(QIODevice::ReadOnly) && file.read(4) == QByteArray("\x7f" "ELF", 4))
@@ -138,7 +166,7 @@ QString Vst3Module::hostPath(const QString& path)
 		}
 	}
 
-#endif // Q_OS_MACOS
+#endif // Q_OS_LINUX
 	return bundle;
 }
 

@@ -25,6 +25,8 @@
 #include "TrackContainerView.h"
 
 
+#include <algorithm>
+
 #include <QLayout>
 #include <QScrollBar>
 #include <QWheelEvent>
@@ -271,6 +273,12 @@ void TrackContainerView::realignTracks()
 TrackView * TrackContainerView::createTrackView( Track * _t )
 {
 	//m_tc->addJournalCheckPoint();
+
+	// trackAdded() reaches us queued, so the track may have been deleted (e.g. by
+	// loading another project) before this runs. Only compare the pointer until
+	// it is known to still belong to the container.
+	const auto& tracks = m_tc->tracks();
+	if (std::find(tracks.begin(), tracks.end(), _t) == tracks.end()) { return nullptr; }
 
 	// Avoid duplicating track views
 	for (const auto& trackView : m_trackViews)

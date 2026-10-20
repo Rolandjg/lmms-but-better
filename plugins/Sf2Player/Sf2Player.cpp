@@ -1011,7 +1011,11 @@ protected:
 		p.drawPolygon(triangle);
 	}
 
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+	void enterEvent(QEnterEvent*) override { update(); }
+#else
 	void enterEvent(QEvent*) override { update(); }
+#endif
 	void leaveEvent(QEvent*) override { update(); }
 
 private:

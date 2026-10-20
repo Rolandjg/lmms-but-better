@@ -71,7 +71,7 @@ QString fromVstString(const Steinberg::Vst::TChar (&str)[128])
 
 void toVstString(Steinberg::Vst::String128 dst, const QString& src)
 {
-	const int len = std::min(src.size(), 127);
+	const auto len = static_cast<int>(std::min<qsizetype>(src.size(), 127));
 	std::memcpy(dst, src.utf16(), len * sizeof(Steinberg::Vst::TChar));
 	dst[len] = 0;
 }

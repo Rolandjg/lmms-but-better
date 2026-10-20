@@ -32,6 +32,7 @@
 #include <QMdiArea>
 
 #include "ConfigManager.h"
+#include "lmms_export.h"
 
 class QAction;
 class QDomElement;
@@ -57,7 +58,7 @@ class TilingWindowManager;
 class ToolButton;
 
 
-class MainWindow : public QMainWindow
+class LMMS_EXPORT MainWindow : public QMainWindow
 {
 	Q_OBJECT
 public:

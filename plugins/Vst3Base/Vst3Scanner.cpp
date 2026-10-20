@@ -8,7 +8,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <cstring>
+#ifndef Q_OS_WIN
 #include <sys/resource.h>
+#endif
 
 #include "Vst3Basics.h"
 #include "Vst3NativeModule.h"
@@ -18,22 +20,29 @@
 
 int main(int argc, char** argv)
 {
+#ifdef Q_OS_WIN
+	// a crashing plugin must end the scan, not wait on a Windows error dialog
+	SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+#else
 	const rlimit noCore{0, 0};
 	setrlimit(RLIMIT_CORE, &noCore);
+#endif
 	QApplication app{argc, argv};
-	if (argc != 3) { return 1; }
+	// arguments() is lossless for non-ASCII paths, unlike argv on Windows
+	const QStringList arguments = QCoreApplication::arguments();
+	if (arguments.size() != 3) { return 1; }
 	using namespace Steinberg;
 	using namespace lmms::vst3;
 	QJsonArray classes;
 	{
 		Vst3NativeModule module;
 		QString error;
-		if (!module.open(QString::fromLocal8Bit(argv[1]), &error))
+		if (!module.open(arguments[1], &error))
 		{
 			qWarning().noquote() << error;
 			return 2;
 		}
-		using Factory = IPluginFactory* (*)();
+		using Factory = IPluginFactory* (PLUGIN_API*)();
 		const auto getFactory = reinterpret_cast<Factory>(module.symbol("GetPluginFactory"));
 		if (!getFactory) { return 3; }
 		auto factory = owned(getFactory());
@@ -74,7 +83,7 @@ int main(int argc, char** argv)
 		factory = nullptr;
 	}
 	// Write only after teardown succeeds. Plugin stdout is not our protocol.
-	QFile output{QString::fromLocal8Bit(argv[2])};
+	QFile output{arguments[2]};
 	if (!output.open(QIODevice::WriteOnly | QIODevice::Truncate)) { return 5; }
 	const auto json = QJsonDocument{classes}.toJson(QJsonDocument::Compact);
 	return output.write(json) == json.size() ? 0 : 6;

@@ -1,8 +1,8 @@
 **What this fork changes**
 --------------
-* **VST3 hosting**: native VST3 instruments and effects on Linux and macOS, and Windows VST3 plugins on Linux
-  through Wine and [yabridge](https://github.com/robbert-vdh/yabridge). Plugin editors are embedded (Cocoa on
-  macOS, X11/XWayland on Linux) and parameters are automatable. Stuck yabridge hosts are killed when a plugin
+* **VST3 hosting**: native VST3 instruments and effects on Linux, macOS and Windows, and Windows VST3 plugins on
+  Linux through Wine and [yabridge](https://github.com/robbert-vdh/yabridge). Plugin editors are embedded (Cocoa
+  on macOS, HWND on Windows, X11/XWayland on Linux) and parameters are automatable. Stuck yabridge hosts are killed when a plugin
   unloads, so a crashed Windows plugin can't hang LMMS. See [doc/VST3_SETUP.md](doc/VST3_SETUP.md).
 * MPE pitch gliding support in the piano roll (per-note bends go to VST3 plugins through note expression).
 * **Bounce and freeze**: a track's context menu can *Bounce to audio* (renders it to a new sample track below,

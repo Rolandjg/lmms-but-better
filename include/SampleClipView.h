@@ -60,7 +60,11 @@ protected:
 	void mousePressEvent( QMouseEvent * _me ) override;
 	void mouseMoveEvent( QMouseEvent * _me ) override;
 	void mouseReleaseEvent( QMouseEvent * _me ) override;
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+	void enterEvent(QEnterEvent* _e) override;
+#else
 	void enterEvent( QEvent * _e ) override;
+#endif
 	void leaveEvent( QEvent * _e ) override;
 	void dragEnterEvent( QDragEnterEvent * _dee ) override;
 	void dropEvent( QDropEvent * _de ) override;

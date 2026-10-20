@@ -40,6 +40,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSocketNotifier>
@@ -52,8 +53,14 @@
 #include "Knob.h"
 
 #include "Vst3Plugin.h"
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 #include "Vst3X11Helpers.h"
+#endif
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #endif
 
 namespace lmms::gui
@@ -64,10 +71,15 @@ using namespace Steinberg;
 namespace
 {
 
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS)
 const auto EditorPlatform = kPlatformTypeNSView;
+const auto EditorQpa = QStringLiteral("cocoa");
+#elif defined(Q_OS_WIN)
+const auto EditorPlatform = kPlatformTypeHWND;
+const auto EditorQpa = QStringLiteral("windows");
 #else
 const auto EditorPlatform = kPlatformTypeX11EmbedWindowID;
+const auto EditorQpa = QStringLiteral("xcb");
 #endif
 
 bool iidEqual(const TUID a, const TUID b)
@@ -81,17 +93,35 @@ bool iidEqual(const TUID a, const TUID b)
 //! (yabridge) - the mismatch shows up as misplaced mouse hit testing. So
 //! by default no scale is reported and plugins decide on their own;
 //! LMMS_VST3_SCALE=1.5 forces a factor, LMMS_VST3_SCALE=auto reports the
-//! device pixel ratio.
+//! device pixel ratio. On Windows the VST3 specification has the host
+//! report the monitor scale, so there "auto" is the default and
+//! LMMS_VST3_SCALE=none leaves it to the plugin.
 #ifndef Q_OS_MACOS
 std::optional<qreal> contentScaleOverride(const QWidget* w)
 {
-	const QByteArray env = qgetenv("LMMS_VST3_SCALE");
+	QByteArray env = qgetenv("LMMS_VST3_SCALE");
+#ifdef Q_OS_WIN
+	if (env.isEmpty()) { env = "auto"; }
+#endif
 	if (env.isEmpty()) { return std::nullopt; }
 	if (env == "auto") { return w->devicePixelRatioF(); }
 	bool ok = false;
 	const double value = env.toDouble(&ok);
 	if (ok && value >= 0.25 && value <= 8.) { return value; }
 	return std::nullopt;
+}
+
+void reportContentScale(IPlugView* view, const QWidget* w)
+{
+	const auto scale = contentScaleOverride(w);
+	if (!view || !scale) { return; }
+	IPlugViewContentScaleSupport* raw = nullptr;
+	if (view->queryInterface(IPlugViewContentScaleSupport::iid,
+		reinterpret_cast<void**>(&raw)) == kResultOk && raw)
+	{
+		auto support = owned(raw);
+		support->setContentScaleFactor(static_cast<IPlugViewContentScaleSupport::ScaleFactor>(*scale));
+	}
 }
 
 #endif
@@ -119,6 +149,21 @@ Vst3EditorWindow::Vst3EditorWindow(vst3::Vst3Plugin* plugin) :
 	// watch the QWindow for expose events to complete deferred attaches
 	winId();
 	windowHandle()->installEventFilter(this);
+
+#ifdef Q_OS_WIN
+	// keep Qt's backing store from painting over the plugin's child window
+	const auto hwnd = reinterpret_cast<HWND>(winId());
+	SetWindowLongPtrW(hwnd, GWL_STYLE, GetWindowLongPtrW(hwnd, GWL_STYLE) | WS_CLIPCHILDREN);
+	// moving to a monitor with another DPI changes the scale; plugins
+	// answer with resizeView()
+	connect(windowHandle(), &QWindow::screenChanged, this, [this]()
+	{
+		if (m_view && !m_detaching)
+		{
+			tryPluginCall("editor rescale", [this]() { reportContentScale(m_view.get(), this); });
+		}
+	});
+#endif
 }
 
 
@@ -139,7 +184,7 @@ tresult PLUGIN_API Vst3EditorWindow::queryInterface(const TUID iid, void** obj)
 		*obj = static_cast<IPlugFrame*>(this);
 		return kResultOk;
 	}
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	if (iidEqual(iid, Linux::IRunLoop::iid))
 	{
 		*obj = static_cast<Linux::IRunLoop*>(this);
@@ -211,11 +256,7 @@ bool Vst3EditorWindow::tryPluginCall(const char* operation, const std::function<
 
 bool Vst3EditorWindow::attachView()
 {
-#ifdef Q_OS_MACOS
-	if (QGuiApplication::platformName() != QStringLiteral("cocoa")) { return false; }
-#else
-	if (QGuiApplication::platformName() != QStringLiteral("xcb")) { return false; }
-#endif
+	if (QGuiApplication::platformName() != EditorQpa) { return false; }
 	if (m_detaching || m_failureQueued) { return false; }
 	if (m_view) { return true; }
 	m_view = m_plugin->createEditorView();
@@ -228,17 +269,7 @@ bool Vst3EditorWindow::attachView()
 		if (m_view->setFrame(this) != kResultOk)
 		{ throw std::runtime_error("plugin rejected its editor frame"); }
 #ifndef Q_OS_MACOS
-		if (const auto scale = contentScaleOverride(this))
-		{
-			IPlugViewContentScaleSupport* raw = nullptr;
-			if (m_view->queryInterface(IPlugViewContentScaleSupport::iid,
-				reinterpret_cast<void**>(&raw)) == kResultOk && raw)
-			{
-				auto support = owned(raw);
-				support->setContentScaleFactor(
-					static_cast<IPlugViewContentScaleSupport::ScaleFactor>(*scale));
-			}
-		}
+		reportContentScale(m_view.get(), this);
 #endif
 		ViewRect size{};
 		if (m_view->getSize(&size) != kResultOk || size.getWidth() <= 0 || size.getHeight() <= 0)
@@ -249,7 +280,9 @@ bool Vst3EditorWindow::attachView()
 		m_resizingFromPlugin = false;
 	});
 	if (!success || !supported) { detachView(); return false; }
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS) || defined(Q_OS_WIN)
+	// child views are positioned relative to their parent here, so there is
+	// no window manager placement to wait for
 	completeAttach();
 	return m_attached;
 #else
@@ -302,7 +335,7 @@ void Vst3EditorWindow::completeAttach()
 	});
 	if (!success) { detachView(); return; }
 
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	// belt and braces for toolkits that update their cached position from
 	// synthetic ConfigureNotify events (and again on every move/resize)
 	vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
@@ -348,7 +381,7 @@ void Vst3EditorWindow::detachView()
 	m_attachPending = false;
 	m_resizingFromPlugin = false;
 	if (m_positionRefreshTimer) { m_positionRefreshTimer->stop(); }
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	// Stop callbacks first, but retain their objects until removed() has
 	// had a chance to unregister them. Cleanup also runs without a view.
 	for (auto& entry : m_eventHandlers)
@@ -365,7 +398,7 @@ void Vst3EditorWindow::detachView()
 		if (attached) { tryPluginCall("editor removal", [&]() { view->removed(); }); }
 		tryPluginCall("editor frame removal", [&]() { view->setFrame(nullptr); });
 	}
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	for (auto& entry : m_eventHandlers)
 	{
 		delete entry.readNotifier;
@@ -406,7 +439,7 @@ void Vst3EditorWindow::moveEvent(QMoveEvent* event)
 {
 	QWidget::moveEvent(event);
 	maybeCompleteAttach(true);
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	if (m_attached)
 	{
 		// embedded GUIs (Wine/yabridge especially) track their screen
@@ -423,7 +456,7 @@ void Vst3EditorWindow::moveEvent(QMoveEvent* event)
 void Vst3EditorWindow::showEvent(QShowEvent* event)
 {
 	QWidget::showEvent(event);
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	if (m_attached)
 	{
 		vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
@@ -437,7 +470,7 @@ void Vst3EditorWindow::showEvent(QShowEvent* event)
 void Vst3EditorWindow::resizeEvent(QResizeEvent* event)
 {
 	QWidget::resizeEvent(event);
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 	if (m_attached)
 	{
 		vst3NotifyChildWindowsOfPosition(static_cast<std::uint32_t>(winId()));
@@ -481,7 +514,7 @@ void Vst3EditorWindow::closeEvent(QCloseEvent* event)
 
 
 
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 tresult PLUGIN_API Vst3EditorWindow::registerEventHandler(
 	Linux::IEventHandler* handler, Linux::FileDescriptor fd)
 {
@@ -577,7 +610,7 @@ tresult PLUGIN_API Vst3EditorWindow::unregisterTimer(Linux::ITimerHandler* handl
 
 
 
-#endif // Q_OS_MACOS
+#endif // Q_OS_LINUX
 
 /*
 	Vst3PluginWidget
@@ -784,7 +817,7 @@ void Vst3PluginWidget::toggleEditor(bool show)
 	if (show)
 	{
 		m_editorErrorLabel->hide();
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 		if (QGuiApplication::platformName() != QStringLiteral("xcb"))
 		{
 			m_toggleUiButton->setChecked(false);

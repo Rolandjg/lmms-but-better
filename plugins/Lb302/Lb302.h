@@ -33,6 +33,7 @@
 
 #include <array>
 #include <atomic>
+#include <bit>
 #include <memory>
 
 #include "Hardware.h"

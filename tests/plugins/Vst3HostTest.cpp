@@ -12,9 +12,16 @@
 #include <thread>
 #include <stdexcept>
 #include <QToolButton>
-#ifndef Q_OS_MACOS
+#include <QScreen>
+#ifdef Q_OS_LINUX
 #include <xcb/xcb.h>
 #include <unistd.h>
+#endif
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #endif
 #include <cstdlib>
 #include <cmath>
@@ -60,7 +67,7 @@ public:
 	~ScopedEnv() { if (existed) { qputenv(key.constData(), old); } else { qunsetenv(key.constData()); } }
 };
 
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 class TestTimerHandler final : public Steinberg::Linux::ITimerHandler
 {
 	unsigned refs = 1;
@@ -107,7 +114,7 @@ public:
 
 // QScreen::grabWindow captures the root window, which is black on XWayland.
 // Read the editor's own X11 drawables, including its embedded child windows.
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 QImage captureEditor(xcb_connection_t* connection, xcb_window_t window)
 {
 	auto geometry = xcb_get_geometry_reply(connection, xcb_get_geometry(connection, window), nullptr);
@@ -146,6 +153,50 @@ QImage captureEditor(xcb_connection_t* connection, xcb_window_t window)
 }
 
 #endif
+
+//! Screenshot of an editor window including the plugin's embedded view
+QImage captureEditorWindow(QWidget* editor)
+{
+#if defined(Q_OS_LINUX)
+	auto connection = xcb_connect(nullptr, nullptr);
+	const auto image = captureEditor(connection, static_cast<xcb_window_t>(editor->winId()));
+	xcb_disconnect(connection);
+	return image;
+#elif defined(Q_OS_WIN)
+	// Widget grabs miss the plugin's child window, and plain BitBlt misses
+	// GPU-rendered (OpenGL/Direct3D) editors; PrintWindow captures both.
+	const auto hwnd = reinterpret_cast<HWND>(editor->winId());
+	RECT rect{};
+	if (!GetClientRect(hwnd, &rect) || rect.right <= 0 || rect.bottom <= 0) { return {}; }
+	const int width = rect.right, height = rect.bottom;
+	HDC windowDc = GetDC(hwnd);
+	HDC memoryDc = CreateCompatibleDC(windowDc);
+	HBITMAP bitmap = CreateCompatibleBitmap(windowDc, width, height);
+	const auto previous = SelectObject(memoryDc, bitmap);
+	constexpr UINT renderFullContent = 0x2; // PW_RENDERFULLCONTENT
+	QImage image;
+	if (PrintWindow(hwnd, memoryDc, PW_CLIENTONLY | renderFullContent))
+	{
+		image = QImage(width, height, QImage::Format_RGB32);
+		BITMAPINFO info{};
+		info.bmiHeader.biSize = sizeof(info.bmiHeader);
+		info.bmiHeader.biWidth = width;
+		info.bmiHeader.biHeight = -height; // top-down rows
+		info.bmiHeader.biPlanes = 1;
+		info.bmiHeader.biBitCount = 32;
+		info.bmiHeader.biCompression = BI_RGB;
+		SelectObject(memoryDc, previous);
+		if (!GetDIBits(memoryDc, bitmap, 0, height, image.bits(), &info, DIB_RGB_COLORS)) { image = {}; }
+	}
+	else { SelectObject(memoryDc, previous); }
+	DeleteObject(bitmap);
+	DeleteDC(memoryDc);
+	ReleaseDC(hwnd, windowDc);
+	return image;
+#else
+	return editor->grab().toImage();
+#endif
+}
 
 } // namespace
 
@@ -204,6 +255,9 @@ private slots:
 #ifdef Q_OS_MACOS
 		QVERIFY(paths.contains(QDir::homePath() + "/Library/Audio/Plug-Ins/VST3"));
 		QVERIFY(paths.contains("/Library/Audio/Plug-Ins/VST3"));
+#elif defined(Q_OS_WIN)
+		QVERIFY(paths.contains(QDir::fromNativeSeparators(qEnvironmentVariable("COMMONPROGRAMFILES")) + "/VST3"));
+		QVERIFY(paths.contains(QDir::fromNativeSeparators(qEnvironmentVariable("LOCALAPPDATA")) + "/Programs/Common/VST3"));
 #else
 		QVERIFY(paths.contains(QDir::homePath() + "/.vst3"));
 #endif
@@ -509,7 +563,7 @@ private slots:
 	void editorRunLoopRetainsAndClearsHandlers()
 	{
 		if (!Engine::audioEngine()) { Engine::init(true); }
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
 		QCOMPARE(classes.size(), std::size_t{1});
 		Model parent{nullptr};
@@ -543,7 +597,7 @@ private slots:
 
 	void editorFdCallbacksAreRetainedAndGuarded()
 	{
-#ifndef Q_OS_MACOS
+#ifdef Q_OS_LINUX
 		if (!Engine::audioEngine()) { Engine::init(true); }
 		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
 		QCOMPARE(classes.size(), std::size_t{1});
@@ -578,8 +632,10 @@ private slots:
 	void editorAttachmentAndRemovalFailures()
 	{
 		if (!Engine::audioEngine()) { Engine::init(true); }
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS)
 		if (QGuiApplication::platformName() != "cocoa") { QSKIP("Needs native editor platform"); }
+#elif defined(Q_OS_WIN)
+		if (QGuiApplication::platformName() != "windows") { QSKIP("Needs native editor platform"); }
 #else
 		if (QGuiApplication::platformName() != "xcb") { QSKIP("Needs X11/XWayland"); }
 #endif
@@ -887,6 +943,13 @@ private slots:
 			QVERIFY(editor.width() > 0 && editor.height() > 0);
 			editor.move(editor.pos() + QPoint{30, 30});
 			QTest::qWait(1000);
+			const auto screenshot = qEnvironmentVariable("LMMS_TEST_VST3_SCREENSHOT");
+			if (pass == 0 && !screenshot.isEmpty())
+			{
+				const auto image = captureEditorWindow(&editor);
+				QVERIFY(!image.isNull());
+				QVERIFY(image.save(screenshot));
+			}
 			editor.close();
 			QVERIFY(!editor.isViewAttached());
 			QVERIFY(!editor.isVisible());
@@ -973,13 +1036,7 @@ private slots:
 				const auto screenshot = qEnvironmentVariable("LMMS_TEST_VST3_SCREENSHOT");
 				if (!screenshot.isEmpty())
 				{
-#ifndef Q_OS_MACOS
-					auto connection = xcb_connect(nullptr, nullptr);
-					const auto image = captureEditor(connection, static_cast<xcb_window_t>(editor->winId()));
-					xcb_disconnect(connection);
-#else
-					const auto image = editor->grab().toImage();
-#endif
+					const auto image = captureEditorWindow(editor);
 					QVERIFY(!image.isNull());
 					QVERIFY(image.save(screenshot));
 				}

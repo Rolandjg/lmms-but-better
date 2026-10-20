@@ -26,6 +26,7 @@
 #define LMMS_THREAD_POOL_H
 
 #include <atomic>
+#include <functional>
 #include <queue>
 #include <tuple>
 #include <type_traits>

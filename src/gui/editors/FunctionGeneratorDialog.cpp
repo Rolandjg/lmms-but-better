@@ -431,7 +431,11 @@ protected:
 		p.drawPolyline(toPolyline(g.build(100.0), area, 100.0, 0.f, 1.f));
 	}
 
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+	void enterEvent(QEnterEvent*) override { update(); }
+#else
 	void enterEvent(QEvent*) override { update(); }
+#endif
 	void leaveEvent(QEvent*) override { update(); }
 
 private:

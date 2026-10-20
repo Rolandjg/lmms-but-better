@@ -7,7 +7,15 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QString>
+#ifdef Q_OS_WIN
+#include <QDir>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 #ifdef Q_OS_MACOS
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
@@ -147,7 +155,12 @@ public:
 		{
 			if (auto exit = reinterpret_cast<bool (*)()>(symbol(exitName()))) { exit(); }
 		}
+#ifdef Q_OS_WIN
+		// pinned in open(), so this only drops our reference
+		if (m_handle) { FreeLibrary(m_handle); }
+#else
 		if (m_handle) { dlclose(m_handle); }
+#endif
 #ifdef Q_OS_MACOS
 		if (m_bundle) { CFRelease(m_bundle); }
 #endif
@@ -227,6 +240,36 @@ public:
 		}
 		entryArgument = m_bundle;
 #endif // Q_OS_MACOS
+#ifdef Q_OS_WIN
+		// Resolve the plugin's own DLL dependencies from its directory, and
+		// keep a crashing plugin from opening a "missing DLL" dialog box.
+		const auto native = QDir::toNativeSeparators(QFileInfo{binary}.absoluteFilePath()).toStdWString();
+		const UINT oldErrorMode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+		m_handle = LoadLibraryExW(native.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+		const DWORD loadError = GetLastError();
+		SetErrorMode(oldErrorMode);
+		if (!m_handle)
+		{
+			if (error) { *error = QString("LoadLibrary failed for \"%1\": %2").arg(binary, windowsErrorString(loadError)); }
+			return false;
+		}
+		// Keep code mapped while asynchronous plugin threads unwind after exit.
+		HMODULE pinned = nullptr;
+		GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, native.c_str(), &pinned);
+		// InitDll takes no argument
+		auto entry = reinterpret_cast<bool (*)()>(symbol(entryName()));
+		if (entry)
+		{
+			if (!entry())
+			{
+				if (error) { *error = QString("VST3 module entry failed: %1").arg(path); }
+				return false;
+			}
+			m_entered = true;
+		}
+		(void) entryArgument;
+		return true;
+#else
 		// Keep code mapped while asynchronous plugin threads unwind after exit.
 		m_handle = dlopen(QFile::encodeName(binary).constData(), RTLD_NOW | RTLD_LOCAL | RTLD_NODELETE);
 		if (!m_handle)
@@ -255,28 +298,55 @@ public:
 			m_entered = true;
 		}
 		return true;
+#endif // Q_OS_WIN
 	}
 
+#ifdef Q_OS_WIN
+	void* symbol(const char* name) const
+	{
+		return reinterpret_cast<void*>(GetProcAddress(m_handle, name));
+	}
+
+	static QString windowsErrorString(DWORD code)
+	{
+		wchar_t* buffer = nullptr;
+		const DWORD size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
+			| FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, code, 0, reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
+		QString message = size ? QString::fromWCharArray(buffer, static_cast<int>(size)).trimmed()
+			: QString("error %1").arg(code);
+		if (buffer) { LocalFree(buffer); }
+		return message;
+	}
+#else
 	void* symbol(const char* name) const { return dlsym(m_handle, name); }
+#endif
 
 private:
 	static const char* entryName()
 	{
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS)
 		return "bundleEntry";
+#elif defined(Q_OS_WIN)
+		return "InitDll";
 #else
 		return "ModuleEntry";
 #endif
 	}
 	static const char* exitName()
 	{
-#ifdef Q_OS_MACOS
+#if defined(Q_OS_MACOS)
 		return "bundleExit";
+#elif defined(Q_OS_WIN)
+		return "ExitDll";
 #else
 		return "ModuleExit";
 #endif
 	}
+#ifdef Q_OS_WIN
+	HMODULE m_handle = nullptr;
+#else
 	void* m_handle = nullptr;
+#endif
 	bool m_entered = false;
 #ifdef Q_OS_MACOS
 	CFBundleRef m_bundle = nullptr;

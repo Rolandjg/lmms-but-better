@@ -18,6 +18,12 @@
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
+#ifdef _WIN32
+#define TEST_EXPORT __declspec(dllexport)
+#else
+#define TEST_EXPORT __attribute__((visibility("default")))
+#endif
+
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 namespace
@@ -288,20 +294,25 @@ public:
 	}
 };
 }
-extern "C" __attribute__((visibility("default"))) IPluginFactory* GetPluginFactory()
+extern "C" TEST_EXPORT IPluginFactory* GetPluginFactory()
 {
 	static Factory factory;
 	return &factory;
 }
-extern "C" __attribute__((visibility("default"))) bool ModuleEntry(void*)
+extern "C" TEST_EXPORT bool ModuleEntry(void*)
 {
 	if (std::getenv("LMMS_TEST_VST3_CRASH")) { std::abort(); }
 	return true;
 }
-extern "C" __attribute__((visibility("default"))) bool ModuleExit() { return true; }
+extern "C" TEST_EXPORT bool ModuleExit() { return true; }
+
+#ifdef _WIN32
+extern "C" TEST_EXPORT bool InitDll() { return ModuleEntry(nullptr); }
+extern "C" TEST_EXPORT bool ExitDll() { return ModuleExit(); }
+#endif
 
 #ifdef __APPLE__
-extern "C" __attribute__((visibility("default"))) bool bundleEntry(CFBundleRef bundle)
+extern "C" TEST_EXPORT bool bundleEntry(CFBundleRef bundle)
 {
 	// Verify the host passes the bundle, not a dlopen handle.
 	if (!bundle || CFGetTypeID(bundle) != CFBundleGetTypeID()) { return false; }
@@ -309,10 +320,10 @@ extern "C" __attribute__((visibility("default"))) bool bundleEntry(CFBundleRef b
 	if (!identifier || !CFEqual(identifier, CFSTR("io.lmms.vst3-test"))) { return false; }
 	return ModuleEntry(nullptr);
 }
-extern "C" __attribute__((visibility("default"))) bool bundleExit() { return ModuleExit(); }
+extern "C" TEST_EXPORT bool bundleExit() { return ModuleExit(); }
 #endif
 
-extern "C" __attribute__((visibility("default"))) int LMMS_TestVst3Stat(int index)
+extern "C" TEST_EXPORT int LMMS_TestVst3Stat(int index)
 { return stats[index]; }
-extern "C" __attribute__((visibility("default"))) void LMMS_TestVst3ResetStats()
+extern "C" TEST_EXPORT void LMMS_TestVst3ResetStats()
 { for (auto& value : stats) { value = 0; } }
