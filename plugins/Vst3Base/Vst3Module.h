@@ -68,7 +68,8 @@ public:
 	static QString hostPath(const QString& path);
 
 private:
-	Vst3Module() = default;
+	// defined out of line, like the destructor: Vst3NativeModule is incomplete here
+	Vst3Module();
 
 	std::unique_ptr<Vst3NativeModule> m_native;
 	bool m_inCache = false;

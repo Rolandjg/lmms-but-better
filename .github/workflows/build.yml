@@ -413,7 +413,8 @@ jobs:
           should_install_manifest:
             ${{ steps.cache-deps.outputs.cache-hit == 'true' && 'NO' || 'YES' }}
       - name: Build
-        run: cmake --build build
+        # keep going after errors so one run reports all of them (still fails)
+        run: cmake --build build -- -k 0
       - name: Run tests
         run: |
           cd build/tests

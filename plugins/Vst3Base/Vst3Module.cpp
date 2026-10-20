@@ -220,6 +220,11 @@ std::shared_ptr<Vst3Module> Vst3Module::open(const QString& path, QString* error
 
 
 
+Vst3Module::Vst3Module() = default;
+
+
+
+
 Vst3Module::~Vst3Module()
 {
 	m_factory = nullptr;
