@@ -43,7 +43,7 @@ namespace lmms::gui
 MultitapEchoControlDialog::MultitapEchoControlDialog( MultitapEchoControls * controls ) :
 	EffectControlDialog( controls )
 {
-	setFixedSize(245, 300 + PanPanelHeight);
+	setFixedSize(245, 315 + PanPanelHeight);
 	QPalette pal;
 	
 	// graph widgets
@@ -104,7 +104,7 @@ MultitapEchoControlDialog::MultitapEchoControlDialog( MultitapEchoControls * con
 	// switch led
 
 	auto swapInputs = new LedCheckBox("Swap inputs", this, tr("Swap inputs"), LedCheckBox::LedColor::Green);
-	swapInputs->move( 20, 283 + PanPanelHeight );
+	swapInputs->move( 20, 298 + PanPanelHeight );
 
 	auto feedback = new Knob(KnobType::Bright26, tr("Fdbk"), SMALL_FONT_SIZE, this);
 	feedback->move(58, 245 + PanPanelHeight);
@@ -120,6 +120,7 @@ void MultitapEchoControlDialog::paintEvent(QPaintEvent*)
 {
 	static const auto artwork = PLUGIN_NAME::getIconPixmap("artwork");
 	QPainter p(this);
+	p.fillRect(rect(), palette().window());
 	// Both original graph panels, then a copy of the lower one (without its scale) for panning
 	p.drawPixmap(0, 0, artwork, 0, 0, 245, 235);
 	p.drawPixmap(0, 235, artwork, 0, 120, 245, PanPanelHeight);

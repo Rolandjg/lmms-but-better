@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <memory>
 
 #include <QDebug>
 #include <QFile>
@@ -37,6 +38,7 @@
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QTemporaryDir>
 
 #include "base64.h"
 #include "ConfigManager.h"
@@ -338,12 +340,9 @@ bool DataFile::writeFile(const QString& filename, bool withResources)
 
 	QFileInfo fInfo(filename);
 
-	const QString bundleDir = fInfo.path() + "/" + fInfo.fileName().section('.', 0, 0);
-	const QString resourcesDir = bundleDir + "/resources";
-	const QString fullName = withResources
-		? nameWithExtension(bundleDir + "/" + fInfo.fileName())
-		: nameWithExtension(filename);
-	const QString fullNameBak = fullName + ".bak";
+	const QString bundleDir = fInfo.path() + "/" + fInfo.completeBaseName();
+	QString fullName = nameWithExtension(filename);
+	std::unique_ptr<QTemporaryDir> staging;
 
 	using gui::SongEditor;
 
@@ -363,14 +362,18 @@ bool DataFile::writeFile(const QString& filename, bool withResources)
 			return false;
 		}
 
-		// Create bundle folder
-		if (!QDir().mkdir(bundleDir))
+		// Publish only a complete bundle. A failed copy/save must not leave a folder
+		// that prevents the user from retrying with the same name.
+		staging = std::make_unique<QTemporaryDir>(bundleDir + ".XXXXXX");
+		if (!staging->isValid())
 		{
 			showError(SongEditor::tr("Error"),
 				SongEditor::tr("Couldn't create bundle folder."));
 			return false;
 		}
 
+		const QString resourcesDir = staging->path() + "/resources";
+		fullName = nameWithExtension(staging->path() + "/" + fInfo.fileName());
 		// Create resources folder
 		if (!QDir().mkdir(resourcesDir))
 		{
@@ -418,6 +421,7 @@ bool DataFile::writeFile(const QString& filename, bool withResources)
 
 	// Keep a copy of the previous version. Copying (rather than moving) the old file means the destination
 	// is never missing, even if the save fails below.
+	const QString fullNameBak = fullName + ".bak";
 	if (!ConfigManager::inst()->value("app", "disablebackup").toInt() && QFileInfo(fullName).isFile())
 	{
 		const bool oldBackupGone = !QFileInfo::exists(fullNameBak) || QFile::remove(fullNameBak);
@@ -437,6 +441,17 @@ bool DataFile::writeFile(const QString& filename, bool withResources)
 		return false;
 	}
 
+	if (staging)
+	{
+		if (!QDir().rename(staging->path(), bundleDir))
+		{
+			showError(SongEditor::tr("Could not write file"),
+				SongEditor::tr("Could not move the completed bundle to %1.").arg(bundleDir));
+			return false;
+		}
+		staging->setAutoRemove(false);
+	}
+
 	return true;
 }
 
@@ -445,10 +460,6 @@ bool DataFile::writeFile(const QString& filename, bool withResources)
 
 bool DataFile::copyResources(const QString& resourcesDir)
 {
-	// List of filenames used so we can append a counter to any
-	// repeating filenames
-	std::list<QString> namesList;
-
 	auto it = ELEMENTS_WITH_RESOURCES.begin();
 
 	// Copy resources and manipulate the DataFile to have local paths to them
@@ -467,7 +478,7 @@ bool DataFile::copyResources(const QString& resourcesDir)
 			while (res != it->second.end())
 			{
 				// If the element has that attribute
-				if (el.hasAttribute(*res))
+				if (el.hasAttribute(*res) && !el.attribute(*res).isEmpty())
 				{
 					// Get absolute path to resource
 					bool error;
@@ -480,25 +491,14 @@ bool DataFile::copyResources(const QString& resourcesDir)
 							PathUtil::basePrefix(PathUtil::Base::LocalDir).length());
 					}
 
-					// Check if we need to add a counter to the filename
-					QString finalFileName = QFileInfo(resPath).fileName();
-					QString extension = resPath.section('.', -1);
-					int repeatedNames = 0;
-					for (QString name : namesList)
+					// Check the actual destination, including names generated for earlier copies.
+					// For example, two kick.wav files followed by kick-1.wav must all stay distinct.
+					const QFileInfo sourceInfo(resPath);
+					QString finalFileName = sourceInfo.fileName();
+					const QString extension = sourceInfo.suffix().isEmpty() ? QString{} : "." + sourceInfo.suffix();
+					for (int suffix = 1; QFileInfo::exists(resourcesDir + "/" + finalFileName); ++suffix)
 					{
-						if (finalFileName == name)
-						{
-							++repeatedNames;
-						}
-					}
-					// Add the name to the list before modifying it
-					namesList.push_back(finalFileName);
-					if (repeatedNames)
-					{
-						// Remove the extension, add the counter and add the
-						// extension again to get the final file name
-						finalFileName.truncate(finalFileName.lastIndexOf('.'));
-						finalFileName = finalFileName + "-" + QString::number(repeatedNames) + "." + extension;
+						finalFileName = sourceInfo.completeBaseName() + "-" + QString::number(suffix) + extension;
 					}
 
 					// Final path is our resources dir + the new file name

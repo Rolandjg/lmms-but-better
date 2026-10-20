@@ -25,6 +25,7 @@
 #include "PatternStore.h"
 #include "ProjectJournal.h"
 #include "ProjectRenderer.h"
+#include "ProjectResources.h"
 #include "SampleBuffer.h"
 #include "SampleClip.h"
 #include "SampleTrack.h"
@@ -225,6 +226,7 @@ void freezeTrack(TrackView* sourceView)
 	{
 		frozen->setName(QObject::tr("%1 (frozen)").arg(source->name()));
 		frozen->setFrozenFrom(source->name());
+		frozen->setFrozenFromId(source->ensureFreezeId());
 	}
 }
 
@@ -237,11 +239,17 @@ void unfreezeTrack(TrackView* frozenView)
 	if (!frozen || frozen->frozenFrom().isEmpty()) { return; }
 	auto song = Engine::getSong();
 
-	// prefer a muted track of that name: that's the one the freeze muted
+	// New freezes have a stable source ID. Older projects only stored the name.
 	Track* source = nullptr;
 	for (auto track : song->tracks())
 	{
-		if (track == frozen || track->name() != frozen->frozenFrom()) { continue; }
+		if (track == frozen) { continue; }
+		if (!frozen->frozenFromId().isEmpty())
+		{
+			if (track->freezeId() == frozen->frozenFromId()) { source = track; break; }
+			continue;
+		}
+		if (track->name() != frozen->frozenFrom()) { continue; }
 		if (!source || (track->isMuted() && !source->isMuted())) { source = track; }
 	}
 	const auto title = QObject::tr("Unfreeze");
@@ -252,7 +260,7 @@ void unfreezeTrack(TrackView* frozenView)
 	if (QMessageBox::question(frozenView, title, question) != QMessageBox::Yes) { return; }
 
 	if (source) { source->setMuted(false); }
-	// The rendered files are generated next to the project; nothing else should be using them
+	// Other clips or samplers may have reused this rendering since it was frozen.
 	QStringList files;
 	for (auto clip : frozen->getClips())
 	{
@@ -264,9 +272,15 @@ void unfreezeTrack(TrackView* frozenView)
 	QTimer::singleShot(0, containerView, [containerView, view = QPointer<TrackView>(frozenView), files] {
 		if (!view) { return; }
 		containerView->deleteTrackView(view);
+		const auto resources = ProjectResources::scanCurrentSong();
 		for (const auto& file : files)
 		{
-			if (QFileInfo(file).fileName().contains("-bounce-")) { QFile::remove(file); }
+			const auto canonical = QFileInfo(file).canonicalFilePath();
+			const bool stillUsed = std::any_of(resources.files.begin(), resources.files.end(), [&](const auto& resource)
+			{
+				return QFileInfo(resource.absolutePath).canonicalFilePath() == canonical;
+			});
+			if (!stillUsed && QFileInfo(file).fileName().contains("-bounce-")) { QFile::remove(file); }
 		}
 	});
 }

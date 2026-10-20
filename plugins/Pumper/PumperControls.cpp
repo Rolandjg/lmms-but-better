@@ -145,7 +145,10 @@ float PumperControls::shapeAt(float phase, float periodSeconds) const
 
 void PumperControls::loadSettings(const QDomElement& parent)
 {
-	if (parent.hasAttribute("length")) { m_lengthModel.loadSettings(parent, "length"); }
+	if (parent.hasAttribute("length") || !parent.firstChildElement("length").isNull())
+	{
+		m_lengthModel.loadSettings(parent, "length");
+	}
 	else
 	{
 		// Older projects stored a preset index

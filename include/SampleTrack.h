@@ -80,6 +80,8 @@ public:
 	//! Name of the track this one is a frozen rendering of (see gui::freezeTrack()); empty if none
 	const QString& frozenFrom() const { return m_frozenFrom; }
 	void setFrozenFrom(const QString& source) { m_frozenFrom = source; }
+	const QString& frozenFromId() const { return m_frozenFromId; }
+	void setFrozenFromId(const QString& id) { m_frozenFromId = id; }
 
 	void setPlaying(bool playing)
 	{
@@ -102,6 +104,7 @@ private:
 	AudioBusHandle m_audioBusHandle;
 	bool m_isPlaying;
 	QString m_frozenFrom;
+	QString m_frozenFromId;
 
 
 

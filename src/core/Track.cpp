@@ -41,6 +41,7 @@
 #include "PatternTrack.h"
 #include "SampleTrack.h"
 #include "Song.h"
+#include <QUuid>
 
 
 namespace lmms
@@ -140,9 +141,16 @@ Track* Track::clone()
 	QDomElement parent = doc.createElement("clonedtrack");
 	saveState(doc, parent);
 	Track* t = create(parent.firstChild().toElement(), m_trackContainer);
+	if (t) { t->m_freezeId.clear(); }
 
 	AutomationClip::resolveAllIDs();
 	return t;
+}
+
+const QString& Track::ensureFreezeId()
+{
+	if (m_freezeId.isEmpty()) { m_freezeId = QUuid::createUuid().toString(QUuid::WithoutBraces); }
+	return m_freezeId;
 }
 
 
@@ -272,12 +280,14 @@ void Track::saveSettings(QDomDocument& doc, QDomElement& element)
 {
 	// Assume that everything should be saved if we are called through SerializingObject::saveSettings
 	saveTrack(doc, element, false);
+	if (!m_freezeId.isEmpty()) { element.setAttribute("freezeid", m_freezeId); }
 }
 
 void Track::loadSettings(const QDomElement& element)
 {
 	// Assume that everything should be loaded if we are called through SerializingObject::loadSettings 
 	loadTrack(element, false);
+	m_freezeId = element.attribute("freezeid");
 }
 
 

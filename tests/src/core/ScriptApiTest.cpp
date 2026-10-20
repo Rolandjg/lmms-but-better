@@ -177,6 +177,29 @@ private slots:
 		QCOMPARE(Engine::mixer()->numChannels(), 1);
 	}
 
+	void pumperRateSurvivesStateRoundTrip()
+	{
+		call("song.new", {{"empty", true}});
+		const auto track = call("song.add_track", {{"instrument", "tripleoscillator"}}).toObject();
+		const auto effect = call("track.add_effect", {{"id", track["id"]}, {"plugin", "pumper"},
+			{"params", QJsonObject{{"length", 1.75}}}}).toObject();
+		QCOMPARE(effect["name"].toString(), QString("pumper"));
+		const auto id = effect["id"];
+		const auto state = call("plugin.get_state", {{"id", id}}).toString();
+		QVERIFY(state.contains("<length "));
+		call("plugin.set_params", {{"id", id}, {"values", QJsonObject{{"length", 4}}}});
+		QVERIFY(!call("plugin.set_state", {{"id", id}, {"xml", state}}).isUndefined());
+		const auto params = call("plugin.params", {{"id", id}}).toArray();
+		bool found = false;
+		for (const auto& param : params)
+		{
+			if (param.toObject()["key"] != "length") { continue; }
+			found = true;
+			QCOMPARE(param.toObject()["value"].toDouble(), 1.75);
+		}
+		QVERIFY(found);
+	}
+
 	void automationAndPatterns()
 	{
 		call("song.new", {{"empty", true}});

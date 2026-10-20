@@ -81,7 +81,7 @@ public:
 				if (reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason
 					|| reason == Qt::ShortcutFocusReason)
 				{
-					auto ring = control->findChild<FocusRing*>(QString{}, Qt::FindDirectChildrenOnly);
+				auto ring = control->findChild<QWidget*>("lmmsFocusRing", Qt::FindDirectChildrenOnly);
 					if (!ring) { ring = new FocusRing(control); }
 					ring->setGeometry(control->rect());
 					ring->raise();
@@ -90,10 +90,10 @@ public:
 				break;
 			}
 			case QEvent::FocusOut:
-				if (auto ring = control->findChild<FocusRing*>(QString{}, Qt::FindDirectChildrenOnly)) { ring->hide(); }
+				if (auto ring = control->findChild<QWidget*>("lmmsFocusRing", Qt::FindDirectChildrenOnly)) { ring->hide(); }
 				break;
 			case QEvent::Resize:
-				if (auto ring = control->findChild<FocusRing*>(QString{}, Qt::FindDirectChildrenOnly))
+				if (auto ring = control->findChild<QWidget*>("lmmsFocusRing", Qt::FindDirectChildrenOnly))
 				{
 					ring->setGeometry(control->rect());
 				}

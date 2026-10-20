@@ -5,6 +5,7 @@
 #include <QTemporaryDir>
 
 #include "AudioBusHandle.h"
+#include "DataFile.h"
 #include "Engine.h"
 #include "Mixer.h"
 #include "ProjectRenderer.h"
@@ -225,6 +226,69 @@ private slots:
 		QCOMPARE(resources.nonPortableCount(), 1);
 		QCOMPARE(resources.instruments.at("tripleoscillator"), 2);
 		QCOMPARE(resources.effects.at("amplifier"), 1);
+	}
+
+	void bundleSkipsEmptySamplePaths()
+	{
+		QTemporaryDir dir;
+		DataFile project(DataFile::Type::SongProject);
+		auto sample = project.createElement("audiofileprocessor");
+		sample.setAttribute("src", "");
+		project.content().appendChild(sample);
+		QVERIFY(project.writeFile(dir.filePath("empty.mmp"), true));
+		QVERIFY(QFileInfo::exists(dir.filePath("empty/empty.mmp")));
+	}
+
+	void bundleKeepsCollidingSampleNamesDistinct()
+	{
+		QTemporaryDir dir;
+		DataFile project(DataFile::Type::SongProject);
+		const QStringList paths{"a/kick.wav", "b/kick.wav", "c/kick-1.wav", "d/kick"};
+		for (int i = 0; i < paths.size(); ++i)
+		{
+			const auto path = dir.filePath(paths[i]);
+			QVERIFY(QDir().mkpath(QFileInfo(path).absolutePath()));
+			QFile file(path);
+			QVERIFY(file.open(QIODevice::WriteOnly));
+			file.write(QByteArray::number(i));
+			file.close();
+			auto sample = project.createElement("sampleclip");
+			sample.setAttribute("src", path);
+			project.content().appendChild(sample);
+		}
+		QVERIFY(project.writeFile(dir.filePath("bundle.mmp"), true));
+		DataFile saved(dir.filePath("bundle/bundle.mmp"));
+		const auto samples = saved.elementsByTagName("sampleclip");
+		QCOMPARE(samples.size(), paths.size());
+		for (int i = 0; i < samples.size(); ++i)
+		{
+			const auto path = samples.at(i).toElement().attribute("src");
+			QVERIFY(path.startsWith("local:resources/"));
+			QFile file(dir.filePath("bundle/" + path.mid(QString("local:").size())));
+			QVERIFY(file.open(QIODevice::ReadOnly));
+			QCOMPARE(file.readAll(), QByteArray::number(i));
+		}
+	}
+
+	void failedBundleCanBeRetried()
+	{
+		QTemporaryDir dir;
+		const auto samplePath = dir.filePath("missing.wav");
+		const auto save = [&] {
+			DataFile project(DataFile::Type::SongProject);
+			auto sample = project.createElement("sampleclip");
+			sample.setAttribute("src", samplePath);
+			project.content().appendChild(sample);
+			return project.writeFile(dir.filePath("song.v2.mmp"), true);
+		};
+		QVERIFY(!save());
+		QVERIFY(QDir(dir.path()).entryList(QDir::Dirs | QDir::NoDotAndDotDot).isEmpty());
+		QFile sample(samplePath);
+		QVERIFY(sample.open(QIODevice::WriteOnly));
+		sample.write("sample");
+		sample.close();
+		QVERIFY(save());
+		QVERIFY(QFileInfo::exists(dir.filePath("song.v2/song.v2.mmp")));
 	}
 
 	void bounceTapSkipsMasterSection()

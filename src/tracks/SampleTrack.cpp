@@ -199,6 +199,7 @@ void SampleTrack::saveTrackSpecificSettings(QDomDocument& doc, QDomElement& this
 	m_panningModel.saveSettings(doc, thisElem, "pan");
 	m_mixerChannelModel.saveSettings(doc, thisElem, "mixch");
 	if (!m_frozenFrom.isEmpty()) { thisElem.setAttribute("frozenfrom", m_frozenFrom); }
+	if (!m_frozenFromId.isEmpty()) { thisElem.setAttribute("frozenfromid", m_frozenFromId); }
 }
 
 
@@ -207,6 +208,7 @@ void SampleTrack::saveTrackSpecificSettings(QDomDocument& doc, QDomElement& this
 void SampleTrack::loadTrackSpecificSettings(const QDomElement & thisElem)
 {
 	m_frozenFrom = thisElem.attribute("frozenfrom");
+	m_frozenFromId = thisElem.attribute("frozenfromid");
 	QDomNode node = thisElem.firstChild();
 	m_audioBusHandle.effects()->clear();
 	while(!node.isNull())

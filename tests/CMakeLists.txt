@@ -30,6 +30,7 @@ set(LMMS_TESTS
 	src/gui/FormantShifterViewTest.cpp
 	src/gui/InstrumentWindowTabsTest.cpp
 	src/gui/FunctionGeneratorTest.cpp
+	src/gui/WorkspaceControlsTest.cpp
 	src/tracks/AutomationTrackTest.cpp
 )
 
@@ -144,6 +145,10 @@ target_compile_features(UiSnapshot PRIVATE cxx_std_20)
 set_target_properties(UiSnapshot PROPERTIES ENABLE_EXPORTS ON)
 
 set_tests_properties(FunctionGeneratorTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+	TIMEOUT 60)
+
+set_tests_properties(WorkspaceControlsTest PROPERTIES
 	ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 	TIMEOUT 60)
 

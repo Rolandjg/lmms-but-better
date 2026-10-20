@@ -109,6 +109,9 @@ public:
 	//! @brief Clone a track from this track
 	Track * clone();
 
+	//! Stable association between a frozen rendering and its source, independent of the track name.
+	const QString& freezeId() const { return m_freezeId; }
+	const QString& ensureFreezeId();
 
 	// pure virtual functions
 	Type type() const
@@ -307,6 +310,7 @@ private:
 	TrackContainer* m_trackContainer;
 	Type m_type;
 	QString m_name;
+	QString m_freezeId;
 	int m_height;
 
 protected:

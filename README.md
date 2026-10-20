@@ -16,7 +16,7 @@
   other inputs of their mixer channel, so everything stays in time.
 * **Safer saving**: projects are written to a temporary file and swapped in only when complete, and the
   previous version is kept as a backup.
-* **Project Health** (*Project → Project Health...*): lists every sample, instrument file and plugin the
+* **Project Health** (*File → Project Health...*): lists every sample, instrument file and plugin the
   project uses, where it lives and whether it's missing. *Save as Bundle* copies the project into its own
   folder with its samples.
 * **Tiling windows** (toolbar button or *View → Tile windows*): the editors, mixer and plugin windows are
@@ -37,7 +37,7 @@
 * **Accessibility**: knobs, faders, spin boxes and combo boxes can be reached with Tab, adjusted with the
   keyboard and read by screen readers, and their menus open from the keyboard (Menu key, Shift+F10).
   *Settings* has a text size option for editors and plugins, and marker labels pick a readable color.
-* **Modernized built-in plugins** with resizable vector UIs and displays: Eq , ReverbSC, Flanger, Delay, 
+* **Modernized built-in plugins** with updated controls and displays (some retain their original artwork and fixed sizes): Eq, ReverbSC, Flanger, Delay,
   MultitapEcho, StereoEnhancer, WaveShaper, Peak Controller, Kicker, LB302, TripleOscillator,
   BitInvader and Watsyn (unison), Sf2Player and AudioFileProcessor (rebuilt as a sampler with warp, slicing,
   fades and key detection). See [doc/PLUGIN_MODERNIZATION.md](doc/PLUGIN_MODERNIZATION.md).

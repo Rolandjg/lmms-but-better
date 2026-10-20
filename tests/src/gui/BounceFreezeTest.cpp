@@ -2,6 +2,10 @@
 #include <QtTest>
 #include <memory>
 #include <QTreeWidget>
+#include <QMessageBox>
+#include <QAbstractButton>
+#include <QPointer>
+#include <QTimer>
 
 #include "AudioDummy.h"
 #include "BounceToAudio.h"
@@ -114,6 +118,98 @@ private slots:
 			QCoreApplication::processEvents();
 			dialog.grab().save(snapshot);
 		}
+	}
+
+	void unfreezePreservesAudioUsedElsewhere_data()
+	{
+		QTest::addColumn<bool>("shared");
+		QTest::newRow("unused-render-is-removed") << false;
+		QTest::newRow("shared-render-is-kept") << true;
+	}
+
+	void unfreezeFindsRenamedSourceAfterReload()
+	{
+		auto song = Engine::getSong();
+		SampleTrack* frozen = nullptr;
+		for (auto track : song->tracks())
+		{
+			auto sample = dynamic_cast<SampleTrack*>(track);
+			if (sample && !sample->frozenFrom().isEmpty()) { frozen = sample; break; }
+		}
+		QVERIFY(frozen);
+		const auto id = frozen->frozenFromId();
+		QVERIFY(!id.isEmpty());
+		QVERIFY(song->guiSaveProjectAs(m_configDir.filePath("freeze-reload.mmp")));
+		song->loadProject(m_configDir.filePath("freeze-reload.mmp"));
+		Track* source = nullptr;
+		frozen = nullptr;
+		for (auto track : song->tracks())
+		{
+			if (track->freezeId() == id) { source = track; }
+			auto sample = dynamic_cast<SampleTrack*>(track);
+			if (sample && sample->frozenFromId() == id) { frozen = sample; }
+		}
+		QVERIFY(source);
+		QVERIFY(frozen);
+		auto duplicate = source->clone();
+		QVERIFY(duplicate);
+		QVERIFY(duplicate->freezeId().isEmpty());
+		duplicate->setMuted(true);
+		source->setName("Renamed source");
+		QCoreApplication::sendPostedEvents();
+		auto view = viewOf(frozen);
+		QVERIFY(view);
+		QPointer<SampleTrack> remaining = frozen;
+		QTimer confirmer;
+		connect(&confirmer, &QTimer::timeout, [] {
+			if (auto dialog = qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))
+			{
+				if (auto yes = dialog->button(QMessageBox::Yes)) { yes->click(); }
+			}
+		});
+		confirmer.start(10);
+		gui::unfreezeTrack(view);
+		confirmer.stop();
+		QTRY_VERIFY(remaining.isNull());
+		QVERIFY(!source->isMuted());
+		QVERIFY(duplicate->isMuted());
+	}
+
+	void unfreezePreservesAudioUsedElsewhere()
+	{
+		QFETCH(bool, shared);
+		auto song = Engine::getSong();
+		song->createEmptyProject();
+		QTemporaryDir dir;
+		const auto path = dir.filePath("test-bounce-qa.ogg");
+		QVERIFY(QFile::copy(qEnvironmentVariable("LMMS_DATA_DIR") + "/samples/drums/kick01.ogg", path));
+		auto source = new SampleTrack(song);
+		source->setName("Original");
+		source->setMuted(true);
+		QPointer<SampleTrack> frozen = new SampleTrack(song);
+		frozen->setFrozenFrom(source->name());
+		(new SampleClip(frozen))->setSampleFile(path);
+		if (shared)
+		{
+			auto other = new SampleTrack(song);
+			(new SampleClip(other))->setSampleFile(path);
+		}
+		QCoreApplication::sendPostedEvents();
+		auto view = viewOf(frozen);
+		QVERIFY(view);
+		QTimer confirmer;
+		connect(&confirmer, &QTimer::timeout, [] {
+			if (auto dialog = qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))
+			{
+				if (auto yes = dialog->button(QMessageBox::Yes)) { yes->click(); }
+			}
+		});
+		confirmer.start(10);
+		gui::unfreezeTrack(view);
+		confirmer.stop();
+		QTRY_VERIFY(frozen.isNull());
+		QVERIFY(!source->isMuted());
+		QCOMPARE(QFileInfo::exists(path), shared);
 	}
 
 	void cleanupTestCase()
