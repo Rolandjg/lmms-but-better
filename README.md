@@ -1,8 +1,50 @@
 **What this fork changes**
 --------------
-* Windows native VST3 support through [yabridge.](https://github.com/robbert-vdh/yabridge)
-* MPE pitch gliding support in the piano roll.
-* An option to bounce a track to audio, creating a sample track below the original.
+* **VST3 hosting**: native VST3 instruments and effects on Linux and macOS, and Windows VST3 plugins on Linux
+  through Wine and [yabridge](https://github.com/robbert-vdh/yabridge). Plugin editors are embedded (Cocoa on
+  macOS, X11/XWayland on Linux) and parameters are automatable. Stuck yabridge hosts are killed when a plugin
+  unloads, so a crashed Windows plugin can't hang LMMS. See [doc/VST3_SETUP.md](doc/VST3_SETUP.md).
+* MPE pitch gliding support in the piano roll (per-note bends go to VST3 plugins through note expression).
+* **Bounce and freeze**: a track's context menu can *Bounce to audio* (renders it to a new sample track below,
+  through the same mixer channel, starting at the first audible clip) or *Freeze* it (the audio replaces the
+  track, which is muted). *Unfreeze* deletes the rendered audio and brings the original back. Bounced audio is
+  saved next to the project and never overwrites an earlier bounce.
+* **Stem / export improvements**: muted tracks aren't processed during export, and reverb and delay tails ring
+  out at the end (until half a second of near-silence, at most 30 seconds). Export errors are reported instead
+  of failing silently.
+* **Plugin delay compensation**: effects that report latency (Formant Shifter, VST3) are delayed against the
+  other inputs of their mixer channel, so everything stays in time.
+* **Safer saving**: projects are written to a temporary file and swapped in only when complete, and the
+  previous version is kept as a backup.
+* **Project Health** (*Project → Project Health...*): lists every sample, instrument file and plugin the
+  project uses, where it lives and whether it's missing. *Save as Bundle* copies the project into its own
+  folder with its samples.
+* **Tiling windows** (toolbar button or *View → Tile windows*): the editors, mixer and plugin windows are
+  arranged side by side instead of floating. The Song Editor sits on top, the editors stack below it and
+  instrument and effect windows open in columns on the right. Drag a window onto the middle of another tile
+  to swap them, or onto an edge to put it beside it, and drag the gaps to resize.
+* **Smooth trackpad scrolling and zooming**: the Song Editor, Piano Roll, Automation Editor and knobs add up
+  small trackpad scroll steps instead of treating each one as a full mouse wheel notch.
+* **Automation Editor**:
+  	- **Function generator**: fill a clip with sine, triangle, saw up/down, square, stepped or smooth noise,
+  	  or your own math expression (`sin(tau * p) * (1 - t)`), with a live preview. Cycles, phase,
+  	  symmetry / pulse width, curve, quantize, low / high, invert, and hand-drawn graphs for the amount and
+  	  speed over the clip.
+  	- Zoom and grid that work the same for every value range (0..1 or 0..20000), the vertical position
+  	  stays put while zooming, and the tooltip shows bar, beat, tick and value.
+* **Mixer channel shortcut**: Alt+click a track's mixer channel number to create a new mixer channel for it
+  and route the track there.
+* **Accessibility**: knobs, faders, spin boxes and combo boxes can be reached with Tab, adjusted with the
+  keyboard and read by screen readers, and their menus open from the keyboard (Menu key, Shift+F10).
+  *Settings* has a text size option for editors and plugins, and marker labels pick a readable color.
+* **Modernized built-in plugins** with resizable vector UIs and displays: Eq , ReverbSC, Flanger, Delay, 
+  MultitapEcho, StereoEnhancer, WaveShaper, Peak Controller, Kicker, LB302, TripleOscillator,
+  BitInvader and Watsyn (unison), Sf2Player and AudioFileProcessor (rebuilt as a sampler with warp, slicing,
+  fades and key detection). See [doc/PLUGIN_MODERNIZATION.md](doc/PLUGIN_MODERNIZATION.md).
+* **Instrument window**: redesigned tabs. Drag envelope points directly and bend attack, decay and release
+  curves (like Vital/Serum), and see a preview of the arpeggio pattern and the stacked chord.
+* Beat clips in the Song Editor draw their steps with the step volume, and the effect browser shows each
+  plugin's name, description and author.
 * Piano roll UX changes: 
   	- Better note duplication with CTRL+D: the copy lands right after the selection on the grid (on whole bars
   	  for phrases longer than half a bar) and the view follows it.
@@ -39,8 +81,8 @@
   	  it to morph the vowel. Every control can be automated.
 * **Audio clip fades and clip gain**: hover an audio clip in the Song Editor and drag the handles on its top
   edge. The corner handles set equal-power fade in / fade out, and the middle handle sets clip gain (drag up
-  or down, Shift for fine steps). Double-click a handle to reset it. The context menu adds *Normalize clip
-  gain*, *Reset clip gain* and *Remove fades*. Fades stay at the outer edges when a clip is split.
+  or down, Shift for fine steps). Double-click a handle to reset it. The context menu adds *Fades and gain…*
+  (type exact values), *Normalize clip gain*, *Reset clip gain* and *Remove fades*. Fades stay at the outer edges when a clip is split.
 * **Arrangement markers**: name the sections of your song (Intro, Verse, Chorus, Drop...) on a colored
   marker lane above the Song Editor timeline. Double-click the lane or press M to add a marker, drag to move,
   click to jump, and right-click for presets, colors, *Loop this section* and removal. Alt+Left / Alt+Right
