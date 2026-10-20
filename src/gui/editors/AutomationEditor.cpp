@@ -2002,7 +2002,7 @@ AutomationEditorWindow::AutomationEditorWindow() :
 	m_flipYAction = new QAction(embed::getIconPixmap("flip_y"), tr("Flip vertically"), this);
 	m_flipXAction = new QAction(embed::getIconPixmap("flip_x"), tr("Flip horizontally"), this);
 
-	auto generateShapeAction = new QAction(embed::getIconPixmap("sin_wave_active"), tr("Function generator"), this);
+	auto generateShapeAction = new QAction(embed::getIconPixmap("function_generator"), tr("Function generator"), this);
 	connect(generateShapeAction, &QAction::triggered, this, &AutomationEditorWindow::generateShape);
 
 	connect(editModeGroup, SIGNAL(triggered(int)), m_editor, SLOT(setEditMode(int)));

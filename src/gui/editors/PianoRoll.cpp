@@ -5958,7 +5958,7 @@ PianoRollWindow::PianoRollWindow() :
 	connect(reverseAction, &QAction::triggered, [this](){ m_editor->reverseNotes(); });
 	reverseAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_R));
 
-	auto humanizeAction = new QAction(embed::getIconPixmap("random_wave_active"), tr("Humanize…"), noteToolsButton);
+	auto humanizeAction = new QAction(embed::getIconPixmap("humanize"), tr("Humanize…"), noteToolsButton);
 	connect(humanizeAction, &QAction::triggered, [this]() { m_editor->humanizeNotes(); });
 	humanizeAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_H));
 
