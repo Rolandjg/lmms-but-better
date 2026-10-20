@@ -2,12 +2,15 @@
 # This is needed when cross-compiling for Windows.
 ADVAPI32.dll
 COMCTL32.dll
+CRYPT32.dll
 comdlg32.dll
 d3d11.dll
+DNSAPI.dll
 dwmapi.dll
 dxgi.dll
 GDI32.dll
 IMM32.dll
+IPHLPAPI.DLL
 KERNEL32.dll
 MPR.DLL
 msvcrt.dll

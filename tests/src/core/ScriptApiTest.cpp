@@ -105,10 +105,10 @@ private slots:
 
 		call("clip.remove_notes", {{"id", clip["id"]}, {"indices", QJsonArray{0}}});
 		QCOMPARE(mc->notes().size(), std::size_t{1});
-		call("clip.set_notes", {{"id", clip["id"]}, {"notes", QJsonArray{QJsonArray{"A3", 0, 2}}}});
+		call("clip.set_notes", {{"id", clip["id"]}, {"notes", QJsonArray{QJsonValue(QJsonArray{"A3", 0, 2})}}});
 		QCOMPARE(mc->notes()[0]->key(), 57);
 
-		QVERIFY(callError("clip.add_notes", {{"id", clip["id"]}, {"notes", QJsonArray{QJsonArray{"X9", 0, 1}}}})
+		QVERIFY(callError("clip.add_notes", {{"id", clip["id"]}, {"notes", QJsonArray{QJsonValue(QJsonArray{"X9", 0, 1})}}})
 			.contains("note name"));
 
 		call("clip.delete", {{"id", clip["id"]}});
