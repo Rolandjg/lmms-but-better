@@ -240,7 +240,7 @@ void LcdWidget::paintEvent( QPaintEvent* )
 	p.setRenderHint(QPainter::Antialiasing);
 	const QColor on = segmentColor();
 	QColor off = on;
-	off.setAlphaF(0.08);
+	off.setAlphaF(0.08f);
 
 	QRectF cell(left, margin, m_cellWidth, m_cellHeight);
 	for (int i = 0; i < m_numDigits - m_display.length(); ++i)
