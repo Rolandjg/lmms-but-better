@@ -223,28 +223,41 @@ void Vst3Manager::scanModule(const QString& path)
 	if (m_attemptedModules.contains(canonical)) { return; }
 	m_attemptedModules.insert(canonical);
 
-	// The scanner lives alongside this library, in both the build tree and
-	// installed packages. Do not fall back to loading untrusted modules in
-	// the UI process when the scanner is missing.
+	// The scanner lives in the plugin directory. That is usually beside this
+	// library, but bundlers such as linuxdeploy may also copy the library into
+	// lib/ and the plugins then load that copy, so fall back to the plugin
+	// search path. Do not fall back to loading untrusted modules in the UI
+	// process when the scanner is missing.
+	const QString scannerName = QStringLiteral("Vst3Scanner") + ExecutableSuffix;
 	const QString library = libraryPath();
-	if (library.isEmpty()) { return; }
-	const QString scanner = QFileInfo{library}.absolutePath() + "/Vst3Scanner" + ExecutableSuffix;
+	QString scanner = library.isEmpty() ? QString{} : QFileInfo{library}.absolutePath() + "/" + scannerName;
+	if (scanner.isEmpty() || !QFileInfo::exists(scanner))
+	{
+		scanner = QFileInfo{"plugins:" + scannerName}.absoluteFilePath();
+	}
+	if (!QFileInfo::exists(scanner))
+	{
+		qWarning() << "VST3: cannot find" << scannerName << "beside" << library << "or in the plugin directory";
+		return;
+	}
 	const QString binary = Vst3Module::resolveModulePath(canonical);
 	QTemporaryFile result;
 	if (binary.isEmpty() || !result.open()) { return; }
 	QProcess process;
 	process.setProcessChannelMode(QProcess::MergedChannels);
-#ifdef Q_OS_WIN
-	// The scanner sits in the plugin directory, but Qt's DLLs and plugins sit
-	// beside lmms.exe. Windows searches neither, so point the scanner at them.
+	// The scanner sits in the plugin directory, but bundled Qt plugins are
+	// found through the qt.conf beside the main executable (AppImage) or sit
+	// beside lmms.exe (Windows), so point the scanner at LMMS's Qt plugins.
 	auto environment = QProcessEnvironment::systemEnvironment();
-	environment.insert("PATH", QDir::toNativeSeparators(QCoreApplication::applicationDirPath())
-		+ QDir::listSeparator() + environment.value("PATH"));
 	QStringList qtPluginPaths;
 	for (const auto& dir : QCoreApplication::libraryPaths()) { qtPluginPaths << QDir::toNativeSeparators(dir); }
 	environment.insert("QT_PLUGIN_PATH", qtPluginPaths.join(QDir::listSeparator()));
-	process.setProcessEnvironment(environment);
+#ifdef Q_OS_WIN
+	// Windows does not search the plugin directory for Qt's DLLs either
+	environment.insert("PATH", QDir::toNativeSeparators(QCoreApplication::applicationDirPath())
+		+ QDir::listSeparator() + environment.value("PATH"));
 #endif
+	process.setProcessEnvironment(environment);
 	process.start(scanner, {binary, result.fileName()});
 	if (!process.waitForStarted(5000) || !process.waitForFinished(30000))
 	{
