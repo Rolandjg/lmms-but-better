@@ -501,3 +501,41 @@ jobs:
           /clang64/bin/ccache.exe --show-stats --verbose
         env:
           CCACHE_MAXSIZE: 500MB
+  release:
+    name: update release
+    # Publish whatever built, even if another platform failed
+    needs: [linux-x86_64, linux-arm64, macos, mingw, msvc, msys2]
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Replace assets on the latest release
+        run: |
+          shopt -s nullglob
+          tag=$(gh release view --json tagName -q .tagName)
+          existing=$(gh release view "$tag" --json assets -q '.assets[].name')
+          for file in artifacts/lmms-*; do
+            name=$(basename "$file")
+            ext="${name##*.}"
+            # Package names end in the platform, e.g. -linux-x86_64 or
+            # -msvc2026-win64; the version before it may change between builds
+            platform=$(echo "${name%.*}" | rev | cut -d- -f1-2 | rev)
+            gh release upload "$tag" "$file" --clobber
+            for old in $existing; do
+              if [ "$old" != "$name" ] && [[ "$old" == *"-$platform.$ext" ]]; then
+                gh release delete-asset "$tag" "$old" --yes
+              fi
+            done
+          done
+          body=$(gh release view "$tag" --json body -q .body)
+          gh release edit "$tag" --notes "$(printf '%s\n' "$body" \
+            | sed "1s/.*/Builds from commit ${GITHUB_SHA::9} (CI run ${GITHUB_RUN_ID})./")"
