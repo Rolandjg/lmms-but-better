@@ -28,7 +28,6 @@
 #include <QVector>
 #include <QScrollArea>
 #include <QWidget>
-#include <QThread>
 
 #include "JournallingObject.h"
 #include "ModelView.h"
@@ -44,21 +43,6 @@ namespace lmms
 class InstrumentTrack;
 class Track;
 class TrackContainer;
-
-class InstrumentLoaderThread : public QThread
-{
-Q_OBJECT
-public:
-	InstrumentLoaderThread( QObject *parent = 0, InstrumentTrack *it = 0,
-		QString name = "" );
-
-	void run() override;
-
-private:
-	InstrumentTrack *m_it;
-	QString m_name;
-	QThread *m_containerThread;
-};
 
 namespace gui
 {

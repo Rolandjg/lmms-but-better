@@ -309,8 +309,7 @@ void PluginDescWidget::openInNewInstrumentTrack(QString value)
 {
 	TrackContainer* tc = Engine::getSong();
 	auto it = dynamic_cast<InstrumentTrack*>(Track::create(Track::Type::Instrument, tc));
-	auto ilt = new InstrumentLoaderThread(this, it, value);
-	ilt->start();
+	it->loadInstrument(value, nullptr, true /* DnD */);
 }
 
 

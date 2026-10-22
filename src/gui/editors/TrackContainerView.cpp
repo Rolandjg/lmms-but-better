@@ -52,27 +52,6 @@ namespace lmms
 using namespace std;
 
 
-InstrumentLoaderThread::InstrumentLoaderThread( QObject *parent, InstrumentTrack *it, QString name ) :
-	QThread( parent ),
-	m_it( it ),
-	m_name( name )
-{
-	m_containerThread = thread();
-}
-
-
-
-
-void InstrumentLoaderThread::run()
-{
-	Instrument *i = m_it->loadInstrument(m_name, nullptr,
-										 true /*always DnD*/);
-	QObject *parent = i->parent();
-	i->setParent( 0 );
-	i->moveToThread( m_containerThread );
-	i->setParent( parent );
-}
-
 namespace gui
 {
 
@@ -401,8 +380,9 @@ void TrackContainerView::dropEvent( QDropEvent * _de )
 	if( type == "instrument" )
 	{
 		auto it = dynamic_cast<InstrumentTrack*>(Track::create(Track::Type::Instrument, m_tc));
-		auto ilt = new InstrumentLoaderThread(this, it, value);
-		ilt->start();
+		// load on the GUI thread: a track without its instrument crashes when
+		// its window is opened, and plugins like VST3 must be created here
+		it->loadInstrument(value, nullptr, true /* DnD */);
 		//it->toggledInstrumentTrackButton( true );
 		_de->accept();
 	}
