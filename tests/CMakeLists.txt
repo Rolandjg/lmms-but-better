@@ -31,6 +31,7 @@ set(LMMS_TESTS
 	src/gui/InstrumentWindowTabsTest.cpp
 	src/gui/FunctionGeneratorTest.cpp
 	src/gui/WorkspaceControlsTest.cpp
+	src/gui/AutomationClipViewTest.cpp
 	src/tracks/AutomationTrackTest.cpp
 )
 
@@ -194,6 +195,11 @@ set_target_properties(UiSnapshot PROPERTIES ENABLE_EXPORTS ON)
 
 set_tests_properties(FunctionGeneratorTest PROPERTIES
 	ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+	TIMEOUT 60)
+
+set_target_properties(AutomationClipViewTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(AutomationClipViewTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
 	TIMEOUT 60)
 
 set_tests_properties(WorkspaceControlsTest PROPERTIES

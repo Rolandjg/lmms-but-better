@@ -23,17 +23,24 @@
  */
 #include "AutomationClipView.h"
 
+#include <QActionGroup>
 #include <QApplication>
+#include <QInputDialog>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>  // IWYU pragma: keep
 #include <QMenu>
+#include <cmath>
+#include <tuple>
 
 #include "AutomationEditor.h"
+#include "DeprecationHelper.h"
 #include "embed.h"
 #include "GuiApplication.h"
+#include "KeyboardShortcuts.h"
 #include "ProjectJournal.h"
 #include "RenameDialog.h"
+#include "Song.h"
 #include "StringPairDrag.h"
 #include "TextFloat.h"
 #include "Track.h"
@@ -45,6 +52,19 @@
 
 namespace lmms::gui
 {
+
+namespace
+{
+
+constexpr int NodeRadius = 3;
+constexpr int NodeHitRadius = 6;
+constexpr int CurveHitDistance = 4;
+//! Below this height there is no room to place values with the mouse
+constexpr int MinHeightForNodeEditing = 16;
+//! Dragging a point over this many clip heights sweeps its whole value range, for finer control
+constexpr float ValueDragScale = 3.f;
+
+} // namespace
 
 AutomationClipView::AutomationClipView( AutomationClip * _clip,
 						TrackView * _parent ) :
@@ -74,7 +94,8 @@ void AutomationClipView::openInAutomationEditor()
 
 void AutomationClipView::update()
 {
-	setToolTip(m_clip->name());
+	setToolTip(m_clip->name() + "\n" + tr("Drag a point to move it. Click the line or <Shift>-click to add a point, "
+		"right-click a point to remove it, double-click a point to type its value."));
 
 	ClipView::update();
 }
@@ -158,6 +179,22 @@ void AutomationClipView::flipX()
 
 
 
+void AutomationClipView::setProgressionType(AutomationClip::ProgressionType type)
+{
+	if (type == m_clip->progressionType()) { return; }
+
+	m_clip->addJournalCheckPoint();
+	m_clip->setProgressionType(type);
+	Engine::getSong()->setModified();
+
+	// Keep the Automation Editor's interpolation buttons in sync
+	auto editor = getGUI()->automationEditor();
+	if (editor && editor->currentClip() == m_clip) { editor->setCurrentClip(m_clip); }
+}
+
+
+
+
 void AutomationClipView::constructContextMenu( QMenu * _cm )
 {
 	auto a = new QAction(embed::getIconPixmap("automation"), tr("Open in Automation editor"), _cm);
@@ -185,6 +222,21 @@ void AutomationClipView::constructContextMenu( QMenu * _cm )
 	_cm->addAction( embed::getIconPixmap( "flip_x" ),
 						tr( "Flip Horizontally (Visible)" ),
 						this, SLOT(flipX()));
+
+	using Progression = AutomationClip::ProgressionType;
+	auto progressionMenu = _cm->addMenu(embed::getIconPixmap("progression_linear"), tr("Interpolation"));
+	auto progressionGroup = new QActionGroup(progressionMenu);
+	for (const auto& [type, icon, text] : {
+		std::tuple{Progression::Discrete, "progression_discrete", tr("Discrete")},
+		std::tuple{Progression::Linear, "progression_linear", tr("Linear")},
+		std::tuple{Progression::CubicHermite, "progression_cubic_hermite", tr("Cubic Hermite")}})
+	{
+		auto action = progressionMenu->addAction(embed::getIconPixmap(icon), text);
+		action->setCheckable(true);
+		action->setChecked(m_clip->progressionType() == type);
+		progressionGroup->addAction(action);
+		connect(action, &QAction::triggered, this, [this, type = type] { setProgressionType(type); });
+	}
 	
 	if (!m_clip->m_objects.empty())
 	{
@@ -208,6 +260,115 @@ void AutomationClipView::constructContextMenu( QMenu * _cm )
 
 
 
+void AutomationClipView::contextMenuEvent(QContextMenuEvent* cme)
+{
+	if (m_skipContextMenu && cme->reason() == QContextMenuEvent::Mouse)
+	{
+		m_skipContextMenu = false;
+		cme->accept();
+		return;
+	}
+	ClipView::contextMenuEvent(cme);
+}
+
+
+
+
+void AutomationClipView::mousePressEvent(QMouseEvent* me)
+{
+	m_skipContextMenu = false;
+	const auto pos = position(me);
+
+	if (canEditNodes() && !(me->modifiers() & (KBD_COPY_MODIFIER | Qt::ControlModifier)))
+	{
+		const auto node = nodeAt(pos);
+		if (me->button() == Qt::LeftButton && (node || me->modifiers() & Qt::ShiftModifier || isOnCurve(pos)))
+		{
+			m_clip->addJournalCheckPoint();
+			int tick = tickAtX(pos.x());
+			float value = valueAtY(pos.y());
+			m_dragOffset = QPoint();
+			if (node)
+			{
+				// Grab the node where it is, so it doesn't jump to the cursor
+				tick = *node;
+				value = m_clip->getTimeMap()[tick].getInValue();
+				m_dragOffset = pos - QPointF(xOfTick(tick), yOfValue(value)).toPoint();
+			}
+			m_dragStartValue = value;
+			m_dragStartY = pos.y();
+			const bool unquantized = me->modifiers() & Qt::AltModifier;
+			m_dragNode = m_clip->setDragValue(TimePos(tick), value, !node && !unquantized, unquantized);
+			Engine::getSong()->setModified();
+			setCursor(Qt::ClosedHandCursor);
+			showNodeValue(*m_dragNode);
+			return;
+		}
+		if (me->button() == Qt::RightButton && node)
+		{
+			m_clip->addJournalCheckPoint();
+			m_clip->removeNode(TimePos(*node));
+			Engine::getSong()->setModified();
+			m_skipContextMenu = true;
+			updateHover(pos);
+			return;
+		}
+	}
+
+	ClipView::mousePressEvent(me);
+}
+
+
+
+
+void AutomationClipView::mouseMoveEvent(QMouseEvent* me)
+{
+	if (m_dragNode)
+	{
+		const auto pos = position(me) - m_dragOffset;
+		const bool unquantized = me->modifiers() & Qt::AltModifier;
+		// Points stay within the visible part of the clip
+		const int tick = tickAtX(std::clamp(pos.x(), 0, width() - 1));
+		// The time follows the mouse, the value moves slower than it
+		const float span = std::max(1, height() - 2 * BORDER_WIDTH) * ValueDragScale;
+		const float value = m_dragStartValue
+			+ (m_dragStartY - position(me).y()) / span * (m_clip->getMax() - m_clip->getMin());
+		m_dragNode = m_clip->setDragValue(TimePos(tick), snapValue(value), !unquantized, unquantized);
+		Engine::getSong()->setModified();
+		showNodeValue(*m_dragNode);
+		return;
+	}
+
+	ClipView::mouseMoveEvent(me);
+
+	if (!me->buttons()) { updateHover(position(me)); }
+}
+
+
+
+
+void AutomationClipView::mouseReleaseEvent(QMouseEvent* me)
+{
+	if (m_dragNode)
+	{
+		if (me->button() == Qt::LeftButton)
+		{
+			m_clip->applyDragValue();
+			m_dragNode.reset();
+			textFloat()->hide();
+			m_hoverNode.reset();
+			updateHover(position(me));
+			update();
+		}
+		return;
+	}
+
+	ClipView::mouseReleaseEvent(me);
+}
+
+
+
+
 void AutomationClipView::mouseDoubleClickEvent( QMouseEvent * me )
 {
 	if (m_trackView->trackContainerView()->knifeMode()) { return; }
@@ -217,7 +378,251 @@ void AutomationClipView::mouseDoubleClickEvent( QMouseEvent * me )
 		me->ignore();
 		return;
 	}
+
+	// Double-clicking a point lets the user type its exact value
+	if (const auto node = canEditNodes() ? nodeAt(position(me)) : std::nullopt)
+	{
+		const auto model = m_clip->firstObject();
+		const float step = model->step<float>();
+		const int decimals = step > 0 ? std::clamp(static_cast<int>(std::ceil(-std::log10(step))), 0, 6) : 3;
+		const AutomationNode current = m_clip->getTimeMap()[*node];
+
+		bool ok = false;
+		const double value = QInputDialog::getDouble(this, tr("Automation point"),
+			tr("Value (%1 to %2):").arg(m_clip->getMin()).arg(m_clip->getMax()), current.getInValue(),
+			m_clip->getMin(), m_clip->getMax(), decimals, &ok);
+		if (!ok || static_cast<float>(value) == current.getInValue()) { return; }
+
+		m_clip->addJournalCheckPoint();
+		// A discrete jump at the point is kept
+		if (current.getValueOffset() != 0)
+		{
+			m_clip->putValues(TimePos(*node), value, current.getOutValue(), false);
+		}
+		else
+		{
+			m_clip->putValue(TimePos(*node), value, false);
+		}
+		Engine::getSong()->setModified();
+		return;
+	}
+
 	openInAutomationEditor();
+}
+
+
+
+
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+void AutomationClipView::enterEvent(QEnterEvent* e)
+#else
+void AutomationClipView::enterEvent(QEvent* e)
+#endif
+{
+	m_hovered = true;
+	update();
+	ClipView::enterEvent(e);
+}
+
+
+
+
+void AutomationClipView::leaveEvent(QEvent* e)
+{
+	m_hovered = false;
+	m_hoverNode.reset();
+	m_hoverCurve = false;
+	update();
+	ClipView::leaveEvent(e);
+}
+
+
+
+
+float AutomationClipView::pixelsPerTick() const
+{
+	const float ppb = fixedClips()
+		? (parentWidget()->width() - 2 * BORDER_WIDTH) / static_cast<float>(std::max(1, m_clip->length().getBar()))
+		: pixelsPerBar();
+	return ppb / TimePos::ticksPerBar();
+}
+
+
+
+
+float AutomationClipView::xOfTick(int tick) const
+{
+	return (tick + m_clip->startTimeOffset()) * pixelsPerTick();
+}
+
+
+
+
+int AutomationClipView::tickAtX(float x) const
+{
+	return std::max(0, static_cast<int>(std::lround(x / pixelsPerTick())) - m_clip->startTimeOffset());
+}
+
+
+
+
+float AutomationClipView::yOfValue(float value) const
+{
+	const float min = m_clip->getMin();
+	const float max = m_clip->getMax();
+	if (max <= min) { return height() / 2.f; }
+	return BORDER_WIDTH + (max - value) * (height() - 2 * BORDER_WIDTH) / (max - min);
+}
+
+
+
+
+float AutomationClipView::valueAtY(float y) const
+{
+	const float min = m_clip->getMin();
+	const float max = m_clip->getMax();
+	const float span = std::max(1.f, static_cast<float>(height() - 2 * BORDER_WIDTH));
+	return snapValue(max - (y - BORDER_WIDTH) / span * (max - min));
+}
+
+
+
+
+float AutomationClipView::snapValue(float value) const
+{
+	if (const float step = m_clip->firstObject()->step<float>(); step > 0)
+	{
+		value = std::round(value / step) * step;
+	}
+	return std::clamp(value, m_clip->getMin(), m_clip->getMax());
+}
+
+
+
+
+bool AutomationClipView::canEditNodes() const
+{
+	const auto container = m_trackView->trackContainerView();
+	return !container->knifeMode() && !container->allowRubberband() && height() >= MinHeightForNodeEditing;
+}
+
+
+
+
+std::optional<int> AutomationClipView::nodeAt(const QPoint& pos) const
+{
+	const auto& timeMap = m_clip->getTimeMap();
+	std::optional<int> nearest;
+	float nearestDistance = NodeHitRadius * NodeHitRadius + 1;
+	for (auto it = timeMap.lowerBound(tickAtX(pos.x() - NodeHitRadius)); it != timeMap.end(); ++it)
+	{
+		const float dx = xOfTick(POS(it)) - pos.x();
+		if (dx > NodeHitRadius) { break; }
+		const float dy = yOfValue(INVAL(it)) - pos.y();
+		if (const float distance = dx * dx + dy * dy; distance < nearestDistance)
+		{
+			nearest = POS(it);
+			nearestDistance = distance;
+		}
+	}
+	return nearest;
+}
+
+
+
+
+bool AutomationClipView::isOnCurve(const QPoint& pos) const
+{
+	const auto& timeMap = m_clip->getTimeMap();
+	// Leave the clip's edges to resizing
+	if (timeMap.isEmpty() || pos.x() < resizeGripWidth() || pos.x() >= width() - resizeGripWidth()) { return false; }
+	// Nothing is drawn before the first node
+	if (tickAtX(pos.x()) < POS(timeMap.begin())) { return false; }
+
+	// Look at a few pixels around the cursor, so steep slopes and jumps are as easy to hit as flat lines
+	float top = height();
+	float bottom = 0;
+	for (int dx = -2; dx <= 2; ++dx)
+	{
+		const int tick = tickAtX(pos.x() + dx);
+		if (tick < POS(timeMap.begin())) { continue; }
+		const float y = yOfValue(m_clip->valueAt(TimePos(tick)));
+		top = std::min(top, y);
+		bottom = std::max(bottom, y);
+	}
+	return pos.y() >= top - CurveHitDistance && pos.y() <= bottom + CurveHitDistance;
+}
+
+
+
+
+void AutomationClipView::updateHover(const QPoint& pos)
+{
+	std::optional<int> node;
+	bool curve = false;
+	if (canEditNodes() && rect().contains(pos))
+	{
+		node = nodeAt(pos);
+		curve = !node && isOnCurve(pos);
+	}
+
+	if (node != m_hoverNode || curve != m_hoverCurve)
+	{
+		m_hoverNode = node;
+		m_hoverCurve = curve;
+		update();
+	}
+
+	if (node) { setCursor(Qt::OpenHandCursor); }
+	else if (curve) { setCursor(Qt::CrossCursor); }
+}
+
+
+
+
+void AutomationClipView::showNodeValue(int tick)
+{
+	const auto it = m_clip->getTimeMap().constFind(tick);
+	if (it == m_clip->getTimeMap().constEnd()) { return; }
+
+	const auto model = m_clip->firstObject();
+	const auto pos = TimePos(tick + m_clip->startPosition() + m_clip->startTimeOffset());
+	auto bubble = textFloat();
+	bubble->setTitle(m_clip->objects().empty() ? tr("Automation point") : model->displayName());
+	bubble->setText(tr("%1 at %2:%3").arg(model->displayValue(INVAL(it)))
+		.arg(pos.getBar() + 1).arg(pos.getTicks() % TimePos::ticksPerBar()));
+	bubble->moveGlobal(this, QPoint(width() + 2, height() + 2));
+	bubble->show();
+}
+
+
+
+
+void AutomationClipView::paintNodes(QPainter& p)
+{
+	const auto& timeMap = m_clip->getTimeMap();
+	const QColor fill = textColor();
+	const QColor outline = QColor(0, 0, 0, 200);
+
+	p.save();
+	p.setRenderHint(QPainter::Antialiasing, true);
+	float lastX = -NodeRadius * 2;
+	for (auto it = timeMap.lowerBound(tickAtX(-NodeRadius)); it != timeMap.end(); ++it)
+	{
+		const float x = xOfTick(POS(it));
+		if (x > width() + NodeRadius) { break; }
+
+		const bool highlighted = POS(it) == m_dragNode || POS(it) == m_hoverNode;
+		// Densely packed nodes (like recorded ones) would only draw a thick line
+		if (!highlighted && x - lastX < NodeRadius) { continue; }
+		lastX = x;
+
+		const float radius = highlighted ? NodeRadius + 1.5f : NodeRadius;
+		p.setPen(QPen(outline, 1.0));
+		p.setBrush(highlighted ? fill : fill.darker(115));
+		p.drawEllipse(QPointF(x, yOfValue(INVAL(it))), radius, radius);
+	}
+	p.restore();
 }
 
 
@@ -278,7 +683,8 @@ void AutomationClipView::paintEvent( QPaintEvent * )
 	const float ppTick  = ppb / TimePos::ticksPerBar();
 	const int offset =  m_clip->startTimeOffset() * ppTick;
 
-	p.translate( 0.0f, max * height() / y_scale - BORDER_WIDTH );
+	// Matches yOfValue(): max is at the top border, min at the bottom one
+	p.translate(0.0f, BORDER_WIDTH + max * h);
 	p.scale( 1.0f, -h );
 
 	QLinearGradient lin2grad( 0, min, 0, max );
@@ -381,6 +787,9 @@ void AutomationClipView::paintEvent( QPaintEvent * )
 	paintTextLabel(m_clip->name(), p);
 
 	paintClipFrame(p, rect(), c, current);
+
+	// the points can be dragged right here, so show them while the mouse is over the clip
+	if ((m_hovered || m_dragNode) && canEditNodes()) { paintNodes(p); }
 
 	// draw the 'muted' pixmap only if the clip was manually muted
 	if( m_clip->isMuted() )

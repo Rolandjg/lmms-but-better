@@ -59,6 +59,8 @@ gui::TrackView* AutomationTrack::createView( gui::TrackContainerView* tcv )
 Clip* AutomationTrack::createClip(const TimePos & pos)
 {
 	auto p = new AutomationClip(this);
+	// New clips draw smooth curves; loaded and pasted ones get their own type back from restoreState()
+	p->setProgressionType(AutomationClip::ProgressionType::CubicHermite);
 	p->movePosition(pos);
 	return p;
 }

@@ -76,7 +76,7 @@ public:
 
 	//! @brief Checks if the containing trackView has fixed Clips.
 	//! @todo In what circumstance are they fixed?
-	bool fixedClips();
+	bool fixedClips() const;
 
 	inline Clip * getClip()
 	{
@@ -270,6 +270,10 @@ protected:
 	//! The shared text bubble shown next to the cursor while dragging
 	static TextFloat* textFloat() { return s_textFloat; }
 
+	//! @returns the width of a note's resize area in pixels.
+	//! @note When zoomed in, this is a constant pixel value, but when zoomed far out, it is a fraction of the clip width.
+	int resizeGripWidth() const;
+
 protected slots:
 	//! @brief Updates a ClipView's length
 	//!
@@ -351,9 +355,6 @@ private:
 	//! @param color The new color, if any.
 	void setColor(const std::optional<QColor>& color);
 
-	//! @returns the width of a note's resize area in pixels.
-	//! @note When zoomed in, this is a constant pixel value, but when zoomed far out, it is a fraction of the clip width.
-	int resizeGripWidth() const;
 	
 	//! @returns Whether the user can left-resize this clip so that the start of the clip bounds is before the start of the clip content.
 	virtual bool isResizableBeforeStart() { return true; };

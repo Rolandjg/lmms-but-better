@@ -150,7 +150,7 @@ void ClipView::update()
 
 
 
-bool ClipView::fixedClips()
+bool ClipView::fixedClips() const
 {
 	return m_trackView->trackContainerView()->fixedClips();
 }
