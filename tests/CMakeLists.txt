@@ -32,6 +32,7 @@ set(LMMS_TESTS
 	src/gui/FunctionGeneratorTest.cpp
 	src/gui/WorkspaceControlsTest.cpp
 	src/gui/AutomationClipViewTest.cpp
+	src/gui/SongEditorShortcutsTest.cpp
 	src/tracks/AutomationTrackTest.cpp
 )
 
@@ -199,6 +200,11 @@ set_tests_properties(FunctionGeneratorTest PROPERTIES
 
 set_target_properties(AutomationClipViewTest PROPERTIES ENABLE_EXPORTS ON)
 set_tests_properties(AutomationClipViewTest PROPERTIES
+	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
+	TIMEOUT 60)
+
+set_target_properties(SongEditorShortcutsTest PROPERTIES ENABLE_EXPORTS ON)
+set_tests_properties(SongEditorShortcutsTest PROPERTIES
 	ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LMMS_PLUGIN_DIR=${CMAKE_BINARY_DIR}/plugins;LMMS_DATA_DIR=${CMAKE_SOURCE_DIR}/data"
 	TIMEOUT 60)
 

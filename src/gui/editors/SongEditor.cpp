@@ -96,6 +96,8 @@ namespace
 constexpr int MIN_PIXELS_PER_BAR = 4;
 constexpr int MAX_PIXELS_PER_BAR = 400;
 constexpr int ZOOM_STEPS = 200;
+//! As far as a notch of the mouse wheel zooms
+constexpr int ZOOM_KEY_STEP = 5;
 
 constexpr std::array SNAP_SIZES{8.f, 4.f, 2.f, 1.f, 1/2.f, 1/4.f, 1/8.f, 1/16.f};
 constexpr std::array PROPORTIONAL_SNAP_SIZES{64.f, 32.f, 16.f, 8.f, 4.f, 2.f, 1.f, 1/2.f, 1/4.f, 1/8.f, 1/16.f, 1/32.f, 1/64.f};
@@ -978,6 +980,14 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	connect(m_toolBar, SIGNAL(dragEntered(QDragEnterEvent*)), m_editor, SLOT(dragEnterEvent(QDragEnterEvent*)));
 	connect(m_toolBar, SIGNAL(dropped(QDropEvent*)), m_editor, SLOT(dropEvent(QDropEvent*)));
 
+	// The tools' shortcuts work wherever the focus is in this window and nowhere else,
+	// so the other editors are free to use the same keys for their own tools
+	const auto addShortcut = [this](QAction* action, const QList<QKeySequence>& keys) {
+		action->setShortcuts(keys);
+		action->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+		addAction(action);
+	};
+
 	// Set up buttons
 	m_playAction->setToolTip(tr("Play song (Space)"));
 	m_recordAction->setToolTip(tr("Record samples from Audio-device"));
@@ -1010,10 +1020,16 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	DropToolBar *editActionsToolBar = addDropToolBarToTop(tr("Edit actions"));
 
 	m_editModeGroup = new ActionGroup(this);
-	m_drawModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_draw"), tr("Draw mode"));
-	m_knifeModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_knife"), tr("Knife mode (split clips)"));
-	m_selectModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_select"), tr("Edit mode (select and move)"));
+	m_drawModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_draw"), tr("Draw mode (Shift+D)"));
+	m_knifeModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_knife"),
+		tr("Knife mode: split clips (Shift+K)"));
+	m_selectModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_select"),
+		tr("Edit mode: select and move (Shift+S)"));
 	m_drawModeAction->setChecked(true);
+	// The same keys as the tools in the Piano Roll and the Automation Editor
+	addShortcut(m_drawModeAction, {keySequence(Qt::SHIFT, Qt::Key_D)});
+	addShortcut(m_knifeModeAction, {keySequence(Qt::SHIFT, Qt::Key_K)});
+	addShortcut(m_selectModeAction, {keySequence(Qt::SHIFT, Qt::Key_S)});
 
 	connect(m_drawModeAction, SIGNAL(triggered()), m_editor, SLOT(setEditModeDraw()));
 	connect(m_knifeModeAction, SIGNAL(triggered()), m_editor, SLOT(setEditModeKnife()));
@@ -1029,27 +1045,30 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	// Arrangement markers
 	auto timeLine = m_editor->m_timeLine;
 	auto addMarkerAction = new QAction(markerIcon(), tr("Add marker at playhead"), this);
-	addMarkerAction->setShortcut(Qt::Key_M);
-	addMarkerAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	addShortcut(addMarkerAction, {QKeySequence(Qt::Key_M)});
 	addMarkerAction->setToolTip(tr("Add marker at playhead (M). Double-click the marker lane to add one anywhere."));
 	connect(addMarkerAction, &QAction::triggered, timeLine, [timeLine] {
 		timeLine->addMarker(timeLine->timeline()->pos().quantize(1.f / 16.f));
 	});
 	auto previousMarkerAction = new QAction(tr("Jump to previous marker"), this);
-	previousMarkerAction->setShortcut(keySequence(Qt::ALT, Qt::Key_Left));
-	previousMarkerAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	addShortcut(previousMarkerAction, {keySequence(Qt::ALT, Qt::Key_Left)});
 	connect(previousMarkerAction, &QAction::triggered, timeLine, &TimeLineWidget::jumpToPreviousMarker);
 	auto nextMarkerAction = new QAction(tr("Jump to next marker"), this);
-	nextMarkerAction->setShortcut(keySequence(Qt::ALT, Qt::Key_Right));
-	nextMarkerAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	addShortcut(nextMarkerAction, {keySequence(Qt::ALT, Qt::Key_Right)});
 	connect(nextMarkerAction, &QAction::triggered, timeLine, &TimeLineWidget::jumpToNextMarker);
-	addAction(previousMarkerAction);
-	addAction(nextMarkerAction);
 	timeLineToolBar->addAction(addMarkerAction);
 
+	// The loop points button is shared with the other editors, so its shortcut lives here
+	auto toggleLoopAction = new QAction(embed::getIconPixmap("loop_points_on"), tr("Toggle loop points"), this);
+	addShortcut(toggleLoopAction, {keySequence(Qt::SHIFT, Qt::Key_L)});
+	connect(toggleLoopAction, &QAction::triggered, timeLine, [timeLine] {
+		timeLine->timeline()->setLoopEnabled(!timeLine->timeline()->loopEnabled());
+	});
+
 	DropToolBar *insertActionsToolBar = addDropToolBarToTop(tr("Bar insert controls"));
-	m_insertBarAction = new QAction(embed::getIconPixmap("insert_bar"), tr("Insert bar"), this);
-	m_removeBarAction = new QAction(embed::getIconPixmap("remove_bar"), tr("Remove bar"), this);
+	// SongEditor::keyPressEvent() handles these keys
+	m_insertBarAction = new QAction(embed::getIconPixmap("insert_bar"), tr("Insert bar (Shift+Insert)"), this);
+	m_removeBarAction = new QAction(embed::getIconPixmap("remove_bar"), tr("Remove bar (Shift+Delete)"), this);
 	insertActionsToolBar->addAction( m_insertBarAction );
 	insertActionsToolBar->addAction( m_removeBarAction );
 	connect(m_insertBarAction, SIGNAL(triggered()), song, SLOT(insertBar()));
@@ -1074,6 +1093,14 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	zoomToolBar->addWidget( zoom_lbl );
 	zoomToolBar->addWidget(m_zoomingSlider);
 
+	// Ctrl+0 resets the zoom, see SongEditor::keyPressEvent()
+	auto zoomInAction = new QAction(tr("Zoom in"), this);
+	addShortcut(zoomInAction, {keySequence(Qt::CTRL, Qt::Key_Equal), keySequence(Qt::CTRL, Qt::Key_Plus)});
+	connect(zoomInAction, &QAction::triggered, m_editor, [this] { m_editor->m_zoomingModel->incValue(ZOOM_KEY_STEP); });
+	auto zoomOutAction = new QAction(tr("Zoom out"), this);
+	addShortcut(zoomOutAction, {keySequence(Qt::CTRL, Qt::Key_Minus)});
+	connect(zoomOutAction, &QAction::triggered, m_editor, [this] { m_editor->m_zoomingModel->incValue(-ZOOM_KEY_STEP); });
+
 	DropToolBar *snapToolBar = addDropToolBarToTop(tr("Snap controls"));
 	auto snap_lbl = new QLabel(m_toolBar);
 	snap_lbl->setPixmap( embed::getIconPixmap( "quantize" ) );
@@ -1086,9 +1113,10 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	connect(m_editor->snappingModel(), SIGNAL(dataChanged()), this, SLOT(updateSnapLabel()));
 
 	m_setProportionalSnapAction = new QAction(embed::getIconPixmap("proportional_snap"),
-											 tr("Toggle proportional snap on/off"), this);
+											 tr("Toggle proportional snap on/off (Shift+P)"), this);
 	m_setProportionalSnapAction->setCheckable(true);
 	m_setProportionalSnapAction->setChecked(false);
+	addShortcut(m_setProportionalSnapAction, {keySequence(Qt::SHIFT, Qt::Key_P)});
 	connect(m_setProportionalSnapAction, SIGNAL(triggered()), m_editor, SLOT(toggleProportionalSnap()));
 	connect(m_setProportionalSnapAction, SIGNAL(triggered()), this, SLOT(updateSnapLabel()));
 
