@@ -1941,6 +1941,24 @@ void PianoRoll::mousePressEvent(QMouseEvent * me )
 		return;
 	}
 
+	// Alt-click plays every note that lines up under the cursor
+	if (me->button() == Qt::LeftButton && me->modifiers() & Qt::AltModifier)
+	{
+		if (const NoteVector notes = auditionNotesAt(pos); !notes.empty())
+		{
+			const int baseVelocity = m_midiClip->instrumentTrack()->midiPort()->baseVelocity();
+			for (Note* note : notes)
+			{
+				if (note->isPlaying() || m_recording || m_stepRecorder.isRecording()) { continue; }
+				note->setIsPlaying(true);
+				m_midiClip->instrumentTrack()->pianoModel()->handleKeyPress(note->key(), note->midiVelocity(baseVelocity));
+			}
+			m_action = Action::Audition;
+			update();
+			return;
+		}
+	}
+
 	// Outside the note grid (piano keys, velocity lane) Pitch Bend mode behaves like the other modes
 	if (m_editMode == EditMode::Detuning
 		&& pos.x() > m_whiteKeyWidth && pos.y() >= keyAreaTop() && pos.y() < keyAreaBottom())
@@ -2490,6 +2508,26 @@ void PianoRoll::pauseTestNotes( bool pause )
 	}
 }
 
+NoteVector PianoRoll::notesAtTick(int tick) const
+{
+	NoteVector notes;
+	for (Note* note : m_midiClip->notes())
+	{
+		const int len = note->length() < 0 ? 4 : static_cast<int>(note->length());
+		if (len > 0 && tick >= note->pos() && tick < note->pos() + len) { notes.push_back(note); }
+	}
+	return notes;
+}
+
+NoteVector PianoRoll::auditionNotesAt(const QPoint& pos) const
+{
+	if (!hasValidMidiClip() || pos.x() <= m_whiteKeyWidth || pos.y() < keyAreaTop() || pos.y() >= keyAreaBottom())
+	{
+		return {};
+	}
+	return notesAtTick((pos.x() - m_whiteKeyWidth) * TimePos::ticksPerBar() / m_ppb + m_currentPosition);
+}
+
 void PianoRoll::playChordNotes(int key, int velocity)
 {
 	// if a chord is set, play the chords notes beside the base note.
@@ -2778,6 +2816,9 @@ void PianoRoll::mouseMoveEvent( QMouseEvent * me )
 		update();
 		return;
 	}
+
+	// Auditioning holds the notes until release; dragging must not edit anything
+	if (m_action == Action::Audition) { return; }
 
 	const auto pos = position(me);
 	if (m_editMode == EditMode::Detuning && me->buttons() == Qt::NoButton)
@@ -4447,6 +4488,26 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		}
 		// -- End knife tool
 
+		// -- Alt held: outline the notes an Alt-click would play
+		if (m_action == Action::Audition || QApplication::keyboardModifiers() & Qt::AltModifier)
+		{
+			const QPoint cursorPos = mapFromGlobal(QCursor::pos());
+			const NoteVector auditioned = underMouse() ? auditionNotesAt(cursorPos) : NoteVector{};
+			if (!auditioned.empty())
+			{
+				p.setPen(QPen(m_selectedNoteColor, 1));
+				p.drawLine(cursorPos.x(), keyAreaTop(), cursorPos.x(), keyAreaBottom());
+				p.setPen(QPen(m_selectedNoteColor, 2));
+				p.setBrush(Qt::NoBrush);
+				for (const Note* note : auditioned)
+				{
+					const int len = note->length() < 0 ? 4 : static_cast<int>(note->length());
+					const int x = xCoordOfTick(note->pos());
+					p.drawRect(x, noteYPos(note->key()), len * m_ppb / TimePos::ticksPerBar(), m_keyLineHeight);
+				}
+			}
+		}
+
 		//draw current step recording notes
 		for( const Note *note : m_stepRecorder.getCurStepNotes() )
 		{
@@ -4783,7 +4844,9 @@ void PianoRoll::focusOutEvent( QFocusEvent * )
 			m_midiClip->instrumentTrack()->pianoModel()->midiEventProcessor()->processInEvent( MidiEvent( MidiNoteOff, -1, i, 0 ) );
 			m_midiClip->instrumentTrack()->pianoModel()->setKeyState( i, false );
 		}
+		for (Note* note : m_midiClip->notes()) { note->setIsPlaying(false); }
 	}
+	if (m_action == Action::Audition) { m_action = Action::None; }
 	if (m_editMode == EditMode::Knife) {
 		m_editMode = m_knifeMode;
 		m_action = Action::None;
