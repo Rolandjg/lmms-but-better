@@ -3484,12 +3484,26 @@ void PianoRoll::populateGlideMenu(QMenu* menu)
 		auto* track = m_midiClip->instrumentTrack();
 		bool ok = false;
 
+		const QString scope = track->isMpeEnabled()
+			? tr("MPE is on: every note bends on its own channel.")
+			: tr("MIDI bends affect all notes on a channel; the newest glide takes priority. "
+				"Turn on MPE to bend notes separately.");
 		const int range = QInputDialog::getInt(this, tr("External synth bend range"),
-			tr("Pitch bend range in semitones (±). Set the same range in Vital or your synth.\n"
-				"MIDI bends affect all notes on a channel; the newest glide takes priority."),
+			tr("Pitch bend range in semitones (±). Set the same range in Vital or your synth.\n") + scope,
 			track->midiPitchRange(), 1, 60, 1, &ok);
 		if (ok) { track->pitchRangeModel()->setValue(range); }
 	})->setEnabled(hasValidMidiClip());
+
+	auto* mpe = menu->addAction(tr("MPE: bend each note separately"), this, [this](bool enabled)
+	{
+		if (!hasValidMidiClip()) { return; }
+		m_midiClip->instrumentTrack()->mpeModel()->setValue(enabled);
+		Engine::getSong()->setModified();
+	});
+	mpe->setCheckable(true);
+	mpe->setChecked(hasValidMidiClip() && m_midiClip->instrumentTrack()->isMpeEnabled());
+	mpe->setEnabled(hasValidMidiClip());
+	mpe->setToolTip(tr("Send every note on its own MIDI channel so glides never bend other notes"));
 }
 
 

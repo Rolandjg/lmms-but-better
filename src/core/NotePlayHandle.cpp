@@ -161,7 +161,9 @@ void NotePlayHandle::setVolume( volume_t _volume )
 
 	const int baseVelocity = m_instrumentTrack->midiPort()->baseVelocity();
 
-	m_instrumentTrack->processOutEvent( MidiEvent( MidiKeyPressure, midiChannel(), midiKey(), midiVelocity( baseVelocity ) ) );
+	const MidiEvent event(MidiKeyPressure, midiChannel(), midiKey(), midiVelocity(baseVelocity));
+	if (m_hasMidiNote) { m_instrumentTrack->processOutEvent(event, TimePos(), 0, m_outputChannel, m_mpe); }
+	else { m_instrumentTrack->processOutEvent(event); }
 }
 
 
@@ -227,12 +229,23 @@ void NotePlayHandle::play( SampleFrame* _working_buffer )
 
 		const int baseVelocity = m_instrumentTrack->midiPort()->baseVelocity();
 
+		m_instrumentTrack->sendPendingMidiSetup(offset());
+
+		// MPE gives every note its own channel, so its bend reaches only this note
+		m_mpe = m_instrumentTrack->isMpeEnabled();
+		if (m_mpe)
+		{
+			m_midiChannel = m_instrumentTrack->allocateMpeChannel(this);
+		}
+		// The note-off must reach the same channel even if the output channel changes meanwhile
+		m_outputChannel = m_instrumentTrack->outputChannelFor(midiChannel(), m_mpe);
+
 		// send MidiNoteOn event
 		m_instrumentTrack->startNotePitch(this, offset());
 		m_instrumentTrack->processOutEvent(
 			MidiEvent( MidiNoteOn, midiChannel(), midiKey(), midiVelocity( baseVelocity ) ),
 			TimePos::fromFrames( offset(), Engine::framesPerTick() ),
-			offset() );
+			offset(), m_outputChannel, m_mpe );
 	}
 
 	if( m_frequencyNeedsUpdate )
@@ -395,7 +408,7 @@ void NotePlayHandle::noteOff( const f_cnt_t _s )
 		m_instrumentTrack->processOutEvent(
 				MidiEvent( MidiNoteOff, midiChannel(), midiKey(), 0 ),
 				TimePos::fromFrames( _s, Engine::framesPerTick() ),
-				_s );
+				_s, m_outputChannel, m_mpe );
 		m_instrumentTrack->endNotePitch(this, _s);
 	}
 

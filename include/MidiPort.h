@@ -26,6 +26,8 @@
 #ifndef LMMS_MIDI_PORT_H
 #define LMMS_MIDI_PORT_H
 
+#include <atomic>
+
 #include <QString>
 #include <QList>
 #include <QMap>
@@ -111,8 +113,16 @@ public:
 		return outputChannel() ? outputChannel() - 1 : 0;
 	}
 
+	//! MPE output spreads notes over member channels, so every channel is forwarded
+	bool isMpeMode() const { return m_mpeMode; }
+	void setMpeMode(bool mpe) { m_mpeMode = mpe; }
+	//! Channel for track-wide messages such as controllers: the MPE master channel in MPE mode
+	int masterOutputChannel() const { return m_mpeMode ? 0 : realOutputChannel(); }
+
 	void processInEvent( const MidiEvent& event, const TimePos& time = TimePos() );
 	void processOutEvent( const MidiEvent& event, const TimePos& time = TimePos() );
+	//! @p mpe forwards @p event on its own channel, as MPE mode does
+	void processOutEvent(const MidiEvent& event, const TimePos& time, bool mpe);
 
 
 	void saveSettings( QDomDocument& doc, QDomElement& thisElement ) override;
@@ -169,6 +179,7 @@ private:
 	IntModel m_baseVelocityModel;
 	BoolModel m_readableModel;
 	BoolModel m_writableModel;
+	std::atomic<bool> m_mpeMode{false};
 
 	Map m_readablePorts;
 	Map m_writablePorts;

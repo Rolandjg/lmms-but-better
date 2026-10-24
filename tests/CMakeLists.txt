@@ -9,6 +9,7 @@ set(LMMS_TESTS
 	src/core/AutomatableModelTest.cpp
 	src/core/MathTest.cpp
 	src/core/MidiNotePitchTest.cpp
+	src/core/MpeChannelAllocatorTest.cpp
 	src/core/ProjectVersionTest.cpp
 	src/core/RelativePathsTest.cpp
 	src/core/LoudnessAnalyzerTest.cpp

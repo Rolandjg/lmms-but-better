@@ -66,6 +66,9 @@ public:
 
 	bool hasNotes(int channel) const { return !m_notes[channel].empty(); }
 
+	//! The note whose glide controls the channel, or null
+	const void* activeNote(int channel) const { return hasNotes(channel) ? m_notes[channel].back().note : nullptr; }
+
 private:
 	struct Entry { const void* note; float detuning; };
 	std::array<std::vector<Entry>, 16> m_notes;

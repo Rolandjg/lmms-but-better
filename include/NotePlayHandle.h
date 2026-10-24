@@ -85,6 +85,11 @@ public:
 		return m_midiChannel;
 	}
 
+	//! The channel the instrument got the MIDI note on
+	int outputChannel() const { return m_outputChannel; }
+	//! The MIDI note was sent on an MPE member channel
+	bool isMpe() const { return m_mpe; }
+
 	/*! convenience function that returns offset for the first period and zero otherwise,
 		used by instruments to handle the offset: instruments have to check this property and
 		add the correct number of empty frames in the beginning of the period */
@@ -327,6 +332,8 @@ private:
 	TimePos m_songGlobalParentOffset;
 
 	int m_midiChannel;
+	int m_outputChannel = 0;
+	bool m_mpe = false;
 	Origin m_origin;
 
 	bool m_frequencyNeedsUpdate;				// used to update pitch

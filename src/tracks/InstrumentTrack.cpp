@@ -64,6 +64,9 @@ InstrumentTrack::InstrumentTrack(TrackContainer* tc) :
 	m_audioBusHandle(tr("unnamed_track"), true, &m_volumeModel, &m_panningModel, &m_mutedModel),
 	m_pitchModel(0, MinPitchDefault, MaxPitchDefault, 1, this, tr("Pitch")),
 	m_pitchRangeModel(1, 1, 60, this, tr("Pitch range")),
+	m_mpeModel(false, this, tr("MPE")),
+	m_mpeChannelsModel(MpeChannelAllocator::MaxMemberChannels, 1, MpeChannelAllocator::MaxMemberChannels,
+		this, tr("MPE member channels")),
 	m_mixerChannelModel(0, 0, 0, this, tr("Mixer channel")),
 	m_useMasterPitchModel(true, this, tr("Master pitch")),
 	m_instrument(nullptr),
@@ -88,7 +91,6 @@ InstrumentTrack::InstrumentTrack(TrackContainer* tc) :
 	for( int i = 0; i < NumKeys; ++i )
 	{
 		m_notes[i] = nullptr;
-		m_runningMidiNotes[i] = 0;
 	}
 
 
@@ -112,6 +114,8 @@ InstrumentTrack::InstrumentTrack(TrackContainer* tc) :
 	connect(&m_baseNoteModel, SIGNAL(dataChanged()), this, SLOT(updateBaseNote()), Qt::DirectConnection);
 	connect(&m_pitchModel, SIGNAL(dataChanged()), this, SLOT(updatePitch()), Qt::DirectConnection);
 	connect(&m_pitchRangeModel, SIGNAL(dataChanged()), this, SLOT(updatePitchRange()), Qt::DirectConnection);
+	connect(&m_mpeModel, SIGNAL(dataChanged()), this, SLOT(updateMpe()), Qt::DirectConnection);
+	connect(&m_mpeChannelsModel, SIGNAL(dataChanged()), this, SLOT(updateMpe()), Qt::DirectConnection);
 	connect(&m_mixerChannelModel, SIGNAL(dataChanged()), this, SLOT(updateMixerChannel()), Qt::DirectConnection);
 
 	autoAssignMidiDevice(true);
@@ -296,7 +300,7 @@ void InstrumentTrack::processCCEvent(int controller)
 	// Does nothing if the LED is disabled
 	if (!m_midiCCEnable->value()) { return; }
 
-	auto channel = static_cast<uint8_t>(midiPort()->realOutputChannel());
+	auto channel = static_cast<uint8_t>(midiPort()->masterOutputChannel());
 	auto cc = static_cast<uint16_t>(controller);
 	auto value = static_cast<uint16_t>(m_midiCCModel[controller]->value());
 
@@ -456,6 +460,26 @@ void InstrumentTrack::processInEvent( const MidiEvent& event, const TimePos& tim
 
 void InstrumentTrack::processOutEvent( const MidiEvent& event, const TimePos& time, f_cnt_t offset )
 {
+	processOutEvent(event, time, offset, outputChannelFor(event.channel(), isMpeEnabled()), isMpeEnabled());
+}
+
+
+
+
+int InstrumentTrack::outputChannelFor(int eventChannel, bool mpe) const
+{
+	// If we have a selected output midi channel between 1-16, we will use that channel to handle the midi event.
+	// But if our selected midi output channel is 0 ("--"), we will use the event channel instead.
+	// MPE notes always keep the member channel they were given.
+	return m_midiPort.outputChannel() == 0 || mpe ? eventChannel : m_midiPort.realOutputChannel();
+}
+
+
+
+
+void InstrumentTrack::processOutEvent(const MidiEvent& event, const TimePos& time, f_cnt_t offset, int channel,
+	bool mpe)
+{
 	// do nothing if we do not have an instrument instance (e.g. when loading settings)
 	if( m_instrument == nullptr )
 	{
@@ -465,11 +489,8 @@ void InstrumentTrack::processOutEvent( const MidiEvent& event, const TimePos& ti
 	const MidiEvent transposedEvent = applyMasterKey( event );
 	const int key = transposedEvent.key();
 
-	// If we have a selected output midi channel between 1-16, we will use that channel to handle the midi event.
-	// But if our selected midi output channel is 0 ("--"), we will use the event channel instead.
-	const auto handleEventOutputChannel = midiPort()->outputChannel() == 0
-		? event.channel()
-		: midiPort()->realOutputChannel();
+	const auto handleEventOutputChannel = channel;
+	auto& runningMidiNotes = m_runningMidiNotes[std::clamp<int>(handleEventOutputChannel, 0, MidiChannelCount - 1)];
 
 	switch( event.type() )
 	{
@@ -479,11 +500,11 @@ void InstrumentTrack::processOutEvent( const MidiEvent& event, const TimePos& ti
 
 			if( key >= 0 && key < NumKeys )
 			{
-				if( m_runningMidiNotes[key] > 0 )
+				if( runningMidiNotes[key] > 0 )
 				{
 					m_instrument->handleMidiEvent( MidiEvent( MidiNoteOff, handleEventOutputChannel, key, 0 ), time, offset );
 				}
-				++m_runningMidiNotes[key];
+				++runningMidiNotes[key];
 				m_instrument->handleMidiEvent( MidiEvent( MidiNoteOn, handleEventOutputChannel, key, event.velocity() ), time, offset );
 
 			}
@@ -495,7 +516,7 @@ void InstrumentTrack::processOutEvent( const MidiEvent& event, const TimePos& ti
 			m_midiNotesMutex.lock();
 			m_piano.setKeyState( event.key(), false );	// event.key() = original key
 
-			if( key >= 0 && key < NumKeys && --m_runningMidiNotes[key] <= 0 )
+			if( key >= 0 && key < NumKeys && --runningMidiNotes[key] <= 0 )
 			{
 				m_instrument->handleMidiEvent( MidiEvent( MidiNoteOff, handleEventOutputChannel, key, 0 ), time, offset );
 			}
@@ -509,7 +530,7 @@ void InstrumentTrack::processOutEvent( const MidiEvent& event, const TimePos& ti
 	}
 
 	// if appropriate, midi-port does further routing
-	m_midiPort.processOutEvent( event, time );
+	m_midiPort.processOutEvent(event, time, mpe);
 }
 
 
@@ -521,8 +542,8 @@ void InstrumentTrack::silenceAllNotes( bool removeIPH )
 	for( int i = 0; i < NumKeys; ++i )
 	{
 		m_notes[i] = nullptr;
-		m_runningMidiNotes[i] = 0;
 	}
+	m_runningMidiNotes = {};
 	m_midiNotesMutex.unlock();
 
 	Engine::audioEngine()->requestChangeInModel();
@@ -642,7 +663,9 @@ void InstrumentTrack::updatePitch()
 	QMutexLocker lock(&m_notePitchMutex);
 	const int outputChannel = midiPort()->realOutputChannel();
 
-	if (!m_notePitch.hasNotes(outputChannel))
+	// MPE notes carry the track pitch in their own bends. While a zone is active,
+	// a master channel bend would reach them on top.
+	if (m_mpeZoneSize == 0 && !m_notePitch.hasNotes(outputChannel))
 	{
 		processOutEvent(MidiEvent(MidiPitchBend, outputChannel, midiPitch()));
 	}
@@ -656,10 +679,13 @@ void InstrumentTrack::updatePitch()
 
 void InstrumentTrack::startNotePitch(const NotePlayHandle* note, f_cnt_t offset)
 {
-	if (!note->detuning() || !note->detuning()->hasAutomation()) { return; }
+	const bool curve = note->detuning() && note->detuning()->hasAutomation();
+	// An MPE note always sets its channel's bend, even without a curve, so a
+	// bend left over from an earlier note on that channel can not leak into it.
+	if (!curve && !note->isMpe()) { return; }
 
 	QMutexLocker lock(&m_notePitchMutex);
-	const int channel = midiPort()->outputChannel() == 0 ? note->midiChannel() : midiPort()->realOutputChannel();
+	const int channel = note->outputChannel();
 	m_notePitch.start(channel, note, note->currentDetuning());
 
 	sendNotePitch(channel, offset);
@@ -680,11 +706,20 @@ void InstrumentTrack::updateNotePitch(const NotePlayHandle* note, f_cnt_t offset
 void InstrumentTrack::endNotePitch(const NotePlayHandle* note, f_cnt_t offset)
 {
 	QMutexLocker lock(&m_notePitchMutex);
+	m_mpeChannels.release(note);
 
 	for (int channel = 0; channel < 16; ++channel)
 	{
-		if (m_notePitch.end(channel, note)) { sendNotePitch(channel, offset); }
+		// A released MPE channel keeps its bend for the release tail. The next
+		// note on it sends its own bend first.
+		if (m_notePitch.end(channel, note) && (!note->isMpe() || m_notePitch.hasNotes(channel)))
+		{
+			sendNotePitch(channel, offset);
+		}
 	}
+
+	// The zone outlives MPE mode until the last of its notes ends
+	if (note->isMpe() && --m_heldMpeNotes == 0 && !isMpeEnabled() && m_mpeZoneSize > 0) { endMpeZone(offset); }
 }
 
 
@@ -701,10 +736,124 @@ void InstrumentTrack::sendNotePitch(int channel, f_cnt_t offset)
 		m_instrument->handleMidiEvent(event, time, offset);
 	}
 
-	m_midiPort.processOutEvent(event, time);
+	// The channel's bend follows the mode of the note controlling it, which can
+	// differ from the current mode for notes started before MPE was toggled.
+	const auto note = static_cast<const NotePlayHandle*>(m_notePitch.activeNote(channel));
+	m_midiPort.processOutEvent(event, time, note && note->isMpe());
 }
 
 
+
+
+void InstrumentTrack::sendPendingMidiSetup(f_cnt_t offset)
+{
+	// Instrument and project loads can reset the synth, so set it up again
+	// before the first note that follows them, on the note's own frame.
+	if (!m_midiSetupPending.exchange(false)) { return; }
+
+	QMutexLocker lock(&m_notePitchMutex);
+	if (isMpeEnabled()) { sendMpeConfiguration(offset); }
+	else { sendPitchRange(offset); }
+}
+
+
+int InstrumentTrack::allocateMpeChannel(const NotePlayHandle* note)
+{
+	QMutexLocker lock(&m_notePitchMutex);
+	++m_heldMpeNotes;
+	return m_mpeChannels.allocate(note);
+}
+
+
+void InstrumentTrack::sendRpn(int channel, int rpn, int value, f_cnt_t offset, bool mpe)
+{
+	const auto time = TimePos::fromFrames(offset, Engine::framesPerTick());
+	const int outputChannel = outputChannelFor(channel, mpe);
+	const int messages[][2] = {
+		{MidiControllerRegisteredParameterNumberMSB, (rpn >> 7) & 0x7F},
+		{MidiControllerRegisteredParameterNumberLSB, rpn & 0x7F},
+		{MidiControllerDataEntry, value}};
+	for (const auto& [controller, data] : messages)
+	{
+		processOutEvent(MidiEvent(MidiControlChange, channel, controller, data), time, offset, outputChannel, mpe);
+	}
+}
+
+
+void InstrumentTrack::sendPitchRange(f_cnt_t offset)
+{
+	// MPE notes bend their member channels, the others the output channel
+	for (int channel = 1; channel <= m_mpeZoneSize; ++channel)
+	{
+		sendRpn(channel, MidiPitchBendSensitivityRPN, midiPitchRange(), offset, true);
+	}
+	if (!isMpeEnabled())
+	{
+		sendRpn(midiPort()->realOutputChannel(), MidiPitchBendSensitivityRPN, midiPitchRange(), offset, false);
+	}
+}
+
+
+void InstrumentTrack::sendMpeConfiguration(f_cnt_t offset)
+{
+	// MPE lower zone: master channel 1, member channels 2 and up. The
+	// configuration resets the bend range of the members.
+	m_mpeZoneSize = m_mpeChannelsModel.value();
+	sendRpn(0, MidiMpeConfigurationRPN, m_mpeZoneSize, offset, true);
+	sendPitchRange(offset);
+}
+
+
+void InstrumentTrack::endMpeZone(f_cnt_t offset)
+{
+	m_mpeZoneSize = 0;
+	sendRpn(0, MidiMpeConfigurationRPN, 0, offset, true);
+
+	// Recenter the bends the MPE notes left on their member channels, and move
+	// the track pitch back to the output channel.
+	const auto time = TimePos::fromFrames(offset, Engine::framesPerTick());
+	const int outputChannel = midiPort()->realOutputChannel();
+	const int center = MidiNotePitch::bend(0, midiPitchRange());
+	for (int channel = 1; channel < MidiChannelCount; ++channel)
+	{
+		if (channel != outputChannel && !m_notePitch.hasNotes(channel))
+		{
+			processOutEvent(MidiEvent(MidiPitchBend, channel, center), time, offset, channel, true);
+		}
+	}
+	sendPitchRange(offset);
+	if (!m_notePitch.hasNotes(outputChannel))
+	{
+		processOutEvent(MidiEvent(MidiPitchBend, outputChannel, midiPitch()), time, offset);
+	}
+}
+
+
+void InstrumentTrack::updateMpe()
+{
+	const bool modeChanged = m_midiPort.isMpeMode() != isMpeEnabled();
+	m_midiPort.setMpeMode(isMpeEnabled());
+	{
+		QMutexLocker lock(&m_notePitchMutex);
+		m_mpeChannels.setMemberCount(m_mpeChannelsModel.value());
+		if (isMpeEnabled())
+		{
+			// A configuration resets the zone and can cut its notes, so send it only when the zone changes
+			if (m_mpeZoneSize != m_mpeChannelsModel.value()) { sendMpeConfiguration(0); }
+			// The master channel carried the track pitch, which MPE notes now carry in their own bends
+			if (modeChanged)
+			{
+				const int master = 0;
+				processOutEvent(MidiEvent(MidiPitchBend, master, MidiNotePitch::bend(0, midiPitchRange())), TimePos(),
+					0, master, true);
+			}
+		}
+		// Held MPE notes keep their channels and bends, so the zone ends after the last of them
+		else if (m_mpeZoneSize > 0 && m_heldMpeNotes == 0) { endMpeZone(0); }
+	}
+
+	updatePitch();
+}
 
 
 void InstrumentTrack::updatePitchRange()
@@ -712,11 +861,10 @@ void InstrumentTrack::updatePitchRange()
 	const int r = m_pitchRangeModel.value();
 	m_pitchModel.setRange( MinPitchDefault * r, MaxPitchDefault * r );
 
-	processOutEvent( MidiEvent( MidiControlChange, midiPort()->realOutputChannel(),
-								MidiControllerRegisteredParameterNumberLSB, MidiPitchBendSensitivityRPN & 0x7F ) );
-	processOutEvent( MidiEvent( MidiControlChange, midiPort()->realOutputChannel(),
-								MidiControllerRegisteredParameterNumberMSB, ( MidiPitchBendSensitivityRPN >> 8 ) & 0x7F ) );
-	processOutEvent( MidiEvent( MidiControlChange, midiPort()->realOutputChannel(), MidiControllerDataEntry, midiPitchRange() ) );
+	{
+		QMutexLocker lock(&m_notePitchMutex);
+		sendPitchRange(0);
+	}
 	updatePitch();
 }
 
@@ -898,6 +1046,8 @@ void InstrumentTrack::saveTrackSpecificSettings(QDomDocument& doc, QDomElement& 
 	m_panningModel.saveSettings( doc, thisElement, "pan" );
 	m_pitchModel.saveSettings( doc, thisElement, "pitch" );
 	m_pitchRangeModel.saveSettings( doc, thisElement, "pitchrange" );
+	m_mpeModel.saveSettings(doc, thisElement, "mpe");
+	m_mpeChannelsModel.saveSettings(doc, thisElement, "mpechannels");
 
 	m_mixerChannelModel.saveSettings( doc, thisElement, "mixch" );
 	m_baseNoteModel.saveSettings( doc, thisElement, "basenote" );
@@ -967,6 +1117,8 @@ void InstrumentTrack::loadTrackSpecificSettings( const QDomElement & thisElement
 	m_volumeModel.loadSettings( thisElement, "vol" );
 	m_panningModel.loadSettings( thisElement, "pan" );
 	m_pitchRangeModel.loadSettings( thisElement, "pitchrange" );
+	m_mpeModel.loadSettings(thisElement, "mpe");
+	m_mpeChannelsModel.loadSettings(thisElement, "mpechannels");
 	m_pitchModel.loadSettings( thisElement, "pitch" );
 	m_mixerChannelModel.setRange( 0, Engine::mixer()->numChannels()-1 );
 	if ( !m_previewMode )
@@ -1062,6 +1214,7 @@ void InstrumentTrack::loadTrackSpecificSettings( const QDomElement & thisElement
 	m_midiCCEnable->loadSettings(thisElement, "enablecc");
 
 	updatePitchRange();
+	m_midiSetupPending = true;
 	unlock();
 }
 
@@ -1126,6 +1279,7 @@ Instrument * InstrumentTrack::loadInstrument(const QString & _plugin_name,
 	delete m_instrument;
 	m_instrument = Instrument::instantiate(_plugin_name, this,
 					key, keyFromDnd);
+	m_midiSetupPending = true;
 	unlock();
 	setName(m_instrument->displayName());
 

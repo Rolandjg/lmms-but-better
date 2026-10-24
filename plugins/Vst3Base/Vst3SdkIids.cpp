@@ -38,6 +38,7 @@
 #include "pluginterfaces/vst/ivsthostapplication.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
+#include "pluginterfaces/vst/ivstnoteexpression.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstunits.h"
 
@@ -69,6 +70,7 @@ DEF_CLASS_IID(Vst::IVst3ToAUWrapper)
 DEF_CLASS_IID(Vst::IConnectionPoint)
 DEF_CLASS_IID(Vst::IMessage)
 DEF_CLASS_IID(Vst::IMidiMapping)
+DEF_CLASS_IID(Vst::INoteExpressionController)
 DEF_CLASS_IID(Vst::IParamValueQueue)
 DEF_CLASS_IID(Vst::IParameterChanges)
 DEF_CLASS_IID(Vst::IUnitHandler)

@@ -29,6 +29,7 @@
 #include <cstring>
 #include <cmath>
 #include <exception>
+#include <limits>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -38,6 +39,7 @@
 #include <QTimer>
 
 #include "pluginterfaces/vst/ivstmessage.h"
+#include "pluginterfaces/vst/ivstnoteexpression.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
 #include "AudioEngine.h"
@@ -420,6 +422,20 @@ void Vst3Plugin::initialize()
 		{
 			m_midiMapping = owned(mapping);
 		}
+		m_hasTuningExpression = false;
+		Vst::INoteExpressionController* expressions = nullptr;
+		if (m_controller->queryInterface(Vst::INoteExpressionController::iid,
+				reinterpret_cast<void**>(&expressions)) == kResultOk && expressions)
+		{
+			const auto count = expressions->getNoteExpressionCount(0, 0);
+			for (int32 i = 0; i < count && !m_hasTuningExpression; ++i)
+			{
+				Vst::NoteExpressionTypeInfo info{};
+				m_hasTuningExpression = expressions->getNoteExpressionInfo(0, 0, i, info) == kResultOk
+					&& info.typeId == Vst::kTuningTypeID;
+			}
+			expressions->release();
+		}
 
 		initParameters();
 	}
@@ -430,6 +446,8 @@ void Vst3Plugin::initialize()
 	m_outChanges = std::make_unique<Vst3ParamChanges>();
 	m_pendingEvents.reserve(64);
 	m_pendingCc.reserve(64);
+	// Note tracking runs on the audio thread. A channel holds each of the 128 keys at most once.
+	for (auto& channel : m_midiChannels) { channel.notes.reserve(128); }
 
 	// no engine when running in standalone tools (e.g. GUI test harnesses)
 	if (const auto engine = Engine::audioEngine())
@@ -895,6 +913,15 @@ void Vst3Plugin::activate()
 		throw std::runtime_error("VST3 plugin could not be activated");
 	}
 	m_componentActive = true;
+	{
+		// A restarted plugin forgets its sounding notes, and maybe its RPN selection
+		std::lock_guard<std::mutex> lock{m_midiMutex};
+		for (auto& channel : m_midiChannels)
+		{
+			channel.notes.clear();
+			channel.pluginRpn = -1;
+		}
+	}
 	// A throwing start may already have changed plugin state. Attempt
 	// the matching stop during cleanup in that case as well.
 	m_processing = true;
@@ -974,7 +1001,22 @@ void Vst3Plugin::handleMidiInputEvent(const MidiEvent& event, const TimePos&, f_
 			e.noteOn.length = 0;
 			e.noteOn.noteId = -1;
 			std::lock_guard<std::mutex> lock{m_midiMutex};
+			auto& channel = m_midiChannels[e.noteOn.channel & 15];
+			e.sampleOffset = channel.noteFrame(offset);
+			if (m_hasTuningExpression)
+			{
+				// Note ids address tuning to single notes. A repeated key on a
+				// channel replaces a note whose note-off never arrived.
+				e.noteOn.noteId = m_nextNoteId;
+				m_nextNoteId = m_nextNoteId == std::numeric_limits<int32>::max() ? 0 : m_nextNoteId + 1;
+				std::erase_if(channel.notes, [&](const auto& note) { return note.key == e.noteOn.pitch; });
+				channel.notes.push_back({e.noteOn.pitch, e.noteOn.noteId});
+			}
 			m_pendingEvents.push_back(e);
+			if (m_bendAsTuning[e.noteOn.channel & 15] && channel.bend != 8192)
+			{
+				queueTuning(e.noteOn.noteId, channel, offset);
+			}
 			break;
 		}
 		case MidiEventTypes::MidiNoteOff:
@@ -989,22 +1031,130 @@ void Vst3Plugin::handleMidiInputEvent(const MidiEvent& event, const TimePos&, f_
 			e.noteOff.noteId = -1;
 			e.noteOff.tuning = 0.f;
 			std::lock_guard<std::mutex> lock{m_midiMutex};
+			e.sampleOffset = m_midiChannels[e.noteOff.channel & 15].noteFrame(offset);
+			auto& notes = m_midiChannels[e.noteOff.channel & 15].notes;
+			const auto note = std::find_if(notes.begin(), notes.end(),
+				[&](const auto& n) { return n.key == e.noteOff.pitch; });
+			if (note != notes.end())
+			{
+				e.noteOff.noteId = note->id;
+				notes.erase(note);
+			}
 			m_pendingEvents.push_back(e);
 			break;
 		}
 		case MidiEventTypes::MidiPitchBend:
+		{
+			if (event.channel() >= 0 && event.channel() < 16)
+			{
+				std::lock_guard<std::mutex> lock{m_midiMutex};
+				if (m_bendAsTuning[event.channel()])
+				{
+					auto& channel = m_midiChannels[event.channel()];
+					channel.bend = event.pitchBend();
+					for (const auto& note : channel.notes) { queueTuning(note.id, channel, offset); }
+					break;
+				}
+			}
 			queueMidiCc(event.channel(), kPitchBend, event.pitchBend() / 16383., offset);
 			break;
+		}
 		case MidiEventTypes::MidiControlChange:
-			queueMidiCc(event.channel(), event.controllerNumber(),
-				event.controllerValue() / 127., offset);
+		{
+			const int controller = event.controllerNumber();
+			f_cnt_t frame = offset;
+			int select = -1; // RPN to select in the plugin before the data entry
+			f_cnt_t selectFrame = 0;
+			if (event.channel() >= 0 && event.channel() < 16)
+			{
+				// Plugins get controllers as parameter changes, whose order within a frame
+				// is undefined. So the RPN selection waits for its data entry, and both get
+				// frames of their own.
+				std::lock_guard<std::mutex> lock{m_midiMutex};
+				auto& channel = m_midiChannels[event.channel()];
+				const int value = event.controllerValue() & 0x7F;
+				switch (controller)
+				{
+					case MidiControllerRegisteredParameterNumberMSB:
+						channel.rpn = (std::max(channel.rpn, 0) & 0x7F) | value << 7;
+						return;
+					case MidiControllerRegisteredParameterNumberLSB:
+						channel.rpn = (std::max(channel.rpn, 0) & ~0x7F) | value;
+						return;
+					case MidiControllerNonRegisteredParameterNumberMSB:
+					case MidiControllerNonRegisteredParameterNumberLSB:
+						channel.rpn = -1;
+						channel.pluginRpn = -1;
+						break;
+					case MidiControllerDataEntry:
+					case MidiControllerDataIncrement:
+					case MidiControllerDataDecrement:
+					{
+						if (channel.rpn < 0) { break; }
+						// Follow RPN 0 to know the bend range in semitones
+						if (controller == MidiControllerDataEntry && channel.rpn == MidiPitchBendSensitivityRPN)
+						{
+							channel.bendRange = value;
+						}
+						// The host already turns MPE member bends into per-note tuning. An MPE
+						// configuration would switch the plugin to its own MIDI MPE handling,
+						// which ignores tuning (Serum 2 does this).
+						if (channel.rpn == MidiMpeConfigurationRPN
+							&& std::any_of(m_bendAsTuning.begin() + 1, m_bendAsTuning.end(), [](bool b) { return b; }))
+						{
+							return;
+						}
+						// Another entry of the same RPN may share the frame of the last one: the later value wins.
+						const auto at = static_cast<int32>(offset);
+						auto dataFrame = std::max(at, channel.rpnFrame);
+						if (channel.rpn != channel.pluginRpn)
+						{
+							select = channel.pluginRpn = channel.rpn;
+							const auto selection = std::max(at - 1, channel.rpnFrame + 1);
+							selectFrame = selection;
+							dataFrame = std::max(dataFrame, selection + 1);
+						}
+						channel.rpnFrame = dataFrame;
+						frame = dataFrame;
+						break;
+					}
+					default: break;
+				}
+			}
+			if (select >= 0)
+			{
+				queueMidiCc(event.channel(), MidiControllerRegisteredParameterNumberMSB, (select >> 7) / 127., selectFrame);
+				queueMidiCc(event.channel(), MidiControllerRegisteredParameterNumberLSB, (select & 0x7F) / 127.,
+					selectFrame);
+			}
+			queueMidiCc(event.channel(), controller, event.controllerValue() / 127., frame);
 			break;
+		}
 		case MidiEventTypes::MidiChannelPressure:
 			queueMidiCc(event.channel(), kAfterTouch, (event.param(0) & 0x7F) / 127., offset);
 			break;
 		default:
 			break;
 	}
+}
+
+
+
+
+void Vst3Plugin::queueTuning(Steinberg::int32 noteId, const MidiChannelState& channel, f_cnt_t offset)
+{
+	using namespace Vst;
+	// VST3 tuning covers ±120 semitones around 0.5
+	const int bend = channel.bend - 8192;
+	const double semitones = bend / (bend < 0 ? 8192. : 8191.) * channel.bendRange;
+	Event e = {};
+	e.busIndex = 0;
+	e.sampleOffset = channel.noteFrame(offset);
+	e.type = Event::kNoteExpressionValueEvent;
+	e.noteExpressionValue.typeId = kTuningTypeID;
+	e.noteExpressionValue.noteId = noteId;
+	e.noteExpressionValue.value = std::clamp(.5 + semitones / 240., 0., 1.);
+	m_pendingEvents.push_back(e);
 }
 
 
@@ -1028,8 +1178,19 @@ void Vst3Plugin::refreshMidiMapping()
 			}
 		}
 	}
+	// Some plugins map pitch bend of every channel to one parameter, so bends
+	// meant for single notes (MPE) would move all of them. Bend such channels
+	// through per-note tuning instead when the plugin supports it.
+	std::array<bool, 16> bendAsTuning{};
+	for (int channel = 0; channel < 16; ++channel)
+	{
+		const auto bend = cache[channel][Vst::kPitchBend];
+		bendAsTuning[channel] = m_hasTuningExpression && (bend == Vst::kNoParamId
+			|| (channel > 0 && bend == cache[0][Vst::kPitchBend]));
+	}
 	std::lock_guard<std::mutex> lock{m_midiMutex};
 	m_midiMappingCache = cache;
+	m_bendAsTuning = bendAsTuning;
 }
 
 
@@ -1105,6 +1266,7 @@ void Vst3Plugin::process(const SampleFrame* in, SampleFrame* out, f_cnt_t frames
 			}
 		}
 		m_pendingCc.clear();
+		for (auto& channel : m_midiChannels) { channel.rpnFrame = -1; }
 	}
 
 	for (const auto& param : m_params)

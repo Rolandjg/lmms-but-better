@@ -7,6 +7,7 @@
 #include "AudioBusHandle.h"
 #include "DataFile.h"
 #include "Engine.h"
+#include "InstrumentTrack.h"
 #include "Mixer.h"
 #include "ProjectRenderer.h"
 #include "ProjectResources.h"
@@ -170,6 +171,54 @@ private slots:
 		const auto other = dir.filePath("other.mmp");
 		QVERIFY(song->guiSaveProjectAs(other));
 		QVERIFY(!readProject(other).contains("remember the bridge"));
+	}
+
+	void instrumentTrackKeepsMpeMode()
+	{
+		QTemporaryDir dir;
+		const auto path = dir.filePath("mpe.mmp");
+		auto song = Engine::getSong();
+		auto firstInstrumentTrack = [song]() -> InstrumentTrack*
+		{
+			for (auto* track : song->tracks())
+			{
+				if (auto* instrumentTrack = dynamic_cast<InstrumentTrack*>(track)) { return instrumentTrack; }
+			}
+			return nullptr;
+		};
+		auto* track = firstInstrumentTrack();
+		if (!track) { track = dynamic_cast<InstrumentTrack*>(Track::create(Track::Type::Instrument, song)); }
+		QVERIFY(track);
+		QVERIFY(!track->isMpeEnabled());
+		track->mpeModel()->setValue(true);
+		track->mpeChannelsModel()->setValue(7);
+		QVERIFY(song->guiSaveProjectAs(path));
+
+		song->createEmptyProject();
+		song->loadProject(path);
+		track = firstInstrumentTrack();
+		QVERIFY(track);
+		QVERIFY(track->isMpeEnabled());
+		QCOMPARE(track->mpeChannelsModel()->value(), 7);
+
+		// projects from before MPE mode load with it off
+		auto xml = QString::fromUtf8(readProject(path));
+		const QRegularExpression mpeAttributes(" mpe(channels)?=\"[^\"]*\"");
+		QVERIFY(xml.contains(mpeAttributes));
+		xml.remove(mpeAttributes);
+		// Only attributes count, names such as "trumpet" may contain "mpe"
+		QVERIFY(!xml.contains(QRegularExpression("\\smpe\\w*=")));
+		{
+			QFile file(path);
+			QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+			file.write(xml.toUtf8());
+		}
+		song->createEmptyProject();
+		song->loadProject(path);
+		track = firstInstrumentTrack();
+		QVERIFY(track);
+		QVERIFY(!track->isMpeEnabled());
+		QCOMPARE(track->mpeChannelsModel()->value(), 15);
 	}
 
 	void exportOpenErrorIsReturned()
