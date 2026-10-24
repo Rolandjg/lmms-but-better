@@ -123,12 +123,10 @@ void EffectView::editControls()
 		{
 			m_subWindow->show();
 			m_subWindow->raise();
-			effect()->controls()->setViewVisible(true); // TODO is this even needed?
 		}
 		else
 		{
 			m_subWindow->hide();
-			effect()->controls()->setViewVisible( false );
 		}
 	}
 }

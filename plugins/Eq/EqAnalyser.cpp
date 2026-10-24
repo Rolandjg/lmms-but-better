@@ -77,6 +77,7 @@ void EqAnalyser::analyze( SampleFrame* buf, const f_cnt_t frames )
 	if ( m_active )
 	{
 		m_inProgress=true;
+		m_cleared = false;
 		const int FFT_BUFFER_SIZE = 2048;
 		f_cnt_t f = 0;
 		if( frames > FFT_BUFFER_SIZE )
@@ -84,8 +85,9 @@ void EqAnalyser::analyze( SampleFrame* buf, const f_cnt_t frames )
 			m_framesFilledUp = 0;
 			f = frames - FFT_BUFFER_SIZE;
 		}
-		// meger channels
-		for( ; f < frames; ++f )
+		// meger channels, filling only the windowed half; the other half is zero padding.
+		// The rest of the period is dropped, as the next window waits for the view to ask for it
+		for( ; f < frames && m_framesFilledUp < FFT_BUFFER_SIZE; ++f )
 		{
 			m_buffer[m_framesFilledUp] =
 					( buf[f][0] + buf[f][1] ) * 0.5;
@@ -168,6 +170,9 @@ bool EqAnalyser::getInProgress()
 
 void EqAnalyser::clear()
 {
+	// called every period while the analysis is off, so only wipe the buffers once
+	if (m_cleared) { return; }
+	m_cleared = true;
 	m_framesFilledUp = 0;
 	m_energy = 0;
 	memset( m_buffer, 0, sizeof( m_buffer ) );

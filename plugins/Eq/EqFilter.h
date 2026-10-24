@@ -25,9 +25,17 @@
 #ifndef EQFILTER_H
 #define EQFILTER_H
 
+#include <array>
+#include <cassert>
 #include <numbers>
+#include <type_traits>
+
+#ifdef __SSE2__
+#include <emmintrin.h>
+#endif
 
 #include "BasicFilters.h"
+#include "SampleFrame.h"
 #include "lmms_math.h"
 
 namespace lmms
@@ -35,8 +43,8 @@ namespace lmms
 
 ///
 /// \brief The EqFilter class.
-/// A wrapper for the StereoBiQuad class, giving it freq, res, and gain controls.
-/// Used on a per channel per frame basis with recalculation of coefficents
+/// A stereo biquad with freq, res, and gain controls.
+/// Processes a period at a time, with recalculation of coefficents
 /// upon parameter changes. The intention is to use this as a bass class, children override
 /// the calcCoefficents() function, providing the coefficents a1, a2, b0, b1, b2.
 ///
@@ -119,26 +127,107 @@ public:
 	}
 
 
-	//! @brief Update filters using two BiQuads, then crossfade
-	//!
-	//! Update filters using two BiQuads, then crossfade depending on
-	//! percentage of period processes
-	//!
-	//! @param in Input sample
-	//! @param ch Which channel of the biquad to update
-	//! @param frameProgress percentage of frame processed
-	inline float update( float in, ch_cnt_t ch, float frameProgress)
-	{
-		float initailF =  m_biQuadFrameInitial.update( in, ch );
-		float targetF = m_biQuadFrameTarget.update( in, ch );
+	//! Most filters processChain() runs at once
+	static constexpr int MaxChainLength = 16;
 
-		if(frameProgress > 0.99999 )
+	//! @brief Filter a whole period through several filters in series
+	//!
+	//! A biquad has to wait for its previous output on every sample, so a single
+	//! filter leaves the CPU mostly idle. Running every filter on each frame
+	//! before moving to the next lets the work of different filters overlap.
+	//!
+	//! When a filter's coefficients changed since the last period, its old and new
+	//! versions both run and its output crossfades between them over the period,
+	//! reducing pops, clicks and dc bias offsets. The other filters are unaffected.
+	//!
+	//! @param count At most MaxChainLength
+	static void processChain( EqFilter* const* filters, int count, SampleFrame* buf, const f_cnt_t frames )
+	{
+		assert( count <= MaxChainLength );
+
+		// Left and right run in lanes 0 and 1. Lanes 2 and 3 run the new
+		// coefficients of a fading filter, and otherwise repeat lanes 0 and 1,
+		// so the signal between filters is always l, r, l, r.
+		struct Lanes { Float4 a1, a2, b0, b1, b2, z1, z2; bool fading; };
+		std::array<Lanes, MaxChainLength> s;
+		bool anyFading = false;
+		for( int i = 0; i < count; ++i )
 		{
-			m_biQuadFrameInitial= m_biQuadFrameTarget;
+			const EqFilter& filter = *filters[i];
+			const Section& c = filter.m_current;
+			const Section& t = filter.m_fading ? filter.m_target : c;
+			s[i] = { Float4( c.a1, c.a1, t.a1, t.a1 ), Float4( c.a2, c.a2, t.a2, t.a2 ),
+				Float4( c.b0, c.b0, t.b0, t.b0 ), Float4( c.b1, c.b1, t.b1, t.b1 ), Float4( c.b2, c.b2, t.b2, t.b2 ),
+				Float4( c.z1[0], c.z1[1], t.z1[0], t.z1[1] ), Float4( c.z2[0], c.z2[1], t.z2[0], t.z2[1] ),
+				filter.m_fading };
+			anyFading = anyFading || filter.m_fading;
 		}
 
-		return (1.0f-frameProgress) * initailF + frameProgress * targetF;
+		// compiled twice, so periods without a fade don't pay for it
+		const auto run = [&]( auto withFades )
+		{
+			const float step = frames > 1 ? 1.0f / ( frames - 1 ) : 1.0f;
+			for( f_cnt_t f = 0; f < frames; ++f )
+			{
+				Float4 x( buf[f][0], buf[f][1], buf[f][0], buf[f][1] );
+				[[maybe_unused]] Float4 weight;
+				if constexpr( decltype( withFades )::value )
+				{
+					const float progress = frames > 1 ? f * step : 1.0f;
+					weight = Float4( 1.0f - progress, 1.0f - progress, progress, progress );
+				}
+				for( int i = 0; i < count; ++i )
+				{
+					Lanes& v = s[i];
+					x = biquadTick( x, v.z1, v.z2, v.a1, v.a2, v.b0, v.b1, v.b2 );
+					if constexpr( decltype( withFades )::value )
+					{
+						if( v.fading )
+						{
+							// ( 1 - progress ) * old + progress * new, in both halves
+							x = x * weight;
+							x = x + x.swapHalves();
+						}
+					}
+				}
+				const auto out = x.toArray();
+				buf[f][0] = out[0];
+				buf[f][1] = out[1];
+			}
+		};
+		if( anyFading ) { run( std::true_type{} ); }
+		else { run( std::false_type{} ); }
 
+		for( int i = 0; i < count; ++i )
+		{
+			EqFilter& filter = *filters[i];
+			if( filter.m_fading )
+			{
+				filter.m_current = filter.m_target;
+				filter.m_fading = false;
+			}
+			const int lane = s[i].fading ? 2 : 0;
+			const auto z1 = s[i].z1.toArray();
+			const auto z2 = s[i].z2.toArray();
+			filter.m_current.z1 = { z1[lane], z1[lane + 1] };
+			filter.m_current.z2 = { z2[lane], z2[lane + 1] };
+			filter.m_running = true;
+		}
+	}
+
+
+	//! @brief Mark the filter as switched off for this period
+	//!
+	//! Its old state is stale by the time it is switched on again, so it then
+	//! starts from silence with its latest coefficients instead of fading in.
+	void stop()
+	{
+		if( !m_running ) { return; }
+		m_running = false;
+		m_fading = false;
+		m_current = m_target;
+		m_current.z1 = { 0, 0 };
+		m_current.z2 = { 0, 0 };
 	}
 
 
@@ -154,7 +243,16 @@ protected:
 
 	inline void setCoeffs( float a1, float a2, float b0, float b1, float b2 )
 	{
-		m_biQuadFrameTarget.setCoeffs( a1, a2, b0, b1, b2 );
+		// the new filter picks up from the current state, then takes over during the next period
+		m_target = m_current;
+		m_target.a1 = a1;
+		m_target.a2 = a2;
+		m_target.b0 = b0;
+		m_target.b1 = b1;
+		m_target.b2 = b2;
+		// a filter that isn't running has no old output to fade from
+		if( m_running ) { m_fading = true; }
+		else { m_current = m_target; }
 	}
 
 
@@ -167,8 +265,66 @@ protected:
 	float m_res;
 	float m_gain;
 	float m_bw;
-	StereoBiQuad m_biQuadFrameInitial;
-	StereoBiQuad m_biQuadFrameTarget;
+
+private:
+	//! The coefficients and stereo state of a biquad in transposed direct form II
+	struct Section
+	{
+		float a1 = 0, a2 = 0, b0 = 0, b1 = 0, b2 = 0;
+		std::array<float, 2> z1 = {0, 0};
+		std::array<float, 2> z2 = {0, 0};
+	};
+
+	//! Four floats processChain() works on at once
+#ifdef __SSE2__
+	struct Float4
+	{
+		__m128 v;
+		Float4() = default;
+		explicit Float4( __m128 v ) : v( v ) {}
+		Float4( float a, float b, float c, float d ) : v( _mm_setr_ps( a, b, c, d ) ) {}
+		//! Lanes 2, 3, 0, 1
+		Float4 swapHalves() const { return Float4( _mm_shuffle_ps( v, v, _MM_SHUFFLE( 1, 0, 3, 2 ) ) ); }
+		std::array<float, 4> toArray() const
+		{
+			alignas(16) std::array<float, 4> out;
+			_mm_store_ps( out.data(), v );
+			return out;
+		}
+		friend Float4 operator+( Float4 a, Float4 b ) { return Float4( _mm_add_ps( a.v, b.v ) ); }
+		friend Float4 operator-( Float4 a, Float4 b ) { return Float4( _mm_sub_ps( a.v, b.v ) ); }
+		friend Float4 operator*( Float4 a, Float4 b ) { return Float4( _mm_mul_ps( a.v, b.v ) ); }
+	};
+#else
+	struct Float4
+	{
+		std::array<float, 4> v;
+		Float4() = default;
+		Float4( float a, float b, float c, float d ) : v{ a, b, c, d } {}
+		//! Lanes 2, 3, 0, 1
+		Float4 swapHalves() const { return Float4( v[2], v[3], v[0], v[1] ); }
+		std::array<float, 4> toArray() const { return v; }
+		friend Float4 operator+( Float4 a, Float4 b )
+		{
+			return Float4( a.v[0] + b.v[0], a.v[1] + b.v[1], a.v[2] + b.v[2], a.v[3] + b.v[3] );
+		}
+		friend Float4 operator-( Float4 a, Float4 b )
+		{
+			return Float4( a.v[0] - b.v[0], a.v[1] - b.v[1], a.v[2] - b.v[2], a.v[3] - b.v[3] );
+		}
+		friend Float4 operator*( Float4 a, Float4 b )
+		{
+			return Float4( a.v[0] * b.v[0], a.v[1] * b.v[1], a.v[2] * b.v[2], a.v[3] * b.v[3] );
+		}
+	};
+#endif
+
+	Section m_current;
+	//! The latest coefficients, which m_current fades to during the next period
+	Section m_target;
+	bool m_fading = false;
+	//! Whether the filter ran in the last period
+	bool m_running = false;
 };
 
 

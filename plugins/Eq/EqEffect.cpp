@@ -24,9 +24,12 @@
 
 #include "EqEffect.h"
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <utility>
 
+#include "AudioEngine.h"
 #include "Engine.h"
 #include "lmms_math.h"
 
@@ -74,7 +77,6 @@ Effect::ProcessStatus EqEffect::processImpl(SampleFrame* buf, const f_cnt_t fram
 	//wet/dry controls
 	const float dry = dryLevel();
 	const float wet = wetLevel();
-	auto dryS = std::array<sample_t, 2>{};
 	// setup sample exact controls
 	float hpRes = m_eqControls.m_hpResModel.value();
 	float lowShelfRes = m_eqControls.m_lowShelfResModel.value();
@@ -144,17 +146,25 @@ Effect::ProcessStatus EqEffect::processImpl(SampleFrame* buf, const f_cnt_t fram
 		m_inGain = dbfsToAmp(m_eqControls.m_inGainModel.value());
 	}
 
-	double outSum = 0.0;
+	// the analysers and meters are only shown in the editor
+	const bool visible = m_eqControls.isViewVisible();
+	const bool analyseIn = m_eqControls.m_analyseInModel.value( true ) && visible;
+	const bool analyseOut = m_eqControls.m_analyseOutModel.value( true ) && visible;
 
-	for (f_cnt_t f = 0; f < frames; ++f)
+	// the input energy only gates the analysers, so skip it when neither runs
+	double outSum = 0.0;
+	if( analyseIn || analyseOut )
 	{
-		outSum += buf[f][0] * buf[f][0] + buf[f][1] * buf[f][1];
+		for (f_cnt_t f = 0; f < frames; ++f)
+		{
+			outSum += buf[f][0] * buf[f][0] + buf[f][1] * buf[f][1];
+		}
 	}
 
 	const float outGain =  m_outGain;
 	SampleFrame m_inPeak = { 0, 0 };
 
-	if(m_eqControls.m_analyseInModel.value( true ) &&  outSum > 0 && m_eqControls.isViewVisible()  )
+	if( analyseIn && outSum > 0 )
 	{
 		m_eqControls.m_inFftBands.analyze( buf, frames );
 	}
@@ -163,7 +173,7 @@ Effect::ProcessStatus EqEffect::processImpl(SampleFrame* buf, const f_cnt_t fram
 		m_eqControls.m_inFftBands.clear();
 	}
 
-	gain( buf, frames, m_inGain, &m_inPeak );
+	gain( buf, frames, m_inGain, visible ? &m_inPeak : nullptr );
 	m_eqControls.m_inPeakL = m_eqControls.m_inPeakL < m_inPeak[0] ? m_inPeak[0] : m_eqControls.m_inPeakL;
 	m_eqControls.m_inPeakR = m_eqControls.m_inPeakR < m_inPeak[1] ? m_inPeak[1] : m_eqControls.m_inPeakR;
 
@@ -199,125 +209,105 @@ Effect::ProcessStatus EqEffect::processImpl(SampleFrame* buf, const f_cnt_t fram
 		for (auto& filter : m_solo) { filter.set(type, freq, q, sampleRate); }
 	}
 
-	float periodProgress = 0.0f; // percentage of period processed
-	for( f_cnt_t f = 0; f < frames; ++f)
+	// the filter sections in signal order, and whether each one runs; a soloed band replaces all of them
+	const bool bands = solo < 0;
+	const std::array<std::pair<EqFilter*, bool>, 14> sections = {{
+		{ &m_hp12, bands && hpActive },
+		{ &m_hp24, bands && hpActive && ( hp24Active || hp48Active ) },
+		{ &m_hp480, bands && hpActive && hp48Active },
+		{ &m_hp481, bands && hpActive && hp48Active },
+		{ &m_lowShelf, bands && lowShelfActive },
+		{ &m_para1, bands && para1Active },
+		{ &m_para2, bands && para2Active },
+		{ &m_para3, bands && para3Active },
+		{ &m_para4, bands && para4Active },
+		{ &m_highShelf, bands && highShelfActive },
+		{ &m_lp12, bands && lpActive },
+		{ &m_lp24, bands && lpActive && ( lp24Active || lp48Active ) },
+		{ &m_lp480, bands && lpActive && lp48Active },
+		{ &m_lp481, bands && lpActive && lp48Active },
+	}};
+	std::array<EqFilter*, EqFilter::MaxChainLength> chain;
+	int chainLength = 0;
+	for( const auto& [filter, active] : sections )
 	{
-		periodProgress = (float)f / (float)(frames-1);
-		//wet dry buffer
-		dryS[0] = buf[f][0];
-		dryS[1] = buf[f][1];
-		const auto input = std::array{buf[f][0], buf[f][1]};
-		if (channelMode != 0)
+		if( active ) { chain[chainLength++] = filter; }
+		else { filter->stop(); }
+	}
+
+	const bool midSide = bands && channelMode != 0;
+	// the unprocessed signal is needed for the wet/dry mix and mid/side decoding
+	const bool needDry = dry != 0.f || midSide;
+
+	// in chunks, so the unprocessed signal always fits m_dryBuf
+	for( f_cnt_t offset = 0; offset < frames; offset += m_dryBuf.size() )
+	{
+		SampleFrame* chunk = buf + offset;
+		const f_cnt_t chunkFrames = std::min<f_cnt_t>( frames - offset, m_dryBuf.size() );
+		if( needDry ) { std::copy( chunk, chunk + chunkFrames, m_dryBuf.begin() ); }
+
+		if( !bands )
 		{
-			// Process mid in channel 0 and side in channel 1
-			buf[f][0] = (input[0] + input[1]) * 0.5f;
-			buf[f][1] = (input[0] - input[1]) * 0.5f;
-		}
-		if( hpActive )
-		{
-			buf[f][0] = m_hp12.update( buf[f][0], 0, periodProgress );
-			buf[f][1] = m_hp12.update( buf[f][1], 1, periodProgress );
-
-			if( hp24Active || hp48Active )
+			for( f_cnt_t f = 0; f < chunkFrames; ++f )
 			{
-				buf[f][0] = m_hp24.update( buf[f][0], 0, periodProgress );
-				buf[f][1] = m_hp24.update( buf[f][1], 1, periodProgress );
-			}
-
-			if( hp48Active )
-			{
-				buf[f][0] = m_hp480.update( buf[f][0], 0, periodProgress );
-				buf[f][1] = m_hp480.update( buf[f][1], 1, periodProgress );
-
-				buf[f][0] = m_hp481.update( buf[f][0], 0, periodProgress );
-				buf[f][1] = m_hp481.update( buf[f][1], 1, periodProgress );
+				chunk[f][0] = m_solo[0].process( chunk[f][0] );
+				chunk[f][1] = m_solo[1].process( chunk[f][1] );
 			}
 		}
-
-		if( lowShelfActive )
+		else
 		{
-			buf[f][0] = m_lowShelf.update( buf[f][0], 0, periodProgress );
-			buf[f][1] = m_lowShelf.update( buf[f][1], 1, periodProgress );
-		}
-
-		if( para1Active )
-		{
-			buf[f][0] = m_para1.update( buf[f][0], 0, periodProgress );
-			buf[f][1] = m_para1.update( buf[f][1], 1, periodProgress );
-		}
-
-		if( para2Active )
-		{
-			buf[f][0] = m_para2.update( buf[f][0], 0, periodProgress );
-			buf[f][1] = m_para2.update( buf[f][1], 1, periodProgress );
-		}
-
-		if( para3Active )
-		{
-			buf[f][0] = m_para3.update( buf[f][0], 0, periodProgress );
-			buf[f][1] = m_para3.update( buf[f][1], 1, periodProgress );
-		}
-
-		if( para4Active )
-		{
-			buf[f][0] = m_para4.update( buf[f][0], 0, periodProgress );
-			buf[f][1] = m_para4.update( buf[f][1], 1, periodProgress );
-		}
-
-		if( highShelfActive )
-		{
-			buf[f][0] = m_highShelf.update( buf[f][0], 0, periodProgress );
-			buf[f][1] = m_highShelf.update( buf[f][1], 1, periodProgress );
-		}
-
-		if( lpActive ){
-			buf[f][0] = m_lp12.update( buf[f][0], 0, periodProgress );
-			buf[f][1] = m_lp12.update( buf[f][1], 1, periodProgress );
-
-			if( lp24Active || lp48Active )
+			if( midSide )
 			{
-				buf[f][0] = m_lp24.update( buf[f][0], 0, periodProgress );
-				buf[f][1] = m_lp24.update( buf[f][1], 1, periodProgress );
+				// Process mid in channel 0 and side in channel 1
+				for( f_cnt_t f = 0; f < chunkFrames; ++f )
+				{
+					const float l = chunk[f][0];
+					const float r = chunk[f][1];
+					chunk[f][0] = (l + r) * 0.5f;
+					chunk[f][1] = (l - r) * 0.5f;
+				}
 			}
 
-			if( lp48Active )
+			EqFilter::processChain( chain.data(), chainLength, chunk, chunkFrames );
+
+			if( midSide )
 			{
-				buf[f][0] = m_lp480.update( buf[f][0], 0, periodProgress );
-				buf[f][1] = m_lp480.update( buf[f][1], 1, periodProgress );
-
-				buf[f][0] = m_lp481.update( buf[f][0], 0, periodProgress );
-				buf[f][1] = m_lp481.update( buf[f][1], 1, periodProgress );
+				// Keep the unprocessed half and decode back to left/right
+				for( f_cnt_t f = 0; f < chunkFrames; ++f )
+				{
+					const auto& input = m_dryBuf[f];
+					const float mid = channelMode == 1 ? chunk[f][0] : (input[0] + input[1]) * 0.5f;
+					const float side = channelMode == 2 ? chunk[f][1] : (input[0] - input[1]) * 0.5f;
+					chunk[f][0] = mid + side;
+					chunk[f][1] = mid - side;
+				}
 			}
-		}
-
-		if (channelMode != 0)
-		{
-			// Keep the unprocessed half and decode back to left/right
-			const float mid = channelMode == 1 ? buf[f][0] : (input[0] + input[1]) * 0.5f;
-			const float side = channelMode == 2 ? buf[f][1] : (input[0] - input[1]) * 0.5f;
-			buf[f][0] = mid + side;
-			buf[f][1] = mid - side;
-		}
-
-		if (solo >= 0)
-		{
-			buf[f][0] = m_solo[0].process(input[0]);
-			buf[f][1] = m_solo[1].process(input[1]);
 		}
 
 		//apply wet / dry levels
-		buf[f][1] = ( dry * dryS[1] ) + ( wet * buf[f][1] );
-		buf[f][0] = ( dry * dryS[0] ) + ( wet * buf[f][0] );
-
-
+		if( dry != 0.f )
+		{
+			for( f_cnt_t f = 0; f < chunkFrames; ++f )
+			{
+				chunk[f][0] = ( dry * m_dryBuf[f][0] ) + ( wet * chunk[f][0] );
+				chunk[f][1] = ( dry * m_dryBuf[f][1] ) + ( wet * chunk[f][1] );
+			}
+		}
+		else if( wet != 1.f )
+		{
+			for( f_cnt_t f = 0; f < chunkFrames; ++f )
+			{
+				chunk[f] *= wet;
+			}
+		}
 	}
 
 	SampleFrame outPeak = { 0, 0 };
-	gain( buf, frames, outGain, &outPeak );
+	gain( buf, frames, outGain, visible ? &outPeak : nullptr );
 	m_eqControls.m_outPeakL = m_eqControls.m_outPeakL < outPeak[0] ? outPeak[0] : m_eqControls.m_outPeakL;
 	m_eqControls.m_outPeakR = m_eqControls.m_outPeakR < outPeak[1] ? outPeak[1] : m_eqControls.m_outPeakR;
 
-	if(m_eqControls.m_analyseOutModel.value( true ) && outSum > 0 && m_eqControls.isViewVisible() )
+	if( analyseOut && outSum > 0 )
 	{
 		m_eqControls.m_outFftBands.analyze( buf, frames );
 	}

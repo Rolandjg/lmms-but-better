@@ -60,6 +60,8 @@ private:
 	int m_sampleRate;
 	bool m_active;
 	bool m_inProgress;
+	//! The buffers and bands hold no data
+	bool m_cleared = false;
 	float m_fftWindow[FFT_BUFFER_SIZE];
 };
 

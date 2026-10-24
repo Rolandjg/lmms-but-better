@@ -199,14 +199,22 @@ inline void zeroSampleFrames(SampleFrame* buffer, size_t frames)
 
 inline SampleFrame getAbsPeakValues(SampleFrame* buffer, size_t frames)
 {
+	// two running maxima, so each frame doesn't wait on the one before
 	SampleFrame peaks;
+	SampleFrame oddPeaks;
 
-	for (f_cnt_t i = 0; i < frames; ++i)
+	size_t i = 0;
+	for (; i + 1 < frames; i += 2)
+	{
+		peaks = peaks.absMax(buffer[i]);
+		oddPeaks = oddPeaks.absMax(buffer[i + 1]);
+	}
+	if (i < frames)
 	{
 		peaks = peaks.absMax(buffer[i]);
 	}
 
-	return peaks;
+	return peaks.absMax(oddPeaks);
 }
 
 inline void copyToSampleFrames(SampleFrame* target, const float* source, size_t frames)

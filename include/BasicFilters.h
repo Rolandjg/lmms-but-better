@@ -139,6 +139,17 @@ private:
 };
 using StereoLinkwitzRiley = LinkwitzRiley<2>;
 
+//! One sample of a biquad filter in transposed direct form II.
+//! T is a float, or a SIMD vector of floats to run several filters at once.
+template<typename T>
+inline T biquadTick( T in, T& z1, T& z2, T a1, T a2, T b0, T b1, T b2 )
+{
+	const T out = z1 + b0 * in;
+	z1 = b1 * in + z2 - a1 * out;
+	z2 = b2 * in - a2 * out;
+	return out;
+}
+
 template<ch_cnt_t CHANNELS>
 class BiQuad
 {
@@ -172,11 +183,7 @@ public:
 	}
 	inline float update( float in, ch_cnt_t ch )
 	{
-		// biquad filter in transposed form
-		const float out = m_z1[ch] + m_b0 * in;
-		m_z1[ch] = m_b1 * in + m_z2[ch] - m_a1 * out;
-		m_z2[ch] = m_b2 * in - m_a2 * out;
-		return out;
+		return biquadTick( in, m_z1[ch], m_z2[ch], m_a1, m_a2, m_b0, m_b1, m_b2 );
 	}
 private:
 	float m_a1, m_a2, m_b0, m_b1, m_b2;

@@ -42,9 +42,13 @@ class LMMS_EXPORT EffectControlDialog : public QWidget, public ModelView
 {
 public:
 	EffectControlDialog(EffectControls* controls);
-	~EffectControlDialog() override = default;
+	~EffectControlDialog() override;
 
 protected:
+	//! Keep EffectControls::isViewVisible() in step however the dialog is shown or closed
+	void showEvent(QShowEvent* event) override;
+	void hideEvent(QHideEvent* event) override;
+
 	EffectControls* m_effectControls;
 };
 

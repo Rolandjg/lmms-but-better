@@ -26,6 +26,7 @@
 
 #include <array>
 
+#include "AudioEngine.h"
 #include "Effect.h"
 #include "ModernDsp.h"
 #include "EqControls.h"
@@ -50,21 +51,14 @@ public:
 	{
 		return &m_eqControls;
 	}
+	//! Scales the period, and finds its peaks when @p peak is given
 	inline void gain( SampleFrame* buf, const f_cnt_t frames, float scale, SampleFrame* peak )
 	{
-		peak[0][0] = 0.0f; peak[0][1] = 0.0f;
-		for( f_cnt_t f = 0; f < frames; ++f )
+		if( scale != 1.0f )
 		{
-			auto & sf = buf[f];
-
-			// Apply gain to sample frame
-			sf[0] *= scale;
-			sf[1] *= scale;
-
-			// Update peaks
-			peak[0][0] = std::max(peak[0][0], (float)fabs(sf[0]));
-			peak[0][1] = std::max(peak[0][1], (float)fabs(sf[1]));
+			for( f_cnt_t f = 0; f < frames; ++f ) { buf[f] *= scale; }
 		}
+		if( peak ) { *peak = getAbsPeakValues( buf, frames ); }
 	}
 
 private:
@@ -95,6 +89,9 @@ private:
 
 	float m_inGain;
 	float m_outGain;
+
+	//! Copy of the unprocessed signal, for one chunk of the period
+	std::array<SampleFrame, DEFAULT_BUFFER_SIZE> m_dryBuf;
 
 };
 

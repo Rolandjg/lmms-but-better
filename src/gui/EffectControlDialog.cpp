@@ -39,4 +39,22 @@ EffectControlDialog::EffectControlDialog(EffectControls* controls)
 	setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 }
 
+EffectControlDialog::~EffectControlDialog()
+{
+	// a dialog deleted while shown gets no hide event, and the controls can outlive it
+	if (auto controls = castModel<EffectControls>()) { controls->setViewVisible(false); }
+}
+
+void EffectControlDialog::showEvent(QShowEvent* event)
+{
+	QWidget::showEvent(event);
+	m_effectControls->setViewVisible(true);
+}
+
+void EffectControlDialog::hideEvent(QHideEvent* event)
+{
+	QWidget::hideEvent(event);
+	m_effectControls->setViewVisible(false);
+}
+
 } // namespace lmms::gui
