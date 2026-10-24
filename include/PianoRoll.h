@@ -179,6 +179,7 @@ protected:
 	void keyPressEvent( QKeyEvent * ke ) override;
 	void keyReleaseEvent( QKeyEvent * ke ) override;
 	void leaveEvent( QEvent * e ) override;
+	bool eventFilter(QObject* watched, QEvent* event) override;
 	void mousePressEvent( QMouseEvent * me ) override;
 	void mouseDoubleClickEvent( QMouseEvent * me ) override;
 	void mouseReleaseEvent( QMouseEvent * me ) override;

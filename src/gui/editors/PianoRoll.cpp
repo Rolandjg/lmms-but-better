@@ -436,6 +436,8 @@ PianoRoll::PianoRoll() :
 	setFocusPolicy( Qt::StrongFocus );
 	setFocus();
 	setMouseTracking( true );
+	// Repaint the Alt-audition outline whenever Alt changes, even without keyboard focus
+	qApp->installEventFilter(this);
 
 	connect( &m_scaleModel, SIGNAL(dataChanged()),
 					this, SLOT(updateSemiToneMarkerMenu()));
@@ -1844,6 +1846,19 @@ void PianoRoll::keyReleaseEvent(QKeyEvent* ke )
 	}
 
 	update();
+}
+
+
+
+
+bool PianoRoll::eventFilter(QObject* watched, QEvent* event)
+{
+	if ((event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
+		&& static_cast<QKeyEvent*>(event)->key() == Qt::Key_Alt)
+	{
+		update();
+	}
+	return QWidget::eventFilter(watched, event);
 }
 
 
@@ -4489,7 +4504,7 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		// -- End knife tool
 
 		// -- Alt held: outline the notes an Alt-click would play
-		if (m_action == Action::Audition || QApplication::keyboardModifiers() & Qt::AltModifier)
+		if (m_action == Action::Audition || QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier)
 		{
 			const QPoint cursorPos = mapFromGlobal(QCursor::pos());
 			const NoteVector auditioned = underMouse() ? auditionNotesAt(cursorPos) : NoteVector{};
