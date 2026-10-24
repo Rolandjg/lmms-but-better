@@ -40,6 +40,7 @@
 #include "MixerChannelLcdSpinBox.h"
 #include "MixerView.h"
 #include "GuiApplication.h"
+#include "KeyboardShortcuts.h"
 #include "Knob.h"
 #include "SampleClip.h"
 #include "SampleTrackWindow.h"
@@ -66,7 +67,7 @@ SampleTrackView::SampleTrackView( SampleTrack * _t, TrackContainerView* tcv ) :
 	m_tlb->show();
 
 	m_mixerChannelNumber = new MixerChannelLcdSpinBox(2, getTrackSettingsWidget(), tr("Mixer channel"), this);
-	m_mixerChannelNumber->setToolTip(tr("Alt+left-click to create and assign a new mixer channel"));
+	m_mixerChannelNumber->setToolTip(tr("%1+left-click to create and assign a new mixer channel").arg(UI_ALT_KEY));
 	m_mixerChannelNumber->show();
 
 	m_volumeKnob = new VolumeKnob(KnobType::Small17, tr("VOL"), getTrackSettingsWidget(), Knob::LabelRendering::LegacyFixedFontSize, tr("Track volume"));

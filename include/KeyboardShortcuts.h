@@ -54,6 +54,14 @@ constexpr const char* UI_ALT_KEY =
 "Alt";
 #endif
 
+// The main Enter key (Qt::Key_Return), which Mac keyboards label Return
+constexpr const char* UI_RETURN_KEY =
+#ifdef LMMS_BUILD_APPLE
+"Return";
+#else
+"Enter";
+#endif
+
 // UI hint for copying OR linking a UI component
 // this MUST be consistent with KBD_COPY_MODIFIER
 constexpr const char* UI_COPY_KEY =

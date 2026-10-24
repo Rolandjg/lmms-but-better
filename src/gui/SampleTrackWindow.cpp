@@ -35,6 +35,7 @@
 #include "EffectRackView.h"
 #include "embed.h"
 #include "GuiApplication.h"
+#include "KeyboardShortcuts.h"
 #include "Knob.h"
 #include "MainWindow.h"
 #include "MixerChannelLcdSpinBox.h"
@@ -136,7 +137,7 @@ SampleTrackWindow::SampleTrackWindow(SampleTrackView* stv)
 
 	// setup spinbox for selecting Mixer-channel
 	m_mixerChannelNumber = new MixerChannelLcdSpinBox(2, nullptr, tr("Mixer channel"), m_stv);
-	m_mixerChannelNumber->setToolTip(tr("Alt+left-click to create and assign a new mixer channel"));
+	m_mixerChannelNumber->setToolTip(tr("%1+left-click to create and assign a new mixer channel").arg(UI_ALT_KEY));
 
 	basicControlsLayout->addWidget(m_mixerChannelNumber, 0, 4);
 	basicControlsLayout->setAlignment(m_mixerChannelNumber, widgetAlignment);

@@ -46,6 +46,7 @@
 
 #include "ConfigManager.h"
 #include "GuiApplication.h"
+#include "KeyboardShortcuts.h"
 #include "MainWindow.h"
 #include "ScriptApi.h"
 #include "ScriptRunner.h"
@@ -59,7 +60,7 @@ namespace lmms::gui
 namespace
 {
 
-const char* const DefaultScript = R"(# LMMS Python console - Ctrl+Enter runs this script (or the selection).
+const char* const DefaultScript = R"(# LMMS Python console - %1+%2 runs this script (or the selection).
 # Everything runs in one interpreter, so variables survive between runs.
 # Type help(lmms) or lmms.help() at the prompt below for the API.
 import lmms
@@ -169,13 +170,13 @@ ScriptConsole::ScriptConsole(QWidget* parent) :
 	auto toolbar = new QHBoxLayout;
 	toolbar->setContentsMargins(4, 4, 4, 0);
 	toolbar->setSpacing(2);
-	m_runButton = makeButton(tr("▶ Run"), tr("Run the script, or the selected lines (Ctrl+Enter)"), this);
+	m_runButton = makeButton(tr("▶ Run"), tr("Run the script, or the selected lines (%1+%2)").arg(UI_CTRL_KEY).arg(UI_RETURN_KEY), this);
 	m_stopButton = makeButton(tr("■ Stop"), tr("Stop the running code (this also resets the interpreter)"), this);
 	auto restartButton = makeButton(tr("Reset"), tr("Start a fresh Python interpreter"), this);
 	m_undoRunButton = makeButton(tr("↶ Undo run"), tr("Put the project back to how it was before the last run"), this);
 	auto newButton = makeButton(tr("New"), tr("Start a new script"), this);
 	auto openButton = makeButton(tr("Open…"), tr("Open a Python script"), this);
-	auto saveButton = makeButton(tr("Save…"), tr("Save the script (Ctrl+S)"), this);
+	auto saveButton = makeButton(tr("Save…"), tr("Save the script (%1+S)").arg(UI_CTRL_KEY), this);
 	auto examplesButton = makeButton(tr("Examples ▾"), tr("Load an example script"), this);
 	auto clearButton = makeButton(tr("Clear"), tr("Clear the output"), this);
 	for (auto b : {m_runButton, m_stopButton, restartButton, m_undoRunButton}) { toolbar->addWidget(b); }
@@ -267,15 +268,15 @@ ScriptConsole::ScriptConsole(QWidget* parent) :
 		this, &ScriptConsole::updateState);
 
 	const QString lastFile = ConfigManager::inst()->value("scripting", "lastfile");
-	if (lastFile.isEmpty() || !openFile(lastFile)) { setScript(DefaultScript); }
+	if (lastFile.isEmpty() || !openFile(lastFile)) { setScript(QString(DefaultScript).arg(UI_CTRL_KEY).arg(UI_RETURN_KEY)); }
 
 	auto subWindow = getGUI()->mainWindow()->addWindowedWidget(this);
 	subWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 	subWindow->resize(760, 600);
 	subWindow->hide();
 
-	appendOutput(tr("LMMS Python console. Ctrl+Enter runs the editor; the prompt below runs single lines.\n"
-		"API reference: doc/SCRIPTING.md, or lmms.help() in the prompt.\n"), Style::Info);
+	appendOutput(tr("LMMS Python console. %1+%2 runs the editor; the prompt below runs single lines.\n"
+		"API reference: doc/SCRIPTING.md, or lmms.help() in the prompt.\n").arg(UI_CTRL_KEY).arg(UI_RETURN_KEY), Style::Info);
 	updateState();
 	updateTitle();
 }

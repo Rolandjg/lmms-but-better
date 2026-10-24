@@ -3229,7 +3229,7 @@ void PianoRoll::updateParameterEditPos(QMouseEvent* me, Note::ParameterType para
 		syncParameterEditCurves(paramType);
 		showTextFloat(me->modifiers() & Qt::AltModifier
 			? tr("Shaping one side of the point")
-			: tr("Shaping the curve · Alt: one side only"), position(me));
+			: tr("Shaping the curve · %1: one side only").arg(UI_ALT_KEY), position(me));
 		update();
 		return;
 	}
@@ -3408,9 +3408,9 @@ void PianoRoll::centerGlideCurves()
 QString PianoRoll::pitchBendHelp()
 {
 	return tr("Click a note, then click or drag to add and move points\n"
-		"Drag the round handles to shape smooth curves (Alt: one side)\n"
+		"Drag the round handles to shape smooth curves (%1: one side)\n"
 		"Right-click or right-drag to erase points or reset a handle\n"
-		"Alt: off the grid · Ctrl: between semitones · Shift-click: Automation Editor");
+		"%1: off the grid · %2: between semitones · Shift-click: Automation Editor").arg(UI_ALT_KEY).arg(UI_CTRL_KEY);
 }
 
 

@@ -61,7 +61,7 @@ TrackOperationsWidget::TrackOperationsWidget(TrackView* parent)
 	, m_trackView(parent)
 {
 	setToolTip(tr("Press <%1> while clicking on move-grip "
-				"to begin a new drag'n'drop action." ).arg(UI_CTRL_KEY) );
+				"to begin a new drag'n'drop action." ).arg(UI_COPY_KEY) );
 
 	auto toMenu = new QMenu(this);
 	connect( toMenu, SIGNAL(aboutToShow()), this, SLOT(updateMenu()));

@@ -732,14 +732,14 @@ QList<QAction*> FileBrowserTreeWidget::getContextActions(FileItem* file, bool so
 			: tr("Send to new instrument track");
 		const auto shortcutMod = songEditor ? "" : UI_CTRL_KEY + QString(" + ");
 
-		auto* toInstrument = new QAction(instrumentAction + tr(" (%2Enter)").arg(shortcutMod));
+		auto* toInstrument = new QAction(instrumentAction + tr(" (%1%2)").arg(shortcutMod).arg(UI_RETURN_KEY));
 		connect(toInstrument, &QAction::triggered, [=, this] { openInNewInstrumentTrack(file, songEditor); });
 		result.append(toInstrument);
 	}
 
 	if (songEditor && fileIsSample)
 	{
-		auto toSampleTrack = new QAction(tr("Send to new sample track (Shift + Enter)"));
+		auto toSampleTrack = new QAction(tr("Send to new sample track (Shift + %1)").arg(UI_RETURN_KEY));
 		connect(toSampleTrack, &QAction::triggered,
 			[=, this]{ openInNewSampleTrack(file); });
 		result.append(toSampleTrack);

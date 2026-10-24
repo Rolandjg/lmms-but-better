@@ -84,6 +84,17 @@
 namespace lmms::gui
 {
 
+namespace
+{
+
+//! Ctrl+\p key written the way this platform does it: "Ctrl+1", or "⌘1" on macOS
+QString ctrlShortcutText(Qt::Key key)
+{
+	return keySequence(Qt::CTRL, key).toString(QKeySequence::NativeText);
+}
+
+} // namespace
+
 
 MainWindow::MainWindow() :
 	m_workspace( nullptr ),
@@ -462,7 +473,8 @@ void MainWindow::finalize()
 		this, SLOT(captureMidi()), m_toolBar);
 	captureButton->setObjectName("midiCaptureButton");
 	const auto updateCaptureTip = [this, captureButton] {
-		captureButton->setToolTip(tr("Capture MIDI (Ctrl+Shift+R)") + "\n" + m_midiCapture->pendingDescription());
+		const auto keys = keySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_R).toString(QKeySequence::NativeText);
+		captureButton->setToolTip(tr("Capture MIDI (%1)").arg(keys) + "\n" + m_midiCapture->pendingDescription());
 	};
 	updateCaptureTip();
 	connect(m_midiCapture, &MidiCapture::pendingChanged, captureButton, updateCaptureTip);
@@ -481,32 +493,32 @@ void MainWindow::finalize()
 
 
 	// window-toolbar
-	auto song_editor_window = new ToolButton(embed::getIconPixmap("songeditor"), tr("Song Editor") + " (Ctrl+1)", this,
+	auto song_editor_window = new ToolButton(embed::getIconPixmap("songeditor"), tr("Song Editor") + " (" + ctrlShortcutText(Qt::Key_1) + ")", this,
 		SLOT(toggleSongEditorWin()), m_toolBar);
 	song_editor_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_1));
 
 	auto pattern_editor_window = new ToolButton(embed::getIconPixmap("pattern_track_btn"),
-		tr("Pattern Editor") + " (Ctrl+2)", this, SLOT(togglePatternEditorWin()), m_toolBar);
+		tr("Pattern Editor") + " (" + ctrlShortcutText(Qt::Key_2) + ")", this, SLOT(togglePatternEditorWin()), m_toolBar);
 	pattern_editor_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_2));
 
 	auto piano_roll_window = new ToolButton(
-		embed::getIconPixmap("piano"), tr("Piano Roll") + " (Ctrl+3)", this, SLOT(togglePianoRollWin()), m_toolBar);
+		embed::getIconPixmap("piano"), tr("Piano Roll") + " (" + ctrlShortcutText(Qt::Key_3) + ")", this, SLOT(togglePianoRollWin()), m_toolBar);
 	piano_roll_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_3));
 
 	auto automation_editor_window = new ToolButton(embed::getIconPixmap("automation"),
-		tr("Automation Editor") + " (Ctrl+4)", this, SLOT(toggleAutomationEditorWin()), m_toolBar);
+		tr("Automation Editor") + " (" + ctrlShortcutText(Qt::Key_4) + ")", this, SLOT(toggleAutomationEditorWin()), m_toolBar);
 	automation_editor_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_4));
 
 	auto mixer_window = new ToolButton(
-		embed::getIconPixmap("mixer"), tr("Mixer") + " (Ctrl+5)", this, SLOT(toggleMixerWin()), m_toolBar);
+		embed::getIconPixmap("mixer"), tr("Mixer") + " (" + ctrlShortcutText(Qt::Key_5) + ")", this, SLOT(toggleMixerWin()), m_toolBar);
 	mixer_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_5));
 
 	auto controllers_window = new ToolButton(embed::getIconPixmap("controller"),
-		tr("Show/hide controller rack") + " (Ctrl+6)", this, SLOT(toggleControllerRack()), m_toolBar);
+		tr("Show/hide controller rack") + " (" + ctrlShortcutText(Qt::Key_6) + ")", this, SLOT(toggleControllerRack()), m_toolBar);
 	controllers_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_6));
 
 	auto project_notes_window = new ToolButton(embed::getIconPixmap("project_notes"),
-		tr("Show/hide project notes") + " (Ctrl+7)", this, SLOT(toggleProjectNotesWin()), m_toolBar);
+		tr("Show/hide project notes") + " (" + ctrlShortcutText(Qt::Key_7) + ")", this, SLOT(toggleProjectNotesWin()), m_toolBar);
 	project_notes_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_7));
 
 	m_toolBarLayout->addWidget( song_editor_window, 1, 1 );
@@ -1161,32 +1173,32 @@ void MainWindow::updateViewMenu()
 	// Not that it's straight visible <-> invisible, more like
 	// not on top -> top <-> invisible
 	m_viewMenu->addAction(embed::getIconPixmap( "songeditor" ),
-			      tr( "Song Editor" ) + "\tCtrl+1",
+			      tr( "Song Editor" ) + "\t" + ctrlShortcutText(Qt::Key_1),
 			      this, SLOT(toggleSongEditorWin())
 		);
 	m_viewMenu->addAction(embed::getIconPixmap("pattern_track"),
-					tr("Pattern Editor") + "\tCtrl+2",
+					tr("Pattern Editor") + "\t" + ctrlShortcutText(Qt::Key_2),
 					this, SLOT(togglePatternEditorWin())
 		);
 	m_viewMenu->addAction(embed::getIconPixmap( "piano" ),
-			      tr( "Piano Roll" ) + "\tCtrl+3",
+			      tr( "Piano Roll" ) + "\t" + ctrlShortcutText(Qt::Key_3),
 			      this, SLOT(togglePianoRollWin())
 		);
 	m_viewMenu->addAction(embed::getIconPixmap( "automation" ),
-			      tr( "Automation Editor" ) + "\tCtrl+4",
+			      tr( "Automation Editor" ) + "\t" + ctrlShortcutText(Qt::Key_4),
 			      this,
 			      SLOT(toggleAutomationEditorWin())
 		);
 	m_viewMenu->addAction(embed::getIconPixmap( "mixer" ),
-			      tr( "Mixer" ) + "\tCtrl+5",
+			      tr( "Mixer" ) + "\t" + ctrlShortcutText(Qt::Key_5),
 			      this, SLOT(toggleMixerWin())
 		);
 	m_viewMenu->addAction(embed::getIconPixmap( "controller" ),
-			      tr( "Controller Rack" ) + "\tCtrl+6",
+			      tr( "Controller Rack" ) + "\t" + ctrlShortcutText(Qt::Key_6),
 			      this, SLOT(toggleControllerRack())
 		);
 	m_viewMenu->addAction(embed::getIconPixmap( "project_notes" ),
-			      tr( "Project Notes" ) + "\tCtrl+7",
+			      tr( "Project Notes" ) + "\t" + ctrlShortcutText(Qt::Key_7),
 			      this, SLOT(toggleProjectNotesWin())
 		);
 	m_viewMenu->addAction(m_scriptConsoleAction);

@@ -580,19 +580,20 @@ void ClipView::mousePressEvent( QMouseEvent * me )
 			QString hint;
 			if (m_action == Action::Move || m_action == Action::MoveSelection)
 			{
-				hint = tr("Press <%1> and drag to make a copy.");
+				hint = tr("Press <%1> and drag to make a copy.").arg(UI_COPY_KEY);
 			}
 			else if (m_action == Action::Split)
 			{
 				hint = dynamic_cast<MidiClipView*>(this)
-					? tr("Press <%1> or <Alt> for unquantized splitting.\nPress <Shift> for destructive splitting.")
-					: tr("Press <%1> or <Alt> for unquantized splitting.");
+					? tr("Press <%1> or <%2> for unquantized splitting.\nPress <Shift> for destructive splitting.")
+					: tr("Press <%1> or <%2> for unquantized splitting.");
+				hint = hint.arg(UI_CTRL_KEY).arg(UI_ALT_KEY);
 			}
 			else
 			{
-				hint = tr("Press <%1> or <Alt> for unquantized resizing.");
+				hint = tr("Press <%1> or <%2> for unquantized resizing.").arg(UI_CTRL_KEY).arg(UI_ALT_KEY);
 			}
-			m_hint = TextFloat::displayMessage( tr( "Hint" ), hint.arg(UI_COPY_KEY),
+			m_hint = TextFloat::displayMessage( tr( "Hint" ), hint,
 					embed::getIconPixmap( "hint" ), 0 );
 		}
 	}

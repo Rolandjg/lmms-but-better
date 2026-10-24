@@ -48,6 +48,7 @@
 #include <QPainterPath>
 #include "embed.h"
 #include "GuiApplication.h"
+#include "KeyboardShortcuts.h"
 #include "LcdSpinBox.h"
 #include "MainWindow.h"
 #include "MeterDialog.h"
@@ -1066,8 +1067,14 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	});
 
 	DropToolBar *insertActionsToolBar = addDropToolBarToTop(tr("Bar insert controls"));
-	// SongEditor::keyPressEvent() handles these keys
-	m_insertBarAction = new QAction(embed::getIconPixmap("insert_bar"), tr("Insert bar (Shift+Insert)"), this);
+	// SongEditor::keyPressEvent() handles these keys. Shift+Enter inserts a bar too, which is the one to name
+	// on Macs, as they have no Insert key
+#ifdef LMMS_BUILD_APPLE
+	const QString insertBarKey = UI_RETURN_KEY;
+#else
+	const QString insertBarKey = "Insert";
+#endif
+	m_insertBarAction = new QAction(embed::getIconPixmap("insert_bar"), tr("Insert bar (Shift+%1)").arg(insertBarKey), this);
 	m_removeBarAction = new QAction(embed::getIconPixmap("remove_bar"), tr("Remove bar (Shift+Delete)"), this);
 	insertActionsToolBar->addAction( m_insertBarAction );
 	insertActionsToolBar->addAction( m_removeBarAction );

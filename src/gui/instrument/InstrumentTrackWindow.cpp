@@ -53,6 +53,7 @@
 #include "InstrumentSoundShapingView.h"
 #include "InstrumentTrack.h"
 #include "InstrumentTrackView.h"
+#include "KeyboardShortcuts.h"
 #include "Knob.h"
 #include "LcdSpinBox.h"
 #include "LedCheckBox.h"
@@ -188,7 +189,7 @@ InstrumentTrackWindow::InstrumentTrackWindow( InstrumentTrackView * _itv ) :
 
 	// setup spinbox for selecting Mixer-channel
 	m_mixerChannelNumber = new MixerChannelLcdSpinBox(2, nullptr, tr("Mixer channel"), m_itv);
-	m_mixerChannelNumber->setToolTip(tr("Mixer channel (Alt+left-click to create and assign a new one)"));
+	m_mixerChannelNumber->setToolTip(tr("Mixer channel (%1+left-click to create and assign a new one)").arg(UI_ALT_KEY));
 	addControl(m_mixerChannelNumber, new QLabel(tr("CHAN"), this), 7);
 
 	auto saveSettingsBtn = new QPushButton(embed::getIconPixmap("project_save"), QString());

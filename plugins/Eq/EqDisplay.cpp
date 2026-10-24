@@ -42,6 +42,7 @@
 #include "EqControls.h"
 #include "FontHelper.h"
 #include "GuiApplication.h"
+#include "KeyboardShortcuts.h"
 #include "MainWindow.h"
 #include "ModernWidgets.h"
 
@@ -178,9 +179,9 @@ EqDisplay::EqDisplay(EqControls* controls, QWidget* parent) :
 	setCursor(Qt::CrossCursor);
 	setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	attachFocusRing(this);
-	setToolTip(tr("Drag a node to set frequency and gain, hold Shift for fine moves and Ctrl to keep "
+	setToolTip(tr("Drag a node to set frequency and gain, hold Shift for fine moves and %1 to keep "
 		"one of them. Wheel over a node changes its width, wheel on the background zooms the dB scale. "
-		"Double-click to switch a band on or off, Alt-click to listen to one."));
+		"Double-click to switch a band on or off, %2-click to listen to one.").arg(UI_CTRL_KEY).arg(UI_ALT_KEY));
 
 	const auto setBand = [this](int index, EqBandType type, const QString& name, FloatModel* freq,
 		FloatModel* gain, FloatModel* q, BoolModel* active, IntModel* slope)

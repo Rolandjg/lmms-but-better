@@ -43,6 +43,7 @@
 #include "GuiApplication.h"
 #include "Instrument.h"
 #include "InstrumentTrackWindow.h"
+#include "KeyboardShortcuts.h"
 #include "Knob.h"
 #include "MainWindow.h"
 #include "MidiClient.h"
@@ -81,7 +82,7 @@ InstrumentTrackView::InstrumentTrackView( InstrumentTrack * _it, TrackContainerV
 			this, SLOT(handleConfigChange(QString,QString,QString)));
 
 	m_mixerChannelNumber = new MixerChannelLcdSpinBox(2, getTrackSettingsWidget(), tr("Mixer channel"), this);
-	m_mixerChannelNumber->setToolTip(tr("Alt+left-click to create and assign a new mixer channel"));
+	m_mixerChannelNumber->setToolTip(tr("%1+left-click to create and assign a new mixer channel").arg(UI_ALT_KEY));
 	m_mixerChannelNumber->show();
 
 	m_volumeKnob = new VolumeKnob(KnobType::Small17, tr("VOL"), getTrackSettingsWidget(), Knob::LabelRendering::LegacyFixedFontSize, tr("VOL"));

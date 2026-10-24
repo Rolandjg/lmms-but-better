@@ -43,6 +43,7 @@
 
 #include "AutomationEditor.h"
 #include "ConfigManager.h"
+#include "DeprecationHelper.h"
 #include "Effect.h"
 #include "EffectChain.h"
 #include "EffectRackView.h"
@@ -160,6 +161,22 @@ QString stripMnemonic(QString text)
 	return text.replace("&&", "&");
 }
 
+//! Splits a shortcut into one keycap per key: "Ctrl+Shift+R", "Ctrl++", and macOS's "⇧⌘R", which has no '+'
+QStringList shortcutKeys(const QString& shortcut)
+{
+	static const QString macModifiers = QStringLiteral("⌃⌥⇧⌘");
+	QStringList keys;
+	QString key;
+	for (const QChar c : shortcut)
+	{
+		if (macModifiers.contains(c)) { keys << c; }
+		else if (c == '+' && !key.isEmpty()) { keys << key; key.clear(); }
+		else { key += c; }
+	}
+	if (!key.isEmpty()) { keys << key; }
+	return keys;
+}
+
 
 class PaletteDelegate : public QStyledItemDelegate
 {
@@ -200,7 +217,7 @@ public:
 		const QFontMetricsF smallFm(small);
 		if (!shortcut.isEmpty())
 		{
-			const QStringList keys = shortcut.split('+', Qt::SkipEmptyParts);
+			const QStringList keys = shortcutKeys(shortcut);
 			for (int i = keys.size() - 1; i >= 0; --i)
 			{
 				const qreal w = std::max(18.0, smallFm.horizontalAdvance(keys[i]) + 10);
@@ -881,7 +898,8 @@ CommandPaletteButton::CommandPaletteButton(QWidget* parent) :
 {
 	setCursor(Qt::PointingHandCursor);
 	setFixedSize(sizeHint());
-	setToolTip(tr("Command palette - search every action, instrument, effect and track (Ctrl+K)"));
+	setToolTip(tr("Command palette - search every action, instrument, effect and track (%1)")
+		.arg(keySequence(Qt::CTRL, Qt::Key_K).toString(QKeySequence::NativeText)));
 }
 
 
@@ -910,7 +928,8 @@ void CommandPaletteButton::paintEvent(QPaintEvent*)
 	const QFontMetricsF fm(f);
 
 	// Keycap hint
-	const QString hint = "Ctrl K";
+	// "Ctrl K", or "⌘K" on macOS
+	const QString hint = keySequence(Qt::CTRL, Qt::Key_K).toString(QKeySequence::NativeText).replace('+', ' ');
 	const qreal w = fm.horizontalAdvance(hint) + 10;
 	const QRectF cap(r.right() - w - 8, r.center().y() - 8, w, 16);
 
