@@ -204,7 +204,13 @@ public:
 
 	const QString recoveryFile() const
 	{
-		return m_workingDir + "recover.mmp";
+		return m_workingDir + m_recoveryFileName;
+	}
+
+	//! Every running instance needs its own recovery file, see claimRecoveryFile() in main.cpp
+	void setRecoveryFileName(const QString& name)
+	{
+		m_recoveryFileName = name;
 	}
 
 	inline const QStringList & recentlyOpenedProjects() const
@@ -287,6 +293,7 @@ private:
 	static const std::vector<UpgradeMethod> UPGRADE_METHODS;
 
 	QString m_workingDir;
+	QString m_recoveryFileName = "recover.mmp";
 	QString m_dataDir;
 	QString m_vstDir;
 	QString m_ladspaDir;

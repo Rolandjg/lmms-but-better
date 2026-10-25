@@ -24,12 +24,15 @@
 
 #include "SlicerTWaveform.h"
 
+#include <QApplication>
 #include <QBitmap>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 
 #include "DeprecationHelper.h"
+#include "InstrumentTrack.h"
+#include "MidiEvent.h"
 #include "SampleThumbnail.h"
 #include "SlicerT.h"
 #include "SlicerTView.h"
@@ -38,6 +41,17 @@
 namespace lmms {
 
 namespace gui {
+
+namespace {
+
+QString keyName(int key)
+{
+	static const char* names[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+	if (key < 0 || key >= NumKeys) { return {}; }
+	return QString("%1%2").arg(names[key % 12]).arg(key / 12 - 1);
+}
+
+} // namespace
 
 // waveform colors
 static QColor s_emptyColor = QColor(0, 0, 0, 0);
@@ -91,8 +105,20 @@ SlicerTWaveform::SlicerTWaveform(int totalWidth, int totalHeight, SlicerT* instr
 
 	m_emptySampleIcon = m_emptySampleIcon.createMaskFromColor(QColor(255, 255, 255), Qt::MaskMode::MaskOutColor);
 
+	setToolTip(tr("Drag the edges of the top bar to zoom in. Slicing again only changes the part shown below.\n"
+		"Double-click: add a slice\n"
+		"Drag a slice: move it\n"
+		"Right-click a slice: remove it\n"
+		"Alt + click: play the slice under the cursor\n"
+		"Middle-click: show the whole sample"));
+
 	m_updateTimer.start();
 	updateUI();
+}
+
+SlicerTWaveform::~SlicerTWaveform()
+{
+	stopAudition();
 }
 
 void SlicerTWaveform::resizeEvent(QResizeEvent* event)
@@ -267,10 +293,56 @@ void SlicerTWaveform::drawEditor()
 		}
 	}
 
+	// the key each slice plays, where there is room for it
+	const auto& slicePoints = m_slicerTParent->m_slicePoints;
+	const int firstKey = m_slicerTParent->firstSliceKey();
+	brush.setFont(QFont(brush.font().family(), 7, -1, false));
+	for (auto i = std::size_t{0}; i + 1 < slicePoints.size(); i++)
+	{
+		const float xStart = (slicePoints[i] - startFrame) / numFramesToDraw * m_editorWidth;
+		const float xEnd = (slicePoints[i + 1] - startFrame) / numFramesToDraw * m_editorWidth;
+		if (xEnd - xStart < s_minKeyLabelWidth || xEnd < 0 || xStart > m_editorWidth) { continue; }
+
+		const int key = firstKey + static_cast<int>(i);
+		const bool auditioned = m_auditionKey == key;
+		brush.setPen(auditioned ? s_sliceHighlightColor : s_sliceShadowColor);
+		brush.drawText(QRectF(xStart + 4, s_arrowHeight + 2, xEnd - xStart - 6, 12), Qt::AlignLeft,
+			keyName(key));
+	}
+
+	drawRangeHint(brush);
+
 	// decor
 	brush.setPen(s_editorBounding);
 	brush.drawLine(0, s_arrowHeight, m_editorWidth, s_arrowHeight);
 	brush.drawLine(0, m_editorHeight - 1, m_editorWidth, m_editorHeight - 1);
+}
+
+void SlicerTWaveform::drawRangeHint(QPainter& brush)
+{
+	const auto& sample = m_slicerTParent->m_originalSample;
+
+	QString hint;
+	if (m_slicerTParent->isSliceRangePartial())
+	{
+		const float seconds = static_cast<float>(sample.sampleSize()) / std::max(1, sample.sampleRate());
+		hint = tr("Slicing again only changes %1s - %2s  |  Middle-click: whole sample")
+			.arg(m_seekerStart * seconds, 0, 'f', 2)
+			.arg(m_seekerEnd * seconds, 0, 'f', 2);
+	}
+	else if (m_closestObject == UIObjects::SeekerStart || m_closestObject == UIObjects::SeekerEnd
+		|| m_closestObject == UIObjects::SeekerMiddle)
+	{
+		hint = tr("Drag the edges of this bar to slice only part of the sample");
+	}
+	if (hint.isEmpty()) { return; }
+
+	brush.setFont(QFont(brush.font().family(), 7, -1, false));
+	const QRectF rect(0, m_editorHeight - 15, m_editorWidth, 14);
+	const int textWidth = brush.fontMetrics().horizontalAdvance(hint) + 10;
+	brush.fillRect(QRectF(0, rect.y(), textWidth, rect.height()), s_seekerShadowColor);
+	brush.setPen(s_sliceColor);
+	brush.drawText(rect.adjusted(5, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, hint);
 }
 
 void SlicerTWaveform::isPlaying(float current, float start, float end)
@@ -288,6 +360,10 @@ void SlicerTWaveform::isPlaying(float current, float start, float end)
 // this should only be called if one of the waveforms has to update
 void SlicerTWaveform::updateUI()
 {
+	// The range is reset when a new sample is loaded
+	m_seekerStart = m_slicerTParent->sliceRangeStart();
+	m_seekerEnd = m_slicerTParent->sliceRangeEnd();
+
 	drawSeekerWaveform();
 	drawEditorWaveform();
 	drawSeeker();
@@ -366,20 +442,32 @@ void SlicerTWaveform::mousePressEvent(QMouseEvent* me)
 	switch (me->button())
 	{
 	case Qt::MouseButton::MiddleButton:
-		m_seekerStart = 0;
-		m_seekerEnd = 1;
+		setSeekerRange(0, 1);
 		m_zoomLevel = 1;
 		drawEditorWaveform();
 		break;
 	case Qt::MouseButton::LeftButton:
-		if (m_slicerTParent->m_originalSample.sampleSize() <= 1) { static_cast<SlicerTView*>(parent())->openFiles(); }
+		if (m_slicerTParent->m_originalSample.sampleSize() <= 1)
+		{
+			static_cast<SlicerTView*>(parent())->openFiles();
+			break;
+		}
+		// Alt-click plays the slice under the cursor until the button is released
+		if (me->modifiers() & Qt::AltModifier && pos.y() >= m_seekerHeight)
+		{
+			auditionSlice(m_slicerTParent->sliceAt(editorToSample(pos.x())));
+			updateSlices();
+			return;
+		}
 		// update seeker middle for correct movement
 		m_seekerMiddle = static_cast<float>(pos.x() - s_seekerHorMargin) / m_seekerWidth;
+		m_sliceMoved = false;
 		break;
 	case Qt::MouseButton::RightButton:
-		if (m_slicerTParent->m_slicePoints.size() > 2 && m_closestObject == UIObjects::SlicePoint)
+		if (m_closestObject == UIObjects::SlicePoint)
 		{
-			m_slicerTParent->m_slicePoints.erase(m_slicerTParent->m_slicePoints.begin() + m_closestSlice);
+			m_slicerTParent->removeSlicePoint(m_closestSlice);
+			updateSlices();
 		}
 		break;
 	default:;
@@ -390,7 +478,16 @@ void SlicerTWaveform::mousePressEvent(QMouseEvent* me)
 // sort slices after moving and remove draggable object
 void SlicerTWaveform::mouseReleaseEvent(QMouseEvent* me)
 {
-	std::sort(m_slicerTParent->m_slicePoints.begin(), m_slicerTParent->m_slicePoints.end());
+	if (m_auditionKey >= 0)
+	{
+		stopAudition();
+		updateSlices();
+	}
+	if (m_sliceMoved)
+	{
+		m_slicerTParent->finishSliceEdit();
+		m_sliceMoved = false;
+	}
 	updateClosest(me);
 }
 
@@ -405,25 +502,25 @@ void SlicerTWaveform::mouseMoveEvent(QMouseEvent* me)
 		return;
 	}
 
+	// auditioning holds the slice until release; dragging must not edit anything
+	if (m_auditionKey >= 0) { return; }
+
 	const auto pos = position(me);
 
 	float normalizedClickSeeker = static_cast<float>(pos.x() - s_seekerHorMargin) / m_seekerWidth;
-	float normalizedClickEditor = static_cast<float>(pos.x()) / m_editorWidth;
 
 	float distStart = m_seekerStart - m_seekerMiddle;
 	float distEnd = m_seekerEnd - m_seekerMiddle;
-	float startFrame = m_seekerStart;
-	float endFrame = m_seekerEnd;
 
 	switch (m_closestObject)
 	{
 	case UIObjects::SeekerStart:
-		m_seekerStart = std::clamp(normalizedClickSeeker, 0.0f, m_seekerEnd - s_minSeekerDistance);
+		setSeekerRange(std::clamp(normalizedClickSeeker, 0.0f, m_seekerEnd - s_minSeekerDistance), m_seekerEnd);
 		drawEditorWaveform();
 		break;
 
 	case UIObjects::SeekerEnd:
-		m_seekerEnd = std::clamp(normalizedClickSeeker, m_seekerStart + s_minSeekerDistance, 1.0f);
+		setSeekerRange(m_seekerStart, std::clamp(normalizedClickSeeker, m_seekerStart + s_minSeekerDistance, 1.0f));
 		drawEditorWaveform();
 		break;
 
@@ -432,18 +529,15 @@ void SlicerTWaveform::mouseMoveEvent(QMouseEvent* me)
 
 		if (m_seekerMiddle + distStart >= 0 && m_seekerMiddle + distEnd <= 1)
 		{
-			m_seekerStart = m_seekerMiddle + distStart;
-			m_seekerEnd = m_seekerMiddle + distEnd;
+			setSeekerRange(m_seekerMiddle + distStart, m_seekerMiddle + distEnd);
 		}
 		drawEditorWaveform();
 		break;
 
 	case UIObjects::SlicePoint:
 		if (m_closestSlice == -1) { break; }
-		m_slicerTParent->m_slicePoints.at(m_closestSlice)
-			= startFrame + normalizedClickEditor * (endFrame - startFrame);
-		m_slicerTParent->m_slicePoints.at(m_closestSlice)
-			= std::clamp(m_slicerTParent->m_slicePoints.at(m_closestSlice), 0.0f, 1.0f);
+		m_slicerTParent->moveSlicePoint(m_closestSlice, editorToSample(pos.x()));
+		m_sliceMoved = true;
 		break;
 	case UIObjects::Nothing:
 		break;
@@ -458,15 +552,68 @@ void SlicerTWaveform::mouseDoubleClickEvent(QMouseEvent* me)
 {
 	const auto pos = position(me);
 
-	if (me->button() != Qt::MouseButton::LeftButton || pos.y() < m_seekerHeight) { return; }
+	if (me->button() != Qt::MouseButton::LeftButton || me->modifiers() & Qt::AltModifier
+		|| pos.y() < m_seekerHeight || m_slicerTParent->m_originalSample.sampleSize() <= 1)
+	{
+		return;
+	}
 
-	float normalizedClickEditor = static_cast<float>(pos.x()) / m_editorWidth;
-	float startFrame = m_seekerStart;
-	float endFrame = m_seekerEnd;
-	float slicePosition = startFrame + normalizedClickEditor * (endFrame - startFrame);
+	m_slicerTParent->addSlicePoint(editorToSample(pos.x()));
+	updateSlices();
+}
 
-	m_slicerTParent->m_slicePoints.insert(m_slicerTParent->m_slicePoints.begin(), slicePosition);
-	std::sort(m_slicerTParent->m_slicePoints.begin(), m_slicerTParent->m_slicePoints.end());
+void SlicerTWaveform::focusOutEvent(QFocusEvent* fe)
+{
+	stopAudition();
+	QWidget::focusOutEvent(fe);
+}
+
+void SlicerTWaveform::leaveEvent(QEvent* e)
+{
+	if (QApplication::mouseButtons() == Qt::NoButton)
+	{
+		m_closestObject = UIObjects::Nothing;
+		m_closestSlice = -1;
+		updateSlices();
+	}
+	QWidget::leaveEvent(e);
+}
+
+void SlicerTWaveform::setSeekerRange(float start, float end)
+{
+	m_seekerStart = start;
+	m_seekerEnd = end;
+	m_slicerTParent->setSliceRange(start, end);
+}
+
+void SlicerTWaveform::updateSlices()
+{
+	drawSeeker();
+	drawEditor();
+	update();
+}
+
+float SlicerTWaveform::editorToSample(int x) const
+{
+	return m_seekerStart + static_cast<float>(x) / m_editorWidth * (m_seekerEnd - m_seekerStart);
+}
+
+void SlicerTWaveform::auditionSlice(int index)
+{
+	stopAudition();
+	if (index < 0) { return; }
+	InstrumentTrack* track = m_slicerTParent->m_parentTrack;
+	const int key = m_slicerTParent->firstSliceKey() + index;
+	if (key >= NumKeys) { return; }
+	m_auditionKey = key;
+	track->processInEvent(MidiEvent(MidiNoteOn, -1, m_auditionKey, MidiDefaultVelocity));
+}
+
+void SlicerTWaveform::stopAudition()
+{
+	if (m_auditionKey < 0) { return; }
+	m_slicerTParent->m_parentTrack->processInEvent(MidiEvent(MidiNoteOff, -1, m_auditionKey, 0));
+	m_auditionKey = -1;
 }
 
 void SlicerTWaveform::wheelEvent(QWheelEvent* we)

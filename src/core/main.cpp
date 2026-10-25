@@ -27,10 +27,14 @@
 #include "lmmsversion.h"
 #include "versioninfo.h"
 
+#include <array>
+
 #include <QDebug>
+#include <QDateTime>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QLocale>
+#include <QLockFile>
 #include <QTimer>
 #include <QTranslator>
 #include <QApplication>
@@ -104,6 +108,13 @@ void sigfpeHandler(int signum)
 #endif
 
 #ifndef LMMS_BUILD_WIN32
+#ifdef LMMS_DEBUG_FPE
+// sigfpeHandler owns SIGFPE in these builds
+constexpr auto crashSaveSignals = std::array{SIGSEGV, SIGABRT, SIGBUS, SIGILL};
+#else
+constexpr auto crashSaveSignals = std::array{SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL};
+#endif
+
 //! Last chance to keep the user's work when LMMS crashes: save the project to the recovery file, which
 //! is offered on the next launch. Nothing in here is async-signal-safe, so this is best effort. The
 //! handler is one-shot (a crash while saving just ends the process), an alarm kills a save that
@@ -135,17 +146,58 @@ static void installCrashSaveHandler()
 	// one-shot, and let raise() deliver the signal again from inside the handler
 	sa.sa_flags = SA_RESETHAND | SA_NODEFER;
 	sigemptyset(&sa.sa_mask);
-#ifdef LMMS_DEBUG_FPE
-	// sigfpeHandler owns SIGFPE in these builds
-	for (int signum : {SIGSEGV, SIGABRT, SIGBUS, SIGILL})
-#else
-	for (int signum : {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL})
-#endif
+	for (int signum : crashSaveSignals)
 	{
 		sigaction(signum, &sa, nullptr);
 	}
 }
+
+//! Once LMMS is shutting down the user has already saved or discarded the project, and the engine is being
+//! torn down. A crash from here on must not write a stale or empty project to the recovery file
+static void uninstallCrashSaveHandler()
+{
+	for (int signum : crashSaveSignals)
+	{
+		signal(signum, SIG_DFL);
+	}
+}
 #endif
+
+//! A second instance sharing the recovery file would offer the first one's autosave as a crashed session,
+//! autosave over it and delete it on exit. So every instance locks the recovery file it uses and takes the
+//! next one if a running instance holds it. A crashed instance leaves a stale lock, which gets taken over,
+//! so its recovery file is still offered on the next launch
+static std::unique_ptr<QLockFile> claimRecoveryFile()
+{
+	auto* config = lmms::ConfigManager::inst();
+	for (int slot = 1; slot <= 16; ++slot)
+	{
+		const auto name = slot == 1 ? QString{"recover.mmp"} : QString{"recover-%1.mmp"}.arg(slot);
+		auto lock = std::make_unique<QLockFile>(config->workingDir() + name + ".lock");
+		lock->setStaleLockTime(0); // only a dead owner makes the lock stale, not its age
+		if (lock->tryLock())
+		{
+			config->setRecoveryFileName(name);
+			return lock;
+		}
+		// Not another instance (e.g. no working dir), so the next slot won't do better
+		if (lock->error() != QLockFile::LockFailedError) { break; }
+	}
+	return nullptr;
+}
+
+//! The recovered session autosaves over the recovery file. If the project then fails to load, or the user
+//! cancels loading it, that would replace the only copy of their work with an empty project within two
+//! autosaves. So load from a copy that nothing ever writes to
+static QString keepRecoveryFile(const QString& recoveryFile)
+{
+	const auto info = QFileInfo{recoveryFile};
+	const auto copy = info.absolutePath() + "/recovered-"
+		+ info.lastModified().toString("yyyy-MM-dd-HHmmss") + ".mmp";
+	// Same timestamp means the same autosave, e.g. recovering again after LMMS crashed while loading it
+	if (QFileInfo::exists(copy) || QFile::copy(recoveryFile, copy)) { return copy; }
+	return recoveryFile;
+}
 
 static inline QString baseName( const QString & file )
 {
@@ -843,6 +895,9 @@ int main( int argc, char * * argv )
 
 	ConfigManager::inst()->loadConfigFile(configFile);
 
+	// The GUI claims a recovery file below, held until LMMS exits
+	std::unique_ptr<QLockFile> recoveryLock;
+
 	// set language
 	QString pos = ConfigManager::inst()->value( "app", "language" );
 	if( pos.isEmpty() )
@@ -963,13 +1018,16 @@ int main( int argc, char * * argv )
 		// srandom() calls in their init procedure
 		srand( getpid() + time( 0 ) );
 
+		recoveryLock = claimRecoveryFile();
+
 		// recover a file?
 		QString recoveryFile = ConfigManager::inst()->recoveryFile();
+		bool recovering = false;
 
 		bool recoveryFilePresent = QFileInfo( recoveryFile ).exists() &&
 				QFileInfo( recoveryFile ).isFile();
 		bool autoSaveEnabled =
-			ConfigManager::inst()->value( "ui", "enableautosave" ).toInt();
+			ConfigManager::inst()->value("ui", "enableautosave", "1").toInt();
 		if( recoveryFilePresent )
 		{
 			QMessageBox mb;
@@ -1028,7 +1086,8 @@ int main( int argc, char * * argv )
 			}
 			else if( mb.clickedButton() == recover ) // Recover
 			{
-				fileToLoad = recoveryFile;
+				fileToLoad = keepRecoveryFile(recoveryFile);
+				recovering = true;
 				getGUI()->mainWindow()->setSession( MainWindow::SessionState::Recover );
 			}
 			else // Exit
@@ -1055,7 +1114,7 @@ int main( int argc, char * * argv )
 
 		if( !fileToLoad.isEmpty() )
 		{
-			if( fileToLoad == recoveryFile )
+			if (recovering && queuedFile.isEmpty())
 			{
 				Engine::getSong()->createNewProjectFromTemplate( fileToLoad );
 			}
@@ -1099,9 +1158,7 @@ int main( int argc, char * * argv )
 			Engine::getSong()->createNewProject();
 		}
 
-		// Finally we start the auto save timer and also trigger the
-		// autosave one time as recover.mmp is a signal to possible other
-		// instances of LMMS.
+		// Finally we start the auto save timer
 		if( autoSaveEnabled )
 		{
 			gui::getGUI()->mainWindow()->autoSaveTimerReset();
@@ -1122,6 +1179,9 @@ int main( int argc, char * * argv )
 	}
 
 	const int ret = app->exec();
+#ifndef LMMS_BUILD_WIN32
+	uninstallCrashSaveHandler();
+#endif
 	delete app;
 
 	if( destroyEngine )

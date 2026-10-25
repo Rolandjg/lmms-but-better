@@ -35,6 +35,7 @@
 #include "InstrumentView.h"
 #include "Knob.h"
 #include "LcdSpinBox.h"
+#include "ModernWidgets.h"
 #include "PixmapButton.h"
 #include "SlicerT.h"
 #include "SlicerTWaveform.h"
@@ -57,15 +58,36 @@ SlicerTView::SlicerTView(SlicerT* instrument, QWidget* parent)
 	setAutoFillBackground(true);
 
 	setMaximumSize(QSize(10000, 10000));
-	setMinimumSize(QSize(516, 400));
+	setMinimumSize(QSize(560, 400));
 
 	m_wf = new SlicerTWaveform(248, 128, instrument, this);
 	m_wf->move(0, s_topBarHeight);
 
 	m_snapSetting = new ComboBox(this, tr("Slice snap"));
-	m_snapSetting->setGeometry(185, 200, 55, ComboBox::DEFAULT_HEIGHT);
-	m_snapSetting->setToolTip(tr("Set slice snapping for detection"));
+	m_snapSetting->setGeometry(0, 0, s_snapBoxWidth, ComboBox::DEFAULT_HEIGHT);
+	m_snapSetting->setToolTip(tr("Snap detected slices to the beat (the grid size in Grid mode)"));
 	m_snapSetting->setModel(&m_slicerTParent->m_sliceSnap);
+
+	m_sliceModeBox = new ComboBox(this, tr("Slice mode"));
+	m_sliceModeBox->setGeometry(0, 0, s_modeBoxWidth, ComboBox::DEFAULT_HEIGHT);
+	m_sliceModeBox->setToolTip(tr("How the sample is sliced:\n"
+		"Transient - at detected hits, sensitivity set by Threshold\n"
+		"Grid - on the beat grid set by Snap and BPM\n"
+		"Equal - into equal parts, count set by Slices\n"
+		"When the editor is zoomed in, only the part shown is sliced again"));
+	m_sliceModeBox->setModel(&m_slicerTParent->m_sliceMode);
+
+	m_sliceCountBox = new LcdSpinBox(3, "19purple", this);
+	m_sliceCountBox->setToolTip(tr("Number of slices in Equal mode"));
+	m_sliceCountBox->setModel(&m_slicerTParent->m_sliceCount);
+
+	m_chokeToggle = new ModernToggle(tr("CHOKE"), this);
+	m_chokeToggle->setToolTip(tr("A new note cuts off the one still playing, like an MPC pad"));
+	m_chokeToggle->setModel(&m_slicerTParent->m_choke);
+
+	m_oneShotToggle = new ModernToggle(tr("ONE-SHOT"), this);
+	m_oneShotToggle->setToolTip(tr("Play the whole slice however short the note is"));
+	m_oneShotToggle->setModel(&m_slicerTParent->m_oneShot);
 
 	m_syncToggle = new PixmapButton(this, tr("Sync sample"));
 	m_syncToggle->setActiveGraphic(PLUGIN_NAME::getIconPixmap("sync_active"));
@@ -93,6 +115,7 @@ SlicerTView::SlicerTView(SlicerT* instrument, QWidget* parent)
 	m_fadeOutKnob->setModel(&m_slicerTParent->m_fadeOutFrames);
 
 	m_midiExportButton = new QPushButton(this);
+	m_midiExportButton->setFixedSize(s_iconButtonSize, s_iconButtonSize);
 	m_midiExportButton->setIcon(PLUGIN_NAME::getIconPixmap("copy_midi"));
 	m_midiExportButton->setToolTip(tr("Copy midi pattern to clipboard"));
 	connect(m_midiExportButton, &PixmapButton::clicked, this, &SlicerTView::exportMidi);
@@ -103,10 +126,12 @@ SlicerTView::SlicerTView(SlicerT* instrument, QWidget* parent)
 	m_folderButton->setToolTip(tr("Open sample selector"));
 	connect(m_folderButton, &PixmapButton::clicked, this, &SlicerTView::openFiles);
 
-	m_resetButton = new QPushButton(this);
-	m_resetButton->setIcon(PLUGIN_NAME::getIconPixmap("reset_slices"));
-	m_resetButton->setToolTip(tr("Reset slices"));
-	connect(m_resetButton, &PixmapButton::clicked, m_slicerTParent, &SlicerT::updateSlices);
+	// A push button: it lights up while held, then slices again
+	m_sliceButton = new ModernToggle(tr("SLICE"), this);
+	m_sliceButton->setCheckable(false);
+	m_sliceButton->setToolTip(tr("Slice again with the current settings.\n"
+		"Zoom in with the top bar of the editor to only slice that part of the sample."));
+	connect(m_sliceButton, &ModernToggle::clicked, m_slicerTParent, &SlicerT::updateSlices);
 
 	update();
 }
@@ -123,14 +148,7 @@ Knob* SlicerTView::createStyledKnob()
 // Clear all notes
 void SlicerTView::clearSlices()
 {
-	m_slicerTParent->m_slicePoints.clear();
-
-	// Points are added to the start (0) and end (1) of the sample,
-	// so the whole sample can still be copied using MIDI.
-	m_slicerTParent->m_slicePoints.emplace_back(0);
-	m_slicerTParent->m_slicePoints.emplace_back(1);
-
-	emit m_slicerTParent->dataChanged();
+	m_slicerTParent->clearSlices();
 }
 
 // copied from piano roll
@@ -236,13 +254,19 @@ void SlicerTView::paintEvent(QPaintEvent* pe)
 	int y1_text = m_y1 + 27;
 
 	// --- left box
+	// labels are centered below their control
+	const auto drawLabel = [&](QWidget* control, const QString& text) {
+		const int center = control->x() + control->width() / 2;
+		brush.drawText(center - s_textBoxWidth / 2, y1_text, s_textBoxWidth, s_textBoxHeight, Qt::AlignCenter, text);
+	};
 	brush.setPen(QColor(255, 255, 255));
-	brush.drawText(s_x1 - 25, y1_text, s_textBoxWidth, s_textBoxHeight, Qt::AlignCenter, tr("Threshold"));
-	brush.drawText(s_x2 - 25, y1_text, s_textBoxWidth, s_textBoxHeight, Qt::AlignCenter, tr("Fade Out"));
-	brush.drawText(s_x3 - 25, y1_text, s_textBoxWidth, s_textBoxHeight, Qt::AlignCenter, tr("Reset"));
-	brush.drawText(s_x4 - 8, y1_text, s_textBoxWidth, s_textBoxHeight, Qt::AlignCenter, tr("Midi"));
-	brush.drawText(s_x5 - 16, y1_text, s_textBoxWidth, s_textBoxHeight, Qt::AlignCenter, tr("BPM"));
-	brush.drawText(s_x6 - 8, y1_text, s_textBoxWidth, s_textBoxHeight, Qt::AlignCenter, tr("Snap"));
+	drawLabel(m_noteThresholdKnob, tr("Threshold"));
+	drawLabel(m_fadeOutKnob, tr("Fade Out"));
+	drawLabel(m_sliceModeBox, tr("Mode"));
+	drawLabel(m_sliceCountBox, tr("Slices"));
+	drawLabel(m_bpmBox, tr("BPM"));
+	drawLabel(m_snapSetting, tr("Snap"));
+	drawLabel(m_midiExportButton, tr("Midi"));
 
 	int kor = 15; // knob outer radius
 	int kir = 9;  // knob inner radius
@@ -287,11 +311,23 @@ void SlicerTView::resizeEvent(QResizeEvent* re)
 	m_noteThresholdKnob->move(s_x1 - 25, m_y1);
 	m_fadeOutKnob->move(s_x2 - 25, m_y1);
 
-	m_resetButton->move(s_x3 - 15, m_y1 + 3);
-	m_midiExportButton->move(s_x4 + 2, m_y1 + 3);
+	m_sliceModeBox->move(s_x3, m_y1 + 4);
+	m_sliceCountBox->move(s_x4, m_y1 + 4);
+	m_bpmBox->move(s_x5, m_y1 + 4);
+	m_snapSetting->move(s_x6, m_y1 + 4);
 
-	m_bpmBox->move(s_x5 - 13, m_y1 + 4);
-	m_snapSetting->move(s_x6 - 8, m_y1 + 3);
+	m_midiExportButton->move(s_x7, m_y1 + 1);
+
+	// Top bar, right aligned
+	int toggleX = width() - 10;
+	for (auto toggle : {m_oneShotToggle, m_chokeToggle, m_sliceButton})
+	{
+		const int toggleWidth = toggle->sizeHint().width();
+		toggleX -= toggleWidth;
+		toggle->setGeometry(toggleX, (s_topBarHeight - 18) / 2, toggleWidth, 18);
+		// The slice button is an action, kept apart from the playback toggles
+		toggleX -= toggle == m_chokeToggle ? 16 : 6;
+	}
 
 	// Right box
 	// For explanation on the choice of constants, look at #7850

@@ -229,9 +229,12 @@ MainWindow::MainWindow() :
 
 	m_updateTimer.start( 1000 / 60, this );  // 60 fps
 
-	if( ConfigManager::inst()->value( "ui", "enableautosave" ).toInt() )
+	// Same default as the setup dialog, or a config without the key has autosave silently off
+	if (ConfigManager::inst()->value("ui", "enableautosave", "1").toInt())
 	{
-		// connect auto save
+		// connect auto save. autoSave() restarts the timer when it's done, so a save that waits on a modal
+		// error dialog can't be re-entered by the next timeout
+		m_autoSaveTimer.setSingleShot(true);
 		connect(&m_autoSaveTimer, SIGNAL(timeout()), this, SLOT(autoSave()));
 		m_autoSaveInterval = ConfigManager::inst()->value(
 					"ui", "saveinterval" ).toInt() < 1 ?
@@ -1379,13 +1382,9 @@ void MainWindow::closeEvent( QCloseEvent * _ce )
 {
 	if( mayChangeProject(true) )
 	{
-		// delete recovery file
-		if( ConfigManager::inst()->
-				value( "ui", "enableautosave" ).toInt() )
-		{
-			sessionCleanup();
-			_ce->accept();
-		}
+		// delete recovery file. Not only with autosave on, the crash handler writes it too
+		sessionCleanup();
+		_ce->accept();
 	}
 	else
 	{
@@ -1558,10 +1557,7 @@ void MainWindow::autoSave()
 	if (overdue) { setAutoSaveStalled(true); }
 
 	// try again in 10 seconds
-	if( getAutoSaveTimerInterval() != m_autoSaveShortTime )
-	{
-		autoSaveTimerReset( m_autoSaveShortTime );
-	}
+	autoSaveTimerReset(m_autoSaveShortTime);
 }
 
 void MainWindow::setAutoSaveStalled(bool stalled)

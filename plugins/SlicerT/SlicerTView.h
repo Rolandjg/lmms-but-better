@@ -39,6 +39,7 @@ namespace gui {
 class ComboBox;
 class Knob;
 class LcdSpinBox;
+class ModernToggle;
 class PixmapButton;
 class SlicerTWaveform;
 
@@ -62,15 +63,20 @@ public:
 	static constexpr int s_bottomBoxOffset = 65;
 	static constexpr int s_sampleBoxHeight = 14;
 	static constexpr int s_folderButtonWidth = 15;
-	static constexpr int s_leftBoxWidth = 400;
+	static constexpr int s_leftBoxWidth = 447;
 
+	// left x of each control in the bottom left box
+	static constexpr int s_x1 = 30; // knobs are positioned by their center
+	static constexpr int s_x2 = 80;
+	static constexpr int s_x3 = 112;
+	static constexpr int s_x4 = 202;
+	static constexpr int s_x5 = 255;
+	static constexpr int s_x6 = 308;
+	static constexpr int s_x7 = 380;
 
-	static constexpr int s_x1 = 35;
-	static constexpr int s_x2 = 85;
-	static constexpr int s_x3 = 160;
-	static constexpr int s_x4 = 190;
-	static constexpr int s_x5 = 275;
-	static constexpr int s_x6 = 325;
+	static constexpr int s_modeBoxWidth = 80;
+	static constexpr int s_snapBoxWidth = 55;
+	static constexpr int s_iconButtonSize = 28;
 protected:
 	void dragEnterEvent(QDragEnterEvent* dee) override;
 	void dropEvent(QDropEvent* de) override;
@@ -87,11 +93,15 @@ private:
 	Knob* m_fadeOutKnob;
 	LcdSpinBox* m_bpmBox;
 	ComboBox* m_snapSetting;
+	ComboBox* m_sliceModeBox;
+	LcdSpinBox* m_sliceCountBox;
+	ModernToggle* m_chokeToggle;
+	ModernToggle* m_oneShotToggle;
+	ModernToggle* m_sliceButton;
 	PixmapButton* m_syncToggle;
 	PixmapButton* m_clearButton;
 	PixmapButton* m_folderButton;
 
-	QPushButton* m_resetButton;
 	QPushButton* m_midiExportButton;
 
 	SlicerTWaveform* m_wf;

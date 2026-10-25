@@ -46,12 +46,14 @@ public slots:
 
 public:
 	SlicerTWaveform(int totalWidth, int totalHeight, SlicerT* instrument, QWidget* parent);
+	~SlicerTWaveform() override;
 
 	// predefined sizes
 	static constexpr int s_seekerHorMargin = 5;
 	static constexpr int s_seekerVerMargin = 6;
 	static constexpr int s_middleMargin = 6;
 	static constexpr int s_arrowHeight = 5;
+	static constexpr int s_minKeyLabelWidth = 26;
 
 	// interaction behavior values
 	static constexpr float s_distanceForClick = 0.02f;
@@ -74,6 +76,8 @@ protected:
 	void mouseMoveEvent(QMouseEvent* me) override;
 	void mouseDoubleClickEvent(QMouseEvent* me) override;
 	void wheelEvent(QWheelEvent* we) override;
+	void focusOutEvent(QFocusEvent* fe) override;
+	void leaveEvent(QEvent* e) override;
 
 	void paintEvent(QPaintEvent* pe) override;
 	void resizeEvent(QResizeEvent* event) override;
@@ -100,6 +104,10 @@ private:
 
 	float m_zoomLevel = 1.0f;
 
+	//! Key held down by Alt-clicking a slice, or -1
+	int m_auditionKey = -1;
+	bool m_sliceMoved = false;
+
 	QPixmap m_sliceArrow;
 	QPixmap m_seeker;
 	QPixmap m_seekerWaveform;
@@ -119,6 +127,18 @@ private:
 
 	void updateClosest(QMouseEvent* me);
 	void updateCursor();
+	//! Redraws after the slices changed
+	void updateSlices();
+
+	//! Shows @p start to @p end in the editor, which is also the range slicing again works on
+	void setSeekerRange(float start, float end);
+	//! Explains what slicing again changes, at the bottom of the editor
+	void drawRangeHint(QPainter& brush);
+
+	//! Converts an x position in the editor to a position in the sample (0 to 1)
+	float editorToSample(int x) const;
+	void auditionSlice(int index);
+	void stopAudition();
 };
 } // namespace gui
 } // namespace lmms
