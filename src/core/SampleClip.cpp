@@ -84,7 +84,8 @@ SampleClip::SampleClip(const SampleClip& orig) :
 	m_isPlaying(orig.m_isPlaying),
 	m_startFrameOffset(orig.m_startFrameOffset),
 	m_fadeIn(orig.m_fadeIn),
-	m_fadeOut(orig.m_fadeOut)
+	m_fadeOut(orig.m_fadeOut),
+	m_resampleRatio(orig.m_resampleRatio)
 {
 	saveJournallingState( false );
 	setSampleFile( "" );
@@ -151,6 +152,7 @@ void SampleClip::setSampleBuffer(std::shared_ptr<const SampleBuffer> sb)
 		const auto guard = Engine::audioEngine()->requestChangesGuard();
 		m_sample = Sample(std::move(sb));
 	}
+	m_resampleRatio = 1.0;
 	updateLength();
 
 	emit sampleChanged();
@@ -165,6 +167,7 @@ void SampleClip::setSampleFile(const QString& sf)
 	if (!sf.isEmpty())
 	{
 		m_sample = Sample(SampleBuffer::fromFile(sf));
+		m_resampleRatio = 1.0;
 		updateLength();
 	}
 	else
@@ -318,6 +321,8 @@ void SampleClip::saveSettings( QDomDocument & _doc, QDomElement & _this )
 	if (m_fadeIn > 0) { _this.setAttribute("fadein", static_cast<int>(m_fadeIn)); }
 	if (m_fadeOut > 0) { _this.setAttribute("fadeout", static_cast<int>(m_fadeOut)); }
 	if (gain() != 1.f) { _this.setAttribute("gain", gain()); }
+	// Embedded data already stores the resampled rate in sample_rate; only a file has to be resampled again
+	if (!sampleFile().isEmpty() && m_resampleRatio != 1.0) { _this.setAttribute("resample", m_resampleRatio); }
 	// TODO: start- and end-frame
 }
 
@@ -347,6 +352,11 @@ void SampleClip::loadSettings( const QDomElement & _this )
 
 		auto buffer = SampleBuffer::fromBase64(_this.attribute("data"), sampleRate);
 		m_sample = Sample(std::move(buffer));
+	}
+	if (const double ratio = _this.attribute("resample", "1").toDouble(); !sampleFile().isEmpty() && ratio > 0. && ratio != 1.)
+	{
+		setSampleRate(static_cast<sample_rate_t>(std::lround(m_sample.sampleRate() * ratio)));
+		m_resampleRatio = ratio;
 	}
 	changeLength( _this.attribute( "len" ).toInt() );
 	setMuted( _this.attribute( "muted" ).toInt() );
@@ -462,6 +472,50 @@ float SampleClip::fadeGain(float pos, float length, float fadeIn, float fadeOut)
 		gain *= std::sin(std::clamp(untilEnd / fadeOut, 0.f, 1.f) * halfPi);
 	}
 	return gain;
+}
+
+
+
+
+void SampleClip::resample(double factor)
+{
+	if (factor <= 0. || factor == 1.0 || m_sample.sampleSize() == 0) { return; }
+
+	const auto oldRate = m_sample.sampleRate();
+	const auto newRate = static_cast<sample_rate_t>(std::max(1l, std::lround(oldRate * factor)));
+	if (newRate == oldRate) { return; }
+
+	// A faster sample covers fewer ticks, so scale the clip by the same amount the audio shrinks or grows
+	const double stretch = static_cast<double>(oldRate) / newRate;
+	const auto newLength = static_cast<tick_t>(std::lround(length() * stretch));
+	const auto newOffset = static_cast<tick_t>(std::lround(startTimeOffset() * stretch));
+
+	setSampleRate(newRate);
+	m_resampleRatio *= static_cast<double>(newRate) / oldRate;
+
+	if (getAutoResize()) { updateLength(); }
+	else
+	{
+		changeLength(newLength);
+		setStartTimeOffset(newOffset);
+	}
+	Engine::getSong()->setModified();
+	emit sampleChanged();
+}
+
+
+
+
+void SampleClip::setSampleRate(sample_rate_t sampleRate)
+{
+	const auto& old = *m_sample.buffer();
+	auto sample = Sample(std::make_shared<SampleBuffer>(
+		std::vector<SampleFrame>(old.begin(), old.end()), sampleRate, old.audioFile()));
+	sample.setReversed(m_sample.reversed());
+	sample.setAmplification(m_sample.amplification());
+
+	const auto guard = Engine::audioEngine()->requestChangesGuard();
+	m_sample = std::move(sample);
 }
 
 

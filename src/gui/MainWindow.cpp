@@ -668,6 +668,11 @@ void MainWindow::resetWindowTitle()
 		title += " - " + tr( "Recover session. Please save your work!" );
 	}
 
+	if (m_autoSaveStalled)
+	{
+		title += " - " + tr("Autosave isn't working, save your work!");
+	}
+
 	setWindowTitle( title + " - " + tr( "LMMS %1" ).arg( LMMS_VERSION ) );
 }
 
@@ -1531,24 +1536,44 @@ void MainWindow::browseHelp()
 
 void MainWindow::autoSave()
 {
-	if( !Engine::getSong()->isExporting() &&
-		!Engine::getSong()->isLoadingProject() &&
-		!RemotePluginBase::isMainThreadWaiting() &&
-		!QApplication::mouseButtons() &&
-		( ConfigManager::inst()->value( "ui",
-				"enablerunningautosave" ).toInt() ||
-			! Engine::getSong()->isPlaying() ) )
+	Song* song = Engine::getSong();
+	// Saving now would write a half loaded project or re-enter a busy plugin, so these always wait
+	const bool mustWait = song->isExporting() || song->isLoadingProject() || RemotePluginBase::isMainThreadWaiting();
+	// These only avoid a hiccup while playing or dragging. They can last the whole session (a song that's
+	// always playing, a mouse release Qt never saw), so they're ignored once the save is overdue
+	const bool preferWait = QApplication::mouseButtons() != Qt::NoButton
+		|| (!ConfigManager::inst()->value("ui", "enablerunningautosave").toInt() && song->isPlaying());
+	const bool overdue = m_autoSaveSkipped.isValid() && m_autoSaveSkipped.elapsed() >= autoSaveInterval();
+
+	if (!mustWait && (!preferWait || overdue))
 	{
-		Engine::getSong()->saveProjectFile(ConfigManager::inst()->recoveryFile());
+		const bool saved = song->saveProjectFile(ConfigManager::inst()->recoveryFile());
+		if (saved) { m_autoSaveSkipped.invalidate(); }
+		setAutoSaveStalled(!saved);
 		autoSaveTimerReset();  // Reset timer
+		return;
 	}
-	else
+
+	if (!m_autoSaveSkipped.isValid()) { m_autoSaveSkipped.start(); }
+	if (overdue) { setAutoSaveStalled(true); }
+
+	// try again in 10 seconds
+	if( getAutoSaveTimerInterval() != m_autoSaveShortTime )
 	{
-		// try again in 10 seconds
-		if( getAutoSaveTimerInterval() != m_autoSaveShortTime )
-		{
-			autoSaveTimerReset( m_autoSaveShortTime );
-		}
+		autoSaveTimerReset( m_autoSaveShortTime );
+	}
+}
+
+void MainWindow::setAutoSaveStalled(bool stalled)
+{
+	if (stalled == m_autoSaveStalled) { return; }
+	m_autoSaveStalled = stalled;
+	resetWindowTitle();
+	if (stalled)
+	{
+		TextFloat::displayMessage(tr("Autosave failed"),
+			tr("LMMS hasn't been able to autosave for a while. Save your project now!"),
+			embed::getIconPixmap("error"), 10000);
 	}
 }
 

@@ -91,6 +91,10 @@ public:
 	//! Overlapping fades are scaled down so they meet instead of overlapping.
 	static float fadeGain(float pos, float length, float fadeIn, float fadeOut);
 
+	//! Speed the sample up (or slow it down) by @p factor, changing tempo and pitch together like a turntable.
+	//! The clip's length and start offset follow so it keeps covering the same part of the sample.
+	void resample(double factor);
+
 
 	bool isPlaying() const;
 	void setIsPlaying(bool isPlaying);
@@ -119,6 +123,11 @@ private:
 	int m_startFrameOffset;
 	TimePos m_fadeIn = 0;
 	TimePos m_fadeOut = 0;
+	//! Accumulated resample factor relative to the sample file's own rate, reapplied when the file is loaded
+	double m_resampleRatio = 1.0;
+
+	//! Swap in a copy of the sample's buffer that plays at @p sampleRate, keeping reverse and gain
+	void setSampleRate(sample_rate_t sampleRate);
 
 	friend class gui::SampleClipView;
 

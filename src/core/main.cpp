@@ -36,6 +36,7 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSaveFile>
 #include <QTextStream>
 
 #ifdef LMMS_BUILD_WIN32
@@ -99,6 +100,50 @@ void sigfpeHandler(int signum)
 	// terminate program
 
 	exit(signum);
+}
+#endif
+
+#ifndef LMMS_BUILD_WIN32
+//! Last chance to keep the user's work when LMMS crashes: save the project to the recovery file, which
+//! is offered on the next launch. Nothing in here is async-signal-safe, so this is best effort. The
+//! handler is one-shot (a crash while saving just ends the process), an alarm kills a save that
+//! deadlocks, and QSaveFile leaves the previous recovery file alone unless the new one is complete
+static void crashSaveHandler(int signum)
+{
+	alarm(15);
+	lmms::Song* song = lmms::Engine::getSong();
+	if (song != nullptr && !song->isLoadingProject() && !song->isSavingProject())
+	{
+		const char message[] = "LMMS crashed, saving the project to the recovery file...\n";
+		[[maybe_unused]] const auto written = ::write(STDERR_FILENO, message, sizeof(message) - 1);
+		QSaveFile file(lmms::ConfigManager::inst()->recoveryFile());
+		if (file.open(QIODevice::WriteOnly))
+		{
+			QTextStream stream(&file);
+			song->toDataFile().write(stream);
+			stream.flush();
+			file.commit();
+		}
+	}
+	raise(signum);
+}
+
+static void installCrashSaveHandler()
+{
+	struct sigaction sa = {};
+	sa.sa_handler = crashSaveHandler;
+	// one-shot, and let raise() deliver the signal again from inside the handler
+	sa.sa_flags = SA_RESETHAND | SA_NODEFER;
+	sigemptyset(&sa.sa_mask);
+#ifdef LMMS_DEBUG_FPE
+	// sigfpeHandler owns SIGFPE in these builds
+	for (int signum : {SIGSEGV, SIGABRT, SIGBUS, SIGILL})
+#else
+	for (int signum : {SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL})
+#endif
+	{
+		sigaction(signum, &sa, nullptr);
+	}
 }
 #endif
 
@@ -1061,6 +1106,11 @@ int main( int argc, char * * argv )
 		{
 			gui::getGUI()->mainWindow()->autoSaveTimerReset();
 		}
+
+#ifndef LMMS_BUILD_WIN32
+		// only now there is a complete project worth saving
+		installCrashSaveHandler();
+#endif
 
 		if (!scriptFile.isEmpty() || scriptServer)
 		{

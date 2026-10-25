@@ -33,6 +33,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QRegularExpression>
 
 #include "FileDialog.h"
 #include "FontHelper.h"
@@ -124,6 +125,8 @@ void SampleClipView::constructContextMenu(QMenu* cm)
 		this,
 		SLOT(reverseSample())
 	);
+	auto resample = cm->addAction(tr("Resample BPM…"), this, &SampleClipView::resampleBpm);
+	resample->setEnabled(m_clip->m_sample.sampleSize() > 0);
 
 	cm->addSeparator();
 	cm->addAction(tr("Fades and gain…"), this, &SampleClipView::editFadesAndGain);
@@ -233,6 +236,49 @@ void SampleClipView::editFadesAndGain()
 	m_clip->setFadeIn(static_cast<tick_t>(std::lround(fadeIn->value() * ticksPerBeat)));
 	m_clip->setFadeOut(static_cast<tick_t>(std::lround(fadeOut->value() * ticksPerBeat)));
 	m_clip->setGain(gain->value() <= MinGainDb ? 0.f : dbfsToAmp(static_cast<float>(gain->value())));
+	update();
+}
+
+
+
+
+void SampleClipView::resampleBpm()
+{
+	const double songBpm = Engine::getSong()->getTempo();
+
+	// Loops are often named after their tempo ("drums_128bpm.wav"), so start from that when we can
+	double originalBpm = songBpm;
+	static const auto bpmInName = QRegularExpression(R"((\d{2,3}(?:\.\d+)?)\s*bpm)", QRegularExpression::CaseInsensitiveOption);
+	if (const auto match = bpmInName.match(PathUtil::cleanName(m_clip->sampleFile())); match.hasMatch())
+	{
+		originalBpm = match.captured(1).toDouble();
+	}
+
+	QDialog dialog(this);
+	dialog.setWindowTitle(tr("Resample BPM"));
+	auto layout = new QFormLayout(&dialog);
+	const auto bpmBox = [&](double value) {
+		auto box = new QDoubleSpinBox(&dialog);
+		box->setRange(MinTempo, MaxTempo);
+		box->setDecimals(2);
+		box->setSuffix(tr(" BPM"));
+		box->setValue(value);
+		return box;
+	};
+	auto original = bpmBox(originalBpm);
+	auto target = bpmBox(songBpm);
+	layout->addRow(tr("Original BPM:"), original);
+	layout->addRow(tr("New BPM:"), target);
+	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+	layout->addRow(buttons);
+	original->setFocus();
+	original->selectAll();
+	if (dialog.exec() != QDialog::Accepted || original->value() == target->value()) { return; }
+
+	m_clip->addJournalCheckPoint();
+	m_clip->resample(target->value() / original->value());
 	update();
 }
 

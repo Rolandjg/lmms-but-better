@@ -1116,6 +1116,10 @@ void Song::loadProject( const QString & fileName )
 
 	if (cantLoadProject)
 	{
+		// Nothing was loaded, so undo the setup above. Otherwise autosave and undo stay off for the rest
+		// of the session
+		m_loadingProject = false;
+		Engine::projectJournal()->setJournalling(true);
 		if( m_loadOnLaunch )
 		{
 			createNewProject();

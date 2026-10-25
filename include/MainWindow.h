@@ -26,6 +26,7 @@
 #define LMMS_GUI_MAIN_WINDOW_H
 
 #include <QBasicTimer>
+#include <QElapsedTimer>
 #include <QTimer>
 #include <QList>
 #include <QMainWindow>
@@ -111,9 +112,14 @@ public:
 
 	static const int m_autoSaveShortTime = 10 * 1000; // 10s short loop
 
-	void autoSaveTimerReset( int msec = ConfigManager::inst()->
-					value( "ui", "saveinterval" ).toInt()
-						* 60 * 1000 )
+	//! The regular auto save interval in milliseconds
+	static int autoSaveInterval()
+	{
+		const int msec = ConfigManager::inst()->value("ui", "saveinterval").toInt() * 60 * 1000;
+		return msec < m_autoSaveShortTime ? DEFAULT_AUTO_SAVE_INTERVAL : msec;
+	}
+
+	void autoSaveTimerReset( int msec = autoSaveInterval() )
 	{
 		if( msec < m_autoSaveShortTime ) // No 'saveinterval' in .lmmsrc.xml
 		{
@@ -259,6 +265,10 @@ private:
 	QBasicTimer m_updateTimer;
 	QTimer m_autoSaveTimer;
 	int m_autoSaveInterval;
+	QElapsedTimer m_autoSaveSkipped; //!< runs while auto saves are being postponed
+	bool m_autoSaveStalled = false; //!< auto save is overdue and can't run, the user gets warned
+
+	void setAutoSaveStalled(bool stalled);
 
 	friend class GuiApplication;
 
