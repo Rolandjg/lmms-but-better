@@ -28,6 +28,7 @@
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QPainter>
+#include <QProgressDialog>
 
 #include "AutomationClip.h"
 #include "Clipboard.h"
@@ -37,6 +38,7 @@
 #include "GuiApplication.h"
 #include "PatternEditor.h"
 #include "PatternStore.h"
+#include "SampleClip.h"
 #include "Song.h"
 #include "SongEditor.h"
 #include "StringPairDrag.h"
@@ -448,8 +450,21 @@ bool TrackContentWidget::pasteSelection( TimePos clipPos, const QMimeData * md, 
 	// Fix offset if it sets the left most Clip to a negative position
 	offset = std::max(offset.getTicks(), -leftmostPos.getTicks());
 
+	// Restoring sample clips can mean decoding and time-stretching audio, so show progress on slow pastes,
+	// both across clips and within a clip that is being stretched
+	constexpr int StepsPerClip = 1000;
+	QProgressDialog progress(tr("Pasting clips…"), QString(), 0, clipNodes.length() * StepsPerClip, this);
+	progress.setWindowModality(Qt::ApplicationModal);
+	progress.setMinimumDuration(500);
+	int currentClip = 0;
+	SampleClip::setLoadProgress([&](float done) {
+		progress.setValue(static_cast<int>((currentClip + done) * StepsPerClip));
+	});
+
 	for( int i = 0; i<clipNodes.length(); i++ )
 	{
+		currentClip = i;
+		progress.setValue(i * StepsPerClip);
 		QDomElement outerClipElement = clipNodes.item( i ).toElement();
 		QDomElement clipElement = outerClipElement.firstChildElement();
 
@@ -471,6 +486,9 @@ bool TrackContentWidget::pasteSelection( TimePos clipPos, const QMimeData * md, 
 			clip->selectViewOnCreate( true );
 		}
 	}
+
+	SampleClip::setLoadProgress({});
+	progress.reset();
 
 	AutomationClip::resolveAllIDs();
 

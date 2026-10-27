@@ -19,6 +19,7 @@ set(LMMS_TESTS
 	src/core/ProjectPersistenceTest.cpp
 	src/core/LatencyCompensationTest.cpp
 	src/core/SampleClipFadeTest.cpp
+	src/core/SampleClipCacheTest.cpp
 	src/core/ScriptApiTest.cpp
 	src/gui/PianoRollRenderingTest.cpp
 	src/gui/MixerChannelLcdSpinBoxTest.cpp

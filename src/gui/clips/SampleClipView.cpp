@@ -25,6 +25,7 @@
 #include "SampleClipView.h"
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
@@ -33,8 +34,10 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QProgressDialog>
 #include <QRegularExpression>
 
+#include "ConfigManager.h"
 #include "FileDialog.h"
 #include "FontHelper.h"
 #include "GuiApplication.h"
@@ -269,16 +272,32 @@ void SampleClipView::resampleBpm()
 	auto target = bpmBox(songBpm);
 	layout->addRow(tr("Original BPM:"), original);
 	layout->addRow(tr("New BPM:"), target);
+	auto preservePitch = new QCheckBox(tr("Preserve pitch (time-stretch)"), &dialog);
+	preservePitch->setToolTip(tr("Change only the tempo. When unchecked the sample is sped up or slowed down "
+		"like a turntable, which also changes its pitch."));
+	preservePitch->setChecked(ConfigManager::inst()->value("ui", "resamplepreservepitch", "1").toInt());
+	layout->addRow(preservePitch);
 	auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
 	connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
 	connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 	layout->addRow(buttons);
 	original->setFocus();
 	original->selectAll();
-	if (dialog.exec() != QDialog::Accepted || original->value() == target->value()) { return; }
+	if (dialog.exec() != QDialog::Accepted) { return; }
+	ConfigManager::inst()->setValue("ui", "resamplepreservepitch", QString::number(preservePitch->isChecked()));
+	if (original->value() == target->value()) { return; }
+
+	// Stretching a long sample takes a while, so show how far along it is
+	QProgressDialog progress(tr("Time-stretching %1…").arg(PathUtil::cleanName(m_clip->sampleFile())), QString(), 0, 1000, this);
+	progress.setWindowTitle(tr("Resample BPM"));
+	progress.setWindowModality(Qt::ApplicationModal);
+	progress.setMinimumDuration(500);
 
 	m_clip->addJournalCheckPoint();
-	m_clip->resample(target->value() / original->value());
+	m_clip->resample(target->value() / original->value(), preservePitch->isChecked(), [&progress](float done) {
+		progress.setValue(static_cast<int>(done * progress.maximum()));
+	});
+	progress.reset();
 	update();
 }
 

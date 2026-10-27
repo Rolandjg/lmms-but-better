@@ -26,8 +26,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <mutex>
 #include <numbers>
+#include <tuple>
 
+#include <QDateTime>
 #include <QDomElement>
 #include <QFileInfo>
 
@@ -36,9 +40,45 @@
 #include "SampleClipView.h"
 #include "SampleTrack.h"
 #include "Song.h"
+#include "TimeStretch.h"
 
 namespace lmms
 {
+
+std::function<void(float)> SampleClip::s_loadProgress;
+
+namespace
+{
+
+struct BufferCacheKey
+{
+	QString path;
+	qint64 modified;
+	qint64 size;
+	double stretchRatio;
+	double resampleRatio;
+
+	bool operator<(const BufferCacheKey& other) const
+	{
+		return std::tie(path, modified, size, stretchRatio, resampleRatio)
+			< std::tie(other.path, other.modified, other.size, other.stretchRatio, other.resampleRatio);
+	}
+};
+
+//! Weak, so the cache never keeps audio alive on its own: an entry lasts as long as some clip uses the buffer
+std::map<BufferCacheKey, std::weak_ptr<const SampleBuffer>>& bufferCache()
+{
+	static auto cache = std::map<BufferCacheKey, std::weak_ptr<const SampleBuffer>>{};
+	return cache;
+}
+
+std::mutex& bufferCacheMutex()
+{
+	static auto mutex = std::mutex{};
+	return mutex;
+}
+
+} // namespace
 
 SampleClip::SampleClip(Track* _track, Sample sample, bool isPlaying):
 	Clip(_track),
@@ -85,7 +125,9 @@ SampleClip::SampleClip(const SampleClip& orig) :
 	m_startFrameOffset(orig.m_startFrameOffset),
 	m_fadeIn(orig.m_fadeIn),
 	m_fadeOut(orig.m_fadeOut),
-	m_resampleRatio(orig.m_resampleRatio)
+	m_resampleRatio(orig.m_resampleRatio),
+	m_stretchRatio(orig.m_stretchRatio),
+	m_fileStamp(orig.m_fileStamp)
 {
 	saveJournallingState( false );
 	setSampleFile( "" );
@@ -153,6 +195,8 @@ void SampleClip::setSampleBuffer(std::shared_ptr<const SampleBuffer> sb)
 		m_sample = Sample(std::move(sb));
 	}
 	m_resampleRatio = 1.0;
+	m_stretchRatio = 1.0;
+	m_fileStamp = {};
 	updateLength();
 
 	emit sampleChanged();
@@ -166,8 +210,14 @@ void SampleClip::setSampleFile(const QString& sf)
 	setStartTimeOffset(0);
 	if (!sf.isEmpty())
 	{
-		m_sample = Sample(SampleBuffer::fromFile(sf));
+		const auto stamp = fileStamp(sf);
+		auto buffer = cachedBuffer(sf, stamp, 1.0, 1.0);
+		if (!buffer) { buffer = SampleBuffer::fromFile(sf); }
+		m_sample = Sample(std::move(buffer));
+		m_fileStamp = stamp;
 		m_resampleRatio = 1.0;
+		m_stretchRatio = 1.0;
+		cacheBuffer();
 		updateLength();
 	}
 	else
@@ -322,7 +372,15 @@ void SampleClip::saveSettings( QDomDocument & _doc, QDomElement & _this )
 	if (m_fadeOut > 0) { _this.setAttribute("fadeout", static_cast<int>(m_fadeOut)); }
 	if (gain() != 1.f) { _this.setAttribute("gain", gain()); }
 	// Embedded data already stores the resampled rate in sample_rate; only a file has to be resampled again
-	if (!sampleFile().isEmpty() && m_resampleRatio != 1.0) { _this.setAttribute("resample", m_resampleRatio); }
+	// Full precision, so a copy restores exactly the original's ratios and can share its buffer
+	if (!sampleFile().isEmpty() && m_resampleRatio != 1.0)
+	{
+		_this.setAttribute("resample", QString::number(m_resampleRatio, 'g', 17));
+	}
+	if (!sampleFile().isEmpty() && m_stretchRatio != 1.0)
+	{
+		_this.setAttribute("stretch", QString::number(m_stretchRatio, 'g', 17));
+	}
 	// TODO: start- and end-frame
 }
 
@@ -340,7 +398,42 @@ void SampleClip::loadSettings( const QDomElement & _this )
 	{
 		if (QFileInfo(PathUtil::toAbsolute(srcFile)).exists())
 		{
-			setSampleFile(srcFile);
+			const auto ratio = [&_this](const QString& name) {
+				const double value = _this.attribute(name, "1").toDouble();
+				return value > 0. ? value : 1.0;
+			};
+			const double stretchRatio = ratio("stretch");
+			const double resampleRatio = ratio("resample");
+
+			const auto stamp = fileStamp(srcFile);
+			if (auto cached = cachedBuffer(srcFile, stamp, stretchRatio, resampleRatio))
+			{
+				// Another clip (usually the one being copied) already holds exactly this audio, so share it
+				setStartTimeOffset(0);
+				{
+					const auto guard = Engine::audioEngine()->requestChangesGuard();
+					m_sample = Sample(std::move(cached));
+				}
+				m_fileStamp = stamp;
+				m_stretchRatio = stretchRatio;
+				m_resampleRatio = resampleRatio;
+				updateLength();
+				playbackPositionChanged();
+			}
+			else
+			{
+				setSampleFile(srcFile);
+				if (m_sample.sampleSize() > 0)
+				{
+					if (stretchRatio != 1.0) { applyStretch(stretchRatio, s_loadProgress); }
+					if (resampleRatio != 1.0)
+					{
+						setSampleRate(static_cast<sample_rate_t>(std::lround(m_sample.sampleRate() * resampleRatio)));
+						m_resampleRatio = resampleRatio;
+					}
+					cacheBuffer();
+				}
+			}
 		}
 		else { Engine::getSong()->collectError(QString("%1: %2").arg(tr("Sample not found"), srcFile)); }
 	}
@@ -352,11 +445,6 @@ void SampleClip::loadSettings( const QDomElement & _this )
 
 		auto buffer = SampleBuffer::fromBase64(_this.attribute("data"), sampleRate);
 		m_sample = Sample(std::move(buffer));
-	}
-	if (const double ratio = _this.attribute("resample", "1").toDouble(); !sampleFile().isEmpty() && ratio > 0. && ratio != 1.)
-	{
-		setSampleRate(static_cast<sample_rate_t>(std::lround(m_sample.sampleRate() * ratio)));
-		m_resampleRatio = ratio;
 	}
 	changeLength( _this.attribute( "len" ).toInt() );
 	setMuted( _this.attribute( "muted" ).toInt() );
@@ -477,30 +565,111 @@ float SampleClip::fadeGain(float pos, float length, float fadeIn, float fadeOut)
 
 
 
-void SampleClip::resample(double factor)
+void SampleClip::resample(double factor, bool preservePitch, const std::function<void(float)>& progress)
 {
 	if (factor <= 0. || factor == 1.0 || m_sample.sampleSize() == 0) { return; }
 
-	const auto oldRate = m_sample.sampleRate();
-	const auto newRate = static_cast<sample_rate_t>(std::max(1l, std::lround(oldRate * factor)));
-	if (newRate == oldRate) { return; }
+	double stretch = 1.0;
+	if (preservePitch)
+	{
+		// Keep the sample rate (and so the pitch) and change how many frames the audio spans instead
+		const auto oldSize = m_sample.sampleSize();
+		applyStretch(m_stretchRatio / factor, progress);
+		stretch = static_cast<double>(m_sample.sampleSize()) / oldSize;
+	}
+	else
+	{
+		const auto oldRate = m_sample.sampleRate();
+		const auto newRate = static_cast<sample_rate_t>(std::max(1l, std::lround(oldRate * factor)));
+		if (newRate == oldRate) { return; }
 
-	// A faster sample covers fewer ticks, so scale the clip by the same amount the audio shrinks or grows
-	const double stretch = static_cast<double>(oldRate) / newRate;
+		// A faster sample covers fewer ticks, so scale the clip by the same amount the audio shrinks or grows
+		stretch = static_cast<double>(oldRate) / newRate;
+		setSampleRate(newRate);
+		m_resampleRatio *= static_cast<double>(newRate) / oldRate;
+	}
+
 	const auto newLength = static_cast<tick_t>(std::lround(length() * stretch));
 	const auto newOffset = static_cast<tick_t>(std::lround(startTimeOffset() * stretch));
-
-	setSampleRate(newRate);
-	m_resampleRatio *= static_cast<double>(newRate) / oldRate;
-
 	if (getAutoResize()) { updateLength(); }
 	else
 	{
 		changeLength(newLength);
 		setStartTimeOffset(newOffset);
 	}
+	cacheBuffer();
 	Engine::getSong()->setModified();
 	emit sampleChanged();
+}
+
+
+
+
+void SampleClip::applyStretch(double stretchRatio, const std::function<void(float)>& progress)
+{
+	// Stretch from the file when there is one, so repeated changes don't pile up stretching artifacts
+	auto source = m_sample.buffer();
+	double ratio = stretchRatio / m_stretchRatio;
+	auto sampleRate = m_sample.sampleRate();
+	if (m_stretchRatio != 1.0 && !sampleFile().isEmpty())
+	{
+		const auto stamp = fileStamp(sampleFile());
+		auto file = cachedBuffer(sampleFile(), stamp, 1.0, 1.0);
+		if (!file) { file = SampleBuffer::fromFile(sampleFile()); }
+		if (!file->empty())
+		{
+			source = std::move(file);
+			ratio = stretchRatio;
+			// The file may have changed on disk since it was first loaded, rate included
+			sampleRate = static_cast<sample_rate_t>(std::max(1l, std::lround(source->sampleRate() * m_resampleRatio)));
+			m_fileStamp = stamp;
+		}
+	}
+
+	setSampleFrames(dsp::timeStretch(source->data(), source->size(), ratio, source->sampleRate(), progress), sampleRate);
+	m_stretchRatio = stretchRatio;
+}
+
+
+
+
+SampleClip::FileStamp SampleClip::fileStamp(const QString& file)
+{
+	const auto info = QFileInfo{PathUtil::toAbsolute(file)};
+	if (!info.exists()) { return {}; }
+	return {info.lastModified().toMSecsSinceEpoch(), info.size()};
+}
+
+
+
+
+std::shared_ptr<const SampleBuffer> SampleClip::cachedBuffer(const QString& file, const FileStamp& stamp,
+	double stretchRatio, double resampleRatio)
+{
+	if (file.isEmpty() || !stamp.valid()) { return nullptr; }
+
+	const auto lock = std::lock_guard{bufferCacheMutex()};
+	auto& cache = bufferCache();
+	const auto it = cache.find({PathUtil::toAbsolute(file), stamp.modified, stamp.size, stretchRatio, resampleRatio});
+	if (it == cache.end()) { return nullptr; }
+	auto buffer = it->second.lock();
+	if (!buffer) { cache.erase(it); }
+	return buffer;
+}
+
+
+
+
+void SampleClip::cacheBuffer() const
+{
+	const auto& buffer = m_sample.buffer();
+	if (sampleFile().isEmpty() || !m_fileStamp.valid() || !buffer || buffer->empty()) { return; }
+
+	const auto lock = std::lock_guard{bufferCacheMutex()};
+	auto& cache = bufferCache();
+	std::erase_if(cache, [](const auto& entry) { return entry.second.expired(); });
+	cache[{PathUtil::toAbsolute(sampleFile()), m_fileStamp.modified, m_fileStamp.size, m_stretchRatio, m_resampleRatio}]
+		= buffer;
 }
 
 
@@ -509,8 +678,15 @@ void SampleClip::resample(double factor)
 void SampleClip::setSampleRate(sample_rate_t sampleRate)
 {
 	const auto& old = *m_sample.buffer();
-	auto sample = Sample(std::make_shared<SampleBuffer>(
-		std::vector<SampleFrame>(old.begin(), old.end()), sampleRate, old.audioFile()));
+	setSampleFrames(std::vector<SampleFrame>(old.begin(), old.end()), sampleRate);
+}
+
+
+
+
+void SampleClip::setSampleFrames(std::vector<SampleFrame> frames, sample_rate_t sampleRate)
+{
+	auto sample = Sample(std::make_shared<SampleBuffer>(std::move(frames), sampleRate, m_sample.buffer()->audioFile()));
 	sample.setReversed(m_sample.reversed());
 	sample.setAmplification(m_sample.amplification());
 

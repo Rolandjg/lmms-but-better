@@ -30,6 +30,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QProgressDialog>
 
 #include "AutomationClip.h"
 #include "Clipboard.h"
@@ -333,7 +334,14 @@ void ClipView::dropEvent( QDropEvent * de )
 	DataFile dataFile( value.toUtf8() );
 	TimePos pos = m_clip->startPosition();
 	QDomElement clips = dataFile.content().firstChildElement("clips");
+	// A sample clip may get time-stretched while it is restored, which can take a while
+	QProgressDialog progress(tr("Pasting clip…"), QString(), 0, 1000, this);
+	progress.setWindowModality(Qt::ApplicationModal);
+	progress.setMinimumDuration(500);
+	SampleClip::setLoadProgress([&progress](float done) { progress.setValue(static_cast<int>(done * progress.maximum())); });
 	m_clip->restoreState( clips.firstChildElement().firstChildElement() );
+	SampleClip::setLoadProgress({});
+	progress.reset();
 	m_clip->movePosition( pos );
 	AutomationClip::resolveAllIDs();
 	de->accept();

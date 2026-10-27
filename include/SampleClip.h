@@ -25,6 +25,7 @@
 #ifndef LMMS_SAMPLE_CLIP_H
 #define LMMS_SAMPLE_CLIP_H
 
+#include <functional>
 #include <memory>
 #include "Clip.h"
 #include "Sample.h"
@@ -91,9 +92,15 @@ public:
 	//! Overlapping fades are scaled down so they meet instead of overlapping.
 	static float fadeGain(float pos, float length, float fadeIn, float fadeOut);
 
-	//! Speed the sample up (or slow it down) by @p factor, changing tempo and pitch together like a turntable.
+	//! Speed the sample up (or slow it down) by @p factor, changing tempo and pitch together like a turntable,
+	//! or with @p preservePitch, time-stretch it so only the tempo changes.
 	//! The clip's length and start offset follow so it keeps covering the same part of the sample.
-	void resample(double factor);
+	//! @p progress, if set, is called with the fraction done while time-stretching.
+	void resample(double factor, bool preservePitch = false, const std::function<void(float)>& progress = {});
+
+	//! Called with the fraction done while loadSettings time-stretches a sample, so callers restoring clips
+	//! (pasting, dropping) can show progress. Empty for none.
+	static void setLoadProgress(std::function<void(float)> callback) { s_loadProgress = std::move(callback); }
 
 
 	bool isPlaying() const;
@@ -125,9 +132,38 @@ private:
 	TimePos m_fadeOut = 0;
 	//! Accumulated resample factor relative to the sample file's own rate, reapplied when the file is loaded
 	double m_resampleRatio = 1.0;
+	//! Accumulated time-stretch (output length / file length), reapplied when the file is loaded
+	double m_stretchRatio = 1.0;
+
+	//! When the sample file was last modified and how big it was when it was decoded, so buffers of an
+	//! older version of the file are never handed to clips loading the newer one
+	struct FileStamp
+	{
+		qint64 modified = -1;
+		qint64 size = -1;
+		bool valid() const { return size >= 0; }
+		bool operator==(const FileStamp&) const = default;
+	};
+	FileStamp m_fileStamp;
+
+	static std::function<void(float)> s_loadProgress;
+
+	static FileStamp fileStamp(const QString& file);
+	//! A buffer of @p file (as of @p stamp) with the given stretch and resample ratios that some clip still holds,
+	//! so loading the same audio again (copying, pasting, duplicating) can share it instead of decoding and stretching
+	static std::shared_ptr<const SampleBuffer> cachedBuffer(const QString& file, const FileStamp& stamp,
+		double stretchRatio, double resampleRatio);
+	//! Offer this clip's buffer to cachedBuffer(); does nothing unless it is exactly the file's audio after
+	//! m_stretchRatio and m_resampleRatio
+	void cacheBuffer() const;
 
 	//! Swap in a copy of the sample's buffer that plays at @p sampleRate, keeping reverse and gain
 	void setSampleRate(sample_rate_t sampleRate);
+	//! Swap in @p frames as the sample's buffer at @p sampleRate, keeping reverse and gain
+	void setSampleFrames(std::vector<SampleFrame> frames, sample_rate_t sampleRate);
+	//! Time-stretch the sample's buffer from the file (or the current buffer if there is no file)
+	//! so it ends up @p stretchRatio times as long as the file, keeping its sample rate
+	void applyStretch(double stretchRatio, const std::function<void(float)>& progress = {});
 
 	friend class gui::SampleClipView;
 

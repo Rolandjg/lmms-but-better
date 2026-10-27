@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <numbers>
 #include <vector>
 
@@ -42,9 +43,10 @@ namespace lmms::dsp
  * well for drums, bass lines and most loops and needs no external library.
  *
  * @param lengthRatio output length / input length (2 = twice as long = half the tempo)
+ * @param progress if set, called now and then with the fraction of the output done so far (0 to 1)
  */
 inline std::vector<SampleFrame> timeStretch(const SampleFrame* input, std::size_t inputFrames,
-	double lengthRatio, int sampleRate)
+	double lengthRatio, int sampleRate, const std::function<void(float)>& progress = {})
 {
 	if (inputFrames == 0 || lengthRatio <= 0.0) { return {}; }
 	const auto outputFrames = static_cast<std::size_t>(std::llround(inputFrames * lengthRatio));
@@ -80,8 +82,12 @@ inline std::vector<SampleFrame> timeStretch(const SampleFrame* input, std::size_
 	auto mono = [input](long i) { return input[i].left() + input[i].right(); };
 
 	long previous = 0;
+	int hops = 0;
 	for (std::size_t outPos = 0; outPos < outputFrames; outPos += synthesisHop)
 	{
+		// Reporting every grain would mostly measure the reporting, so only do it every so often
+		if (progress && hops++ % 32 == 0) { progress(static_cast<float>(outPos) / outputFrames); }
+
 		const auto nominal = static_cast<long>(outPos / static_cast<double>(synthesisHop) * analysisHop);
 		long best = std::clamp(nominal, 0L, lastStart);
 		if (outPos > 0)

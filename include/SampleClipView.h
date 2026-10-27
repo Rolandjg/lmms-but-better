@@ -51,7 +51,7 @@ public slots:
 	void reverseSample();
 	//! Dialog for typing fade lengths and the clip gain
 	void editFadesAndGain();
-	//! Dialog for typing the sample's original and target BPM, then resampling it to match
+	//! Dialog for typing the sample's original and target BPM, then resampling or time-stretching it to match
 	void resampleBpm();
 	void setAutomationGhost();
 
