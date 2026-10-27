@@ -1,0 +1,5 @@
+INCLUDE(BuildPlugin)
+
+BUILD_PLUGIN(figglebottomtune FigglebottomTune.cpp FigglebottomTuneControls.cpp FigglebottomTuneControlDialog.cpp
+	MOCFILES FigglebottomTuneControls.h FigglebottomTuneControlDialog.h
+	EMBEDDED_RESOURCES logo.png)

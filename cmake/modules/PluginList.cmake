@@ -61,6 +61,7 @@ SET(LMMS_PLUGIN_LIST
 	FreeBoy
 	Patman
 	PeakControllerEffect
+	FigglebottomTune
 	Pumper
 	GigPlayer
 	ReverbSC

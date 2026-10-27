@@ -1956,8 +1956,9 @@ void PianoRoll::mousePressEvent(QMouseEvent * me )
 		return;
 	}
 
-	// Alt-click plays every note that lines up under the cursor
-	if (me->button() == Qt::LeftButton && me->modifiers() & Qt::AltModifier)
+	// Alt-click plays every note that lines up under the cursor. Alt-clicking a note itself
+	// falls through so it can be moved/resized off-grid as usual
+	if (me->button() == Qt::LeftButton && me->modifiers() & Qt::AltModifier && !noteUnderMouse())
 	{
 		if (const NoteVector notes = auditionNotesAt(pos); !notes.empty())
 		{
@@ -4504,7 +4505,9 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		// -- End knife tool
 
 		// -- Alt held: outline the notes an Alt-click would play
-		if (m_action == Action::Audition || QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier)
+		// (not while editing notes or hovering one, where Alt means off-grid instead)
+		if (m_action == Action::Audition
+			|| (m_action == Action::None && QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier && !noteUnderMouse()))
 		{
 			const QPoint cursorPos = mapFromGlobal(QCursor::pos());
 			const NoteVector auditioned = underMouse() ? auditionNotesAt(cursorPos) : NoteVector{};
