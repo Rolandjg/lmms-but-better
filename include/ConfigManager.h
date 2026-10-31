@@ -213,6 +213,12 @@ public:
 		m_recoveryFileName = name;
 	}
 
+	//! Every distinct autosave is kept here, see MainWindow::keepAutoSaveHistory()
+	QString autoSaveHistoryDir() const
+	{
+		return m_workingDir + "autosave/";
+	}
+
 	inline const QStringList & recentlyOpenedProjects() const
 	{
 		return m_recentlyOpenedProjects;

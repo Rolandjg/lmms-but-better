@@ -26,12 +26,16 @@
 
 #include <QApplication>
 #include <QCloseEvent>
+#include <QCryptographicHash>
+#include <QDateTime>
 #include <QDesktopServices>
+#include <QDir>
 #include <QDomElement>
 #include <QFileInfo>
 #include <QMdiArea>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSaveFile>
 #include <QShortcut>
 #include <QSplitter>
 
@@ -317,6 +321,9 @@ void MainWindow::finalize()
 		QKeySequence::Open, &MainWindow::openProject);
 
 	project_menu->addMenu(new RecentProjectsMenu(this));
+
+	project_menu->addAction(embed::getIconPixmap("recover"), tr("Open A&utosave..."),
+		this, &MainWindow::openAutoSave);
 
 	addAction(project_menu, "project_save", tr("&Save"),
 		QKeySequence::Save, &MainWindow::saveProject);
@@ -1547,7 +1554,12 @@ void MainWindow::autoSave()
 	if (!mustWait && (!preferWait || overdue))
 	{
 		const bool saved = song->saveProjectFile(ConfigManager::inst()->recoveryFile());
-		if (saved) { m_autoSaveSkipped.invalidate(); }
+		if (saved)
+		{
+			m_autoSaveSkipped.invalidate();
+			keepAutoSaveHistory(ConfigManager::inst()->recoveryFile(),
+				QFileInfo{song->projectFileName()}.completeBaseName());
+		}
 		setAutoSaveStalled(!saved);
 		autoSaveTimerReset();  // Reset timer
 		return;
@@ -1558,6 +1570,63 @@ void MainWindow::autoSave()
 
 	// try again in 10 seconds
 	autoSaveTimerReset(m_autoSaveShortTime);
+}
+
+//! The recovery file alone doesn't keep work safe: it's deleted when LMMS closes normally, replaced by the
+//! next autosave, and "Discard" in the recovery dialog removes it. Recovering the wrong session, or closing a
+//! recovered one without saving, lost the work for good. So every distinct autosave is also kept in the
+//! autosave folder, newest first, until there are too many
+void MainWindow::keepAutoSaveHistory(const QString& file, const QString& projectName)
+{
+	constexpr int MinKept = 10;
+	constexpr int MaxKept = 200;
+	constexpr qint64 MaxKeptBytes = 500ll * 1024 * 1024;
+	// Projects are saved with a fixed hash seed, so an unchanged project gives the same bytes
+	static QByteArray s_lastHash;
+
+	QFile in(file);
+	if (!in.open(QIODevice::ReadOnly)) { return; }
+	const QByteArray xml = in.readAll();
+	if (xml.isEmpty()) { return; }
+
+	const auto hash = QCryptographicHash::hash(xml, QCryptographicHash::Sha1);
+	if (hash == s_lastHash) { return; }
+
+	const QDir dir{ConfigManager::inst()->autoSaveHistoryDir()};
+	if (!dir.mkpath(".")) { return; }
+
+	const auto name = QString{"%1-%2.mmpz"}.arg(projectName.isEmpty() ? QString{"untitled"} : projectName,
+		QDateTime::currentDateTime().toString("yyyy-MM-dd-HHmmss"));
+	QSaveFile out(dir.filePath(name));
+	if (!out.open(QIODevice::WriteOnly)) { return; }
+	out.write(qCompress(xml));
+	if (!out.commit()) { return; }
+	s_lastHash = hash;
+
+	const auto kept = dir.entryInfoList({"*.mmpz"}, QDir::Files, QDir::Time);
+	qint64 bytes = 0;
+	for (int i = 0; i < kept.size(); ++i)
+	{
+		bytes += kept[i].size();
+		if (i >= MinKept && (i >= MaxKept || bytes > MaxKeptBytes)) { QFile::remove(kept[i].absoluteFilePath()); }
+	}
+}
+
+void MainWindow::openAutoSave()
+{
+	if (!mayChangeProject(false)) { return; }
+
+	FileDialog ofd(this, tr("Open Autosave"), ConfigManager::inst()->autoSaveHistoryDir(),
+		tr("LMMS (*.mmp *.mmpz)"));
+	ofd.setFileMode(FileDialog::ExistingFile);
+	if (ofd.exec() != QDialog::Accepted || ofd.selectedFiles().isEmpty()) { return; }
+
+	Song* song = Engine::getSong();
+	song->stop();
+	setCursor(Qt::WaitCursor);
+	// As a new project, so saving asks for a name instead of writing into the autosave folder
+	song->createNewProjectFromTemplate(ofd.selectedFiles()[0]);
+	setCursor(Qt::ArrowCursor);
 }
 
 void MainWindow::setAutoSaveStalled(bool stalled)

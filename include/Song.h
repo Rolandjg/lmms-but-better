@@ -263,8 +263,9 @@ public:
 	//! Replace the project's contents with @p filename (e.g. a checkpoint) but keep its file name and
 	//! leave the recent-projects list alone. The project counts as modified afterwards.
 	void restoreProjectState(const QString& filename);
-	//! The project as it would be saved (for inspecting it without writing a file)
-	DataFile toDataFile();
+	//! The project as it would be saved (for inspecting it without writing a file). Without @p withGuiState
+	//! the editors' and project notes' state is left out, which is what a thread other than the GUI's can save
+	DataFile toDataFile(bool withGuiState = true);
 	bool guiSaveProject();
 	bool guiSaveProjectAs(const QString & filename);
 	bool saveProjectFile(const QString & filename, bool withResources = false);

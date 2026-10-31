@@ -28,6 +28,8 @@
 #include "versioninfo.h"
 
 #include <array>
+#include <exception>
+#include <typeinfo>
 
 #include <QDebug>
 #include <QDateTime>
@@ -42,6 +44,7 @@
 #include <QPushButton>
 #include <QSaveFile>
 #include <QTextStream>
+#include <QThread>
 
 #ifdef LMMS_BUILD_WIN32
 #include <windows.h>
@@ -115,25 +118,67 @@ constexpr auto crashSaveSignals = std::array{SIGSEGV, SIGABRT, SIGBUS, SIGILL};
 constexpr auto crashSaveSignals = std::array{SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL};
 #endif
 
+static pthread_t s_guiThread;
+static std::atomic<bool> s_crashHandled = false;
+static std::atomic<bool> s_guiCrashSaveStarted = false;
+static std::atomic<bool> s_guiCrashSaveDone = false;
+
+static void writeToStderr(std::string_view message)
+{
+	[[maybe_unused]] const auto written = ::write(STDERR_FILENO, message.data(), message.size());
+}
+
+static void writeCrashSave(bool withGuiState)
+{
+	lmms::Song* song = lmms::Engine::getSong();
+	if (song->isLoadingProject() || song->isSavingProject()) { return; }
+	QSaveFile file(lmms::ConfigManager::inst()->recoveryFile());
+	if (!file.open(QIODevice::WriteOnly)) { return; }
+	QTextStream stream(&file);
+	song->toDataFile(withGuiState).write(stream);
+	stream.flush();
+	if (file.commit()) { writeToStderr("Project saved to the recovery file\n"); }
+}
+
 //! Last chance to keep the user's work when LMMS crashes: save the project to the recovery file, which
-//! is offered on the next launch. Nothing in here is async-signal-safe, so this is best effort. The
-//! handler is one-shot (a crash while saving just ends the process), an alarm kills a save that
-//! deadlocks, and QSaveFile leaves the previous recovery file alone unless the new one is complete
+//! is offered on the next launch. Nothing in here is async-signal-safe, so this is best effort. A crash
+//! while saving just ends the process, an alarm kills a save that deadlocks, and QSaveFile leaves the
+//! previous recovery file alone unless the new one is complete
 static void crashSaveHandler(int signum)
 {
-	alarm(15);
+	if (s_crashHandled.exchange(true))
+	{
+		// The GUI thread crashed while saving for another thread, nothing more to do
+		if (pthread_equal(pthread_self(), s_guiThread)) { raise(signum); }
+		// Another thread crashed as well; the first one ends the process when it's done saving
+		for (;;) { pause(); }
+	}
+
+	alarm(30);
 	lmms::Song* song = lmms::Engine::getSong();
 	if (song != nullptr && !song->isLoadingProject() && !song->isSavingProject())
 	{
-		const char message[] = "LMMS crashed, saving the project to the recovery file...\n";
-		[[maybe_unused]] const auto written = ::write(STDERR_FILENO, message, sizeof(message) - 1);
-		QSaveFile file(lmms::ConfigManager::inst()->recoveryFile());
-		if (file.open(QIODevice::WriteOnly))
+		writeToStderr("LMMS crashed, saving the project to the recovery file...\n");
+		if (pthread_equal(pthread_self(), s_guiThread)) { writeCrashSave(true); }
+		else
 		{
-			QTextStream stream(&file);
-			song->toDataFile().write(stream);
-			stream.flush();
-			file.commit();
+			// Widgets may only be used from the GUI thread, saving the project notes from here crashed the
+			// save. When another thread crashes the GUI thread is usually fine, so it does the saving
+			QMetaObject::invokeMethod(qApp, [] {
+				s_guiCrashSaveStarted = true;
+				writeCrashSave(true);
+				s_guiCrashSaveDone = true;
+			}, Qt::QueuedConnection);
+			for (int waited = 0; !s_guiCrashSaveDone && (s_guiCrashSaveStarted || waited < 100); ++waited)
+			{
+				usleep(100 * 1000);
+			}
+			if (!s_guiCrashSaveStarted)
+			{
+				// The GUI thread is stuck, probably waiting for the thread that crashed
+				writeToStderr("The GUI isn't responding, saving the project without the editors' state...\n");
+				writeCrashSave(false);
+			}
 		}
 	}
 	raise(signum);
@@ -163,27 +208,65 @@ static void uninstallCrashSaveHandler()
 }
 #endif
 
+static std::terminate_handler s_defaultTerminate = nullptr;
+
+//! An exception escaping a thread ends LMMS with one line on stderr, gone with the terminal. Keep what was
+//! thrown and on which thread in crash.log in the working directory, so the crash can be tracked down
+static void logTerminate()
+{
+	QString what = "std::terminate without an exception";
+	if (const auto exception = std::current_exception())
+	{
+		try { std::rethrow_exception(exception); }
+		catch (const std::exception& e) { what = QString{"%1: %2"}.arg(typeid(e).name(), e.what()); }
+		catch (...) { what = "non-std exception"; }
+	}
+	const QThread* thread = QThread::currentThread();
+	QFile log(lmms::ConfigManager::inst()->workingDir() + "crash.log");
+	if (log.open(QIODevice::Append | QIODevice::Text))
+	{
+		QTextStream(&log) << QDateTime::currentDateTime().toString(Qt::ISODate) << " uncaught exception in "
+			<< (thread ? thread->metaObject()->className() : "unknown thread")
+			<< (thread && !thread->objectName().isEmpty() ? " \"" + thread->objectName() + "\"" : QString{})
+			<< ": " << what << "\n";
+	}
+	s_defaultTerminate(); // prints to stderr and aborts, which runs the crash save
+}
+
 //! A second instance sharing the recovery file would offer the first one's autosave as a crashed session,
 //! autosave over it and delete it on exit. So every instance locks the recovery file it uses and takes the
 //! next one if a running instance holds it. A crashed instance leaves a stale lock, which gets taken over,
 //! so its recovery file is still offered on the next launch
+//! Of the free slots, the one with the newest crashed session wins, so a crash is offered on the next launch
+//! whichever slot it used, and not an older leftover just because its slot came first
 static std::unique_ptr<QLockFile> claimRecoveryFile()
 {
 	auto* config = lmms::ConfigManager::inst();
+	std::unique_ptr<QLockFile> best;
+	QString bestName;
+	QDateTime bestSession; // invalid while the best slot has no recovery file
 	for (int slot = 1; slot <= 16; ++slot)
 	{
 		const auto name = slot == 1 ? QString{"recover.mmp"} : QString{"recover-%1.mmp"}.arg(slot);
 		auto lock = std::make_unique<QLockFile>(config->workingDir() + name + ".lock");
 		lock->setStaleLockTime(0); // only a dead owner makes the lock stale, not its age
-		if (lock->tryLock())
+		if (!lock->tryLock())
 		{
-			config->setRecoveryFileName(name);
-			return lock;
+			// Not another instance (e.g. no working dir), so the next slot won't do better
+			if (lock->error() != QLockFile::LockFailedError) { break; }
+			continue;
 		}
-		// Not another instance (e.g. no working dir), so the next slot won't do better
-		if (lock->error() != QLockFile::LockFailedError) { break; }
+		const auto session = QFileInfo{config->workingDir() + name};
+		if (!best || (session.isFile() && (!bestSession.isValid() || session.lastModified() > bestSession)))
+		{
+			// Replacing best unlocks the slot it held
+			best = std::move(lock);
+			bestName = name;
+			bestSession = session.isFile() ? session.lastModified() : QDateTime{};
+		}
 	}
-	return nullptr;
+	if (best) { config->setRecoveryFileName(bestName); }
+	return best;
 }
 
 //! The recovered session autosaves over the recovery file. If the project then fails to load, or the user
@@ -417,6 +500,8 @@ bool startScripting(const QString& scriptFile, const QStringList& scriptArgs, bo
 int main( int argc, char * * argv )
 {
 	using namespace lmms;
+
+	s_defaultTerminate = std::set_terminate(logTerminate);
 
 	bool coreOnly = false;
 	bool fullscreen = true;
@@ -1030,11 +1115,18 @@ int main( int argc, char * * argv )
 			ConfigManager::inst()->value("ui", "enableautosave", "1").toInt();
 		if( recoveryFilePresent )
 		{
+			// Whatever gets clicked below, the crashed session stays in the autosave history
+			MainWindow::keepAutoSaveHistory(recoveryFile, "recovered");
+
+			// The file may be from any earlier session, not necessarily the one that just ended
+			const auto savedAt = QFileInfo{recoveryFile}.lastModified();
+
 			QMessageBox mb;
 			mb.setWindowTitle( MainWindow::tr( "Project recovery" ) );
 			mb.setText( QString(
 				"<html>"
 				"<p style=\"margin-left:6\">%1</p>"
+				"<p style=\"margin-left:6\"><b>%6</b></p>"
 				"<table cellpadding=\"3\">"
 				"  <tr>"
 				"    <td><b>%2</b></td>"
@@ -1055,8 +1147,9 @@ int main( int argc, char * * argv )
 				MainWindow::tr( "Recover the file. Please don't run "
 					"multiple instances of LMMS when you do this." ),
 				MainWindow::tr( "Discard" ),
-				MainWindow::tr( "Launch a default session and delete "
-					"the restored files. This is not reversible." )
+				MainWindow::tr( "Launch a default session. The crashed session "
+					"can still be opened with File > Open Autosave." ),
+				MainWindow::tr( "Last saved %1" ).arg(QLocale().toString(savedAt, QLocale::LongFormat))
 							) );
 
 			mb.setIcon( QMessageBox::Warning );

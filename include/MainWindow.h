@@ -119,6 +119,9 @@ public:
 		return msec < m_autoSaveShortTime ? DEFAULT_AUTO_SAVE_INTERVAL : msec;
 	}
 
+	//! Copy an autosave (or a crashed session's recovery file) into the autosave history
+	static void keepAutoSaveHistory(const QString& file, const QString& projectName);
+
 	void autoSaveTimerReset( int msec = autoSaveInterval() )
 	{
 		if( msec < m_autoSaveShortTime ) // No 'saveinterval' in .lmmsrc.xml
@@ -200,6 +203,7 @@ public slots:
 
 private slots:
 	void onExportProjectMidi();
+	void openAutoSave();
 
 protected:
 	void closeEvent( QCloseEvent * _ce ) override;

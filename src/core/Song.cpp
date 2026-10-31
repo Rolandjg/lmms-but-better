@@ -1324,7 +1324,7 @@ bool Song::saveProjectFile(const QString & filename, bool withResources)
 
 
 
-DataFile Song::toDataFile()
+DataFile Song::toDataFile(bool withGuiState)
 {
 	using gui::getGUI;
 
@@ -1339,14 +1339,14 @@ DataFile Song::toDataFile()
 	saveState( dataFile, dataFile.content() );
 
 	Engine::mixer()->saveState( dataFile, dataFile.content() );
-	if( getGUI() != nullptr )
+	if (withGuiState && getGUI() != nullptr)
 	{
 		getGUI()->getControllerRackView()->saveState( dataFile, dataFile.content() );
 		getGUI()->pianoRoll()->saveState( dataFile, dataFile.content() );
 		getGUI()->automationEditor()->m_editor->saveState( dataFile, dataFile.content() );
 		getGUI()->getProjectNotes()->SerializingObject::saveState( dataFile, dataFile.content() );
 	}
-	else
+	else if (withGuiState)
 	{
 		for (auto node = m_headlessGuiState.documentElement().firstChild(); !node.isNull(); node = node.nextSibling())
 		{
