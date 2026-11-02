@@ -1,0 +1,23 @@
+{
+  "source": "shadow_c.png",
+  "svg": "shadow_c.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 32 by 32 dark blue-gray square with perpendicular gradient fades, producing a soft transparent shadow on every edge. The central source color is approximately RGB 26,29,33 at alpha 178; fades extend about 7 pixels inward.",
+  "limitations": "The gradient mask approximates the original soft fade; opacity accounts for renderer compositing. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.0031241499340617647,
+    "rmse": 0.004890794585380201,
+    "alpha_mae": 0.0029095509171410505,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.003128724529027307,
+    "black_mae": 0.0014331543285667626,
+    "white_mae": 0.0029971516331601267,
+    "max_error": 0.02322183775470965,
+    "support_pixels": 992,
+    "opaque_background_added": false
+  },
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

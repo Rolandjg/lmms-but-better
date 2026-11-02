@@ -1,0 +1,22 @@
+{
+  "source": "apply-selected.png",
+  "svg": "apply-selected.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white square-ended check mark with a 4.24-unit stroke and approximately 0.35 opacity.",
+  "limitations": "Vector edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.0010167029774872925,
+    "rmse": 0.00287383572075663,
+    "alpha_mae": 0.0010167029774872925,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0002268676065467512,
+    "black_mae": 0.0010167029774872925,
+    "white_mae": 0.0,
+    "max_error": 0.011764705882352955,
+    "support_pixels": 108,
+    "opaque_background_added": false
+  }
+}

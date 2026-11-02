@@ -1,0 +1,16 @@
+{
+  "source": "preset_file.png",
+  "svg": "preset_file.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 20 by 28 pixel page with a separate folded-corner triangle and a transparent five-point star cutout. The 32 by 32 source has transparent surroundings and gaps.",
+  "limitations": "Smooth diagonal edges approximate the pixelated original and may differ slightly in native-size coverage. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.03407445051454707,
+    "rmse": 0.10789321360014131,
+    "alpha_mae": 0.03407445051454707,
+    "changed_fraction": 0.09503239740820735
+  }
+}

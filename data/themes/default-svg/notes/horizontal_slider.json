@@ -1,0 +1,10 @@
+{
+  "source": "horizontal_slider.png",
+  "svg": "horizontal_slider.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 10 by 26 canvas holds a black rounded rectangular frame at x=1, y=1, 9 by 24; an inset 7 by 22 dark horizontal gradient forms the face, with a 1-unit-wide green center stripe using a symmetric vertical gradient. The source's visible green stripe occupies column 5 and rows 2 through 23.",
+  "limitations": "The smooth face gradient and rounded frame approximate the original's subtle pixel-level bevel and edge antialiasing. The native and 8x SVG renderings were generated, and the 8x rendering was visually inspected."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "gridmode.png",
+  "svg": "gridmode.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three translucent white vertical rectangular bars and two opaque horizontal rectangular crossbars, with square ends on a transparent 24 by 24 canvas. The vertical bars are 2 units wide, span y=2.5 to 20.5, and start at x=3, 10, and 17; the crossbars are 1.5 units high at y=5.75 and 13.75.",
+  "limitations": "The source's antialiased bar intersections and subtly varying end coverage are approximated with simple overlapping rectangles. The 8x SVG rendering was visually inspected."
+}

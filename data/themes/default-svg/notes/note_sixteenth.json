@@ -1,0 +1,10 @@
+{
+  "source": "note_sixteenth.png",
+  "svg": "note_sixteenth.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White square-cornered sixteenth note on a transparent 16 by 16 canvas. The head spans x=2–10 and y=10–15, the stem is 2 units wide, and the two angular flags span x=8–14 and y=1–9.",
+  "limitations": "The source uses square, block-shaped geometry; its hard corners are retained. Native and 8x renders were visually inspected."
+}

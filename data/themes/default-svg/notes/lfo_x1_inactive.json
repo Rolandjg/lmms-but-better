@@ -1,0 +1,10 @@
+{
+  "source": "lfo_x1_inactive.png",
+  "svg": "lfo_x1_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "29 by 14 canvas with a dark bordered gradient panel and explicit white X and 1 glyph paths. The glyphs span approximately y=3 to 11, with the X at x=2 to 8 and the 1 at x=12 to 13.",
+  "limitations": "The smooth diagonal X approximates the antialiased pixel glyph rather than reproducing its raster edges. Native and 8x renders were visually inspected."
+}

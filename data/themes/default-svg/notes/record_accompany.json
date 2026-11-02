@@ -1,0 +1,16 @@
+{
+  "source": "record_accompany.png",
+  "svg": "record_accompany.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white circle of radius 8 with a transparent straight-sided play triangle on a 20 by 20 canvas.",
+  "limitations": "The smooth triangle edges and circle antialiasing differ from the source. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.06914240443652207,
+    "rmse": 0.12538710114557172,
+    "alpha_mae": 0.06914240443652209,
+    "changed_fraction": 0.2222222222222222
+  }
+}

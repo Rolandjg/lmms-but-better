@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><g transform="translate(0.402 0.081) translate(10.0 10.0) scale(0.989 0.984) translate(-10.0 -10.0)">
+  <defs>
+    <radialGradient id="fill" cx="52%" cy="48%" r="65%">
+      <stop offset="55%" stop-color="#fcfcfc"/>
+      <stop offset="83%" stop-color="#efefef"/>
+      <stop offset="100%" stop-color="#bcbcbc"/>
+    </radialGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#bdbdbd"/>
+      <stop offset=".5" stop-color="#c9c9c9"/>
+      <stop offset="1" stop-color="#b9b9b9"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="#f6ffff">
+    <path d="M3.5 6.6v6.9" stroke-width="1" opacity=".4"/>
+    <circle cx="3.5" cy="3.5" r="2.7" stroke-width="1.4" opacity=".72"/>
+    <circle cx="3.5" cy="16.5" r="2.7" stroke-width="1.4" opacity=".72"/>
+  </g>
+  <path d="M11.5 4.8 L19.1 4.8 Q19.5 4.8 19.5 5.4 L19.4 10.5 Q19.3 11.6 18.7 12.2 L17.9 13.8 Q17.7 14.3 17.1 14.4 L11.8 14.4 Q11.3 14.3 11.1 13.7 L10.3 11.1 L9.5 9.1 Q9.1 8.1 9.7 7.4 Q10 7 10.6 7 L10.9 5.3 Q11 4.8 11.5 4.8 Z" fill="url(#fill)" stroke="url(#edge)" stroke-width=".8" stroke-linejoin="round"/>
+</g></svg>

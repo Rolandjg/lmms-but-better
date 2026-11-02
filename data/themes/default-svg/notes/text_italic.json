@@ -1,0 +1,22 @@
+{
+  "source": "text_italic.png",
+  "svg": "text_italic.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white italic I drawn as a single straight-edged path with slanted horizontal serifs and a diagonal stem. The canvas is 22 by 22 pixels; visible source alpha spans x=6\u201315 and y=5\u201316, with transparent background. The serifs are approximately 2 pixels tall. Native and 8x renders were generated, and the enlarged render was visually inspected.",
+  "limitations": "The original antialiasing and its small-pixel edge coverage are approximated by smooth vector edges. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.13071895424836602,
+    "rmse": 0.1819188029100794,
+    "alpha_mae": 0.130718954248366,
+    "changed_fraction": 0.36666666666666664,
+    "full_canvas_mae": 0.01620482903905364,
+    "black_mae": 0.13071895424836602,
+    "white_mae": 1.295260195396016e-17,
+    "max_error": 0.49803921568627446,
+    "support_pixels": 60,
+    "opaque_background_added": false
+  }
+}

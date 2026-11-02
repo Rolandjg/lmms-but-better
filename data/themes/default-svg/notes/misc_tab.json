@@ -1,0 +1,16 @@
+{
+  "source": "misc_tab.png",
+  "svg": "misc_tab.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three white circles of radius 1.45 at x=2.5, 7.5 and 12.5 on a transparent 14 by 14 canvas.",
+  "limitations": "Small edge coverage differences remain. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.03877995642701525,
+    "rmse": 0.04160478552376351,
+    "alpha_mae": 0.038779956427015254,
+    "changed_fraction": 0.0
+  }
+}

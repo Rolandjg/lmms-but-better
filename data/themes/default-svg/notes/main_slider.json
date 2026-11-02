@@ -1,0 +1,10 @@
+{
+  "source": "main_slider.png",
+  "svg": "main_slider.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "26 by 10 canvas; a 24 by 9 black rounded enclosure contains a 22 by 7 dark vertical-gradient face and a one-unit green horizontal indicator with a symmetric highlight.",
+  "limitations": "The face shading and corner antialiasing are approximated with smooth gradients and rounded rectangles."
+}

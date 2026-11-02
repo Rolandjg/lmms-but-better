@@ -1,0 +1,22 @@
+{
+  "source": "autoscroll_off.png",
+  "svg": "autoscroll_off.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white, 35% opacity right-pointing arrow with straight shaft and smooth pointed head on a transparent 20 by 20 canvas.",
+  "limitations": "The smooth diagonal edges approximate the source antialiasing. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.018755328218243817,
+    "rmse": 0.04577679655553509,
+    "alpha_mae": 0.01875532821824382,
+    "changed_fraction": 0.06521739130434782,
+    "full_canvas_mae": 0.004392156862745098,
+    "black_mae": 0.018755328218243817,
+    "white_mae": 1.206764157201257e-17,
+    "max_error": 0.17254901960784313,
+    "support_pixels": 92,
+    "opaque_background_added": false
+  }
+}

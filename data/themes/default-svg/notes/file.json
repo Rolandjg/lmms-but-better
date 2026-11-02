@@ -1,0 +1,10 @@
+{
+  "source": "file.png",
+  "svg": "file.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white document silhouette with a square cutout at its upper right and a separate triangular folded corner. The 16×16 source has a main body spanning x=3–13 and y=1–15; the fold occupies x=10–13 and y=1–4.",
+  "limitations": "The fold uses a smooth diagonal rather than the source's pixel-stepped edge. The SVG was rendered at native size and visually inspected at 8×."
+}

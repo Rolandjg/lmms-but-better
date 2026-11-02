@@ -1,0 +1,10 @@
+{
+  "source": "clone_pattern_track_clip.png",
+  "svg": "clone_pattern_track_clip.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White 14-by-14 foreground square and an offset L-shaped rear clip, with 2-unit-wide top and left edges, on a transparent 20-by-20 canvas. The foreground starts at (5,5), and the rear clip at (1,1).",
+  "limitations": "None observed; the source uses solid, axis-aligned geometry. The 8x rendering was visually inspected."
+}

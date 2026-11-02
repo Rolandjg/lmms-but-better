@@ -1,0 +1,16 @@
+{
+  "source": "combobox_arrow_selected.png",
+  "svg": "combobox_arrow_selected.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white downward triangle with straight sides spanning x=1\u201310 and y=5\u201310 on a transparent 11 by 15 canvas.",
+  "limitations": "Minor edge antialiasing differences remain. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.003137254901960791,
+    "rmse": 0.005990295026086079,
+    "alpha_mae": 0.003137254901960791,
+    "changed_fraction": 0.0
+  }
+}

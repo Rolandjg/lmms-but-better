@@ -1,0 +1,16 @@
+{
+  "source": "white_noise_wave_inactive.png",
+  "svg": "white_noise_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 viewBox with a translucent black rounded-square background and a narrow, angular gray noise waveform spanning approximately x=2 to 12 and y=1 to 12.",
+  "limitations": "The smooth straight waveform approximates the original antialiased, low-resolution signal; its individual pixel intensities are not reproduced. The original alpha ranges from 127 to 206. The SVG was inspected at 8x.",
+  "native_metrics": {
+    "mae": 0.04710535194469945,
+    "rmse": 0.0833116156953956,
+    "alpha_mae": 0.02040816326530612,
+    "changed_fraction": 0.14285714285714285
+  }
+}

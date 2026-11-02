@@ -1,0 +1,10 @@
+{
+  "source": "add_automation.png",
+  "svg": "add_automation.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 20 by 20 icon: a straight rising diagonal forms the top of a filled area with vertical sides and a horizontal base. An even-odd cross-shaped cutout forms the transparent plus symbol. The SVG was rendered at native size and 8x; the enlarged rendering was visually inspected.",
+  "limitations": "Antialiasing along the diagonal may differ slightly from the source raster."
+}

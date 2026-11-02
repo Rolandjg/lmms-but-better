@@ -1,0 +1,22 @@
+{
+  "source": "unknown_file.png",
+  "svg": "unknown_file.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 10 by 14 pixel document silhouette with a separate diagonal folded corner and a transparent question-mark cutout drawn with smooth curved outlines and square dot. The 16 by 16 source has nonzero alpha within x=3..12 and y=1..14.",
+  "limitations": "The small antialiased question mark is interpreted as a smooth curve, so its exact native pixel coverage differs from the source. The enlarged SVG rendering was visually inspected.",
+  "native_metrics": {
+    "mae": 0.03680716381040606,
+    "rmse": 0.11909662273137536,
+    "alpha_mae": 0.03680716381040605,
+    "changed_fraction": 0.08661417322834646,
+    "full_canvas_mae": 0.01832107843137255,
+    "black_mae": 0.03680716381040606,
+    "white_mae": 6.119339505807949e-18,
+    "max_error": 0.5843137254901961,
+    "support_pixels": 127,
+    "opaque_background_added": false
+  }
+}

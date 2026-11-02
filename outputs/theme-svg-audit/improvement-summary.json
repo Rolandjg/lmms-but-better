@@ -1,0 +1,25 @@
+{
+  "before": {
+    "pass": 49,
+    "poor_match": 236,
+    "missing": 0,
+    "invalid": 0,
+    "error": 0
+  },
+  "after": {
+    "pass": 283,
+    "poor_match": 2,
+    "missing": 0,
+    "invalid": 0,
+    "error": 0
+  },
+  "revised_flagged": 236,
+  "newly_passing": 234,
+  "original_passes_unchanged": 49,
+  "remaining_flagged": [
+    "data/themes/default/colorize.png",
+    "data/themes/default/edit_tangent.png"
+  ],
+  "mean_error_before_flagged": 0.119405361837492,
+  "mean_error_after_flagged": 0.00667878593850995
+}

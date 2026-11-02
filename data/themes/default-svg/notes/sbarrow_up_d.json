@@ -1,0 +1,10 @@
+{
+  "source": "sbarrow_up_d.png",
+  "svg": "sbarrow_up_d.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Empty 5 by 5 viewBox: all 25 source pixels have zero alpha, so no visible shapes are present.",
+  "limitations": "No visible arrow exists in the source. Native and 8x SVG renders were inspected and remain transparent."
+}

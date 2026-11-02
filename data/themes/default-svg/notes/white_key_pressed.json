@@ -1,0 +1,10 @@
+{
+  "source": "white_key_pressed.png",
+  "svg": "white_key_pressed.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 10 by 57 opaque key with a one-pixel dark left edge, bright green one-pixel sides and bottom, and a 7 by 56 green interior with a vertical gradient. The source alpha is fully opaque. Native and 8x renders were produced, and the enlarged render was visually inspected.",
+  "limitations": "The smooth gradient approximates the source's quantized color progression."
+}

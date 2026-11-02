@@ -1,0 +1,22 @@
+{
+  "source": "sbarrow_down.png",
+  "svg": "sbarrow_down.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A translucent white downward triangle on a transparent 5 by 5 canvas; the source has visible alpha primarily in rows 1 through 3, peaking at 51/255.",
+  "limitations": "Smooth diagonal edges approximate the source's antialiasing at its very small native size. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.006971677559912856,
+    "rmse": 0.011837104755735186,
+    "alpha_mae": 0.006971677559912856,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0031372549019607846,
+    "black_mae": 0.006971677559912856,
+    "white_mae": 3.700743415417188e-17,
+    "max_error": 0.027450980392156862,
+    "support_pixels": 9,
+    "opaque_background_added": false
+  }
+}

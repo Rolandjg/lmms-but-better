@@ -1,0 +1,22 @@
+{
+  "source": "mixer_send_off.png",
+  "svg": "mixer_send_off.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "29 by 19 canvas; a 27 by 13 black-edged rectangular button with a dark vertical gradient and explicit stroked SEND letterforms.",
+  "limitations": "The compact lettering and antialiasing are interpreted as scalable vector strokes, so their pixel-level appearance differs from the original.",
+  "native_metrics": {
+    "mae": 0.05264137943876508,
+    "rmse": 0.11974560450040292,
+    "alpha_mae": 0.013541142952907658,
+    "changed_fraction": 0.1111111111111111,
+    "full_canvas_mae": 0.03353380069511169,
+    "black_mae": 0.0391002364858574,
+    "white_mae": 0.052641379438765054,
+    "max_error": 0.7647058823529411,
+    "support_pixels": 351,
+    "opaque_background_added": false
+  }
+}

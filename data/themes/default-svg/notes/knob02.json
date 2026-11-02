@@ -1,0 +1,10 @@
+{
+  "source": "knob02.png",
+  "svg": "knob02.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A flat dark green (#1c4933) circle centered at (13.5, 13.5) with radius 8 on a transparent 27 by 27 canvas. The source's nontransparent pixels occupy coordinates 5 through 21 on both axes, including antialiasing.",
+  "limitations": "The smooth vector circle may differ slightly from the original raster's edge antialiasing."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "computer.png",
+  "svg": "computer.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A square-cornered white monitor frame and a centered rectangular stand on transparency. The frame spans x=2–30 and y=4–22 with a 2-unit border; the stand is 8 units wide and the base spans x=4–28 at y=26–28. Native dimensions are 32 by 32.",
+  "limitations": "None observed; the enlarged SVG rendering was visually inspected."
+}

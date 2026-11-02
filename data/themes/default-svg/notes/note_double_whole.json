@@ -1,0 +1,10 @@
+{
+  "source": "note_double_whole.png",
+  "svg": "note_double_whole.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white, one-pixel-wide square-cornered inverted U above two hollow rectangular noteheads, on a transparent 16 by 16 canvas. The upper bracket spans x=4–11 and y=7–10; the noteheads span x=2–5 and x=10–13, y=12–14.",
+  "limitations": "The source is an un-antialiased 16-pixel icon; the square-cornered vector geometry preserves its simple native design."
+}

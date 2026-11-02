@@ -1,0 +1,10 @@
+{
+  "source": "sin_wave_inactive.png",
+  "svg": "sin_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 canvas with a nearly square translucent black background and a single smooth, round-capped sine-like Bézier stroke. The source stroke occupies approximately x=2–12 and y=3–11 pixels; the background alpha is 166/255 across the interior.",
+  "limitations": "The original is a small antialiased raster; the curve and corner antialiasing are approximated with smooth vector geometry. Native and 8x SVG renders were visually inspected."
+}

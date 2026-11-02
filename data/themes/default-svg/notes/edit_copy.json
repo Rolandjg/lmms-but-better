@@ -1,0 +1,10 @@
+{
+  "source": "edit_copy.png",
+  "svg": "edit_copy.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white, square-cornered L shape marks the top and left edges of the rear sheet, and a white rectangle represents the front sheet. On the 20 x 20 canvas, the rear shape spans x=1..15 and y=1..15 with 2-unit strokes; the front rectangle spans x=5..19 and y=5..19. The background is transparent.",
+  "limitations": "None apparent in the inspected 8x rendering."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "saw_wave_active.png",
+  "svg": "saw_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 canvas with a semi-transparent black background and white ascending sawtooth made from a 1.5-unit diagonal and a 1-unit vertical stroke. The original background alpha is predominantly 166/255, with slightly reduced corner alpha. Inspected native source and 8x source and SVG renders.",
+  "limitations": "The smooth diagonal and simplified corner antialiasing do not exactly reproduce the original pixel coverage."
+}

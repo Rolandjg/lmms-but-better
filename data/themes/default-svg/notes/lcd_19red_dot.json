@@ -1,0 +1,10 @@
+{
+  "source": "lcd_19red_dot.png",
+  "svg": "lcd_19red_dot.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Opaque 4 × 38 black field with two centered 2 × 2 square red dots at y=15 and y=34, colored #af0e28 and #610816 respectively.",
+  "limitations": "None observed; the source consists of flat, square shapes."
+}

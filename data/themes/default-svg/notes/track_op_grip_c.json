@@ -1,0 +1,10 @@
+{
+  "source": "track_op_grip_c.png",
+  "svg": "track_op_grip_c.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A transparent 6 by 25 canvas with two staggered columns of five white 2 by 2 squares. The left squares start at y=0 and repeat every 5 units; the right squares start at y=3 and repeat every 5 units.",
+  "limitations": "None observed; the native-size and enlarged renderings preserve the source's square geometry and transparency."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "step_btn_remove.png",
+  "svg": "step_btn_remove.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two white 8 by 10 rectangles at (1, 5) and (11, 5), with a transparent 6 by 2 horizontal cutout at (12, 9) in the right rectangle, on a transparent 20 by 20 canvas.",
+  "limitations": "None observed; native and 8x renderings were produced and the enlarged rendering was visually inspected."
+}

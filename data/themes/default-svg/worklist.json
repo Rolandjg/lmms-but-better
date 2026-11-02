@@ -1,0 +1,1427 @@
+[
+  {
+    "source": "add.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "add_automation.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "add_folder.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "add_pattern_track.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "add_sample_track.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "analysis.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "apply-selected.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "apply.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "arp_down.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "arp_free.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "arp_random.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "arp_sort.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "arp_sync.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "arp_up.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "arp_up_and_down.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "auto_resize.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "auto_resize_disable.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "automation.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "automation_ghost_note.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "automation_track.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "autoscroll_continuous_on.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "autoscroll_off.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "autoscroll_on.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "autoscroll_stepped_on.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "back_to_start.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "back_to_zero.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "black_key.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "black_key_disabled.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "black_key_pressed.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "cancel.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "chord.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "clear_ghost_note.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "clear_notes_out_of_bounds.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "clip_rec.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "clock.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "clone_pattern_track_clip.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "close.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "closed_branch.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "colorize.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "combobox_arrow.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "combobox_arrow_selected.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "combobox_bg.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "computer.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "controller.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "cpuload_bg.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "cpuload_leds.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "cursor_select_left.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "cursor_select_right.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "cut_overlaps.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "discard.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "dont_know.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "edit_copy.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "edit_cut.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "edit_draw.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "edit_draw_outvalue.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "edit_draw_small.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "edit_erase.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "edit_merge.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "edit_move.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "edit_paste.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "edit_redo.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "edit_rename.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "edit_select.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "edit_tangent.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "edit_undo.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "effect_plugin.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "env_lfo_tab.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "envelope_graph.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "error.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "exit.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "exp_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "exp_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "factory_files.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "file.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "fill.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "filter_2lp.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "filter_ap.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "filter_bp.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "filter_hp.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "filter_lp.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "filter_notch.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "flip_x.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "flip_y.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "folder.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "folder_locked.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "folder_opened.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "fullscreen.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "func_tab.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "function_generator.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "fx_tab.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "ghost_note.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "glue.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "gridmode.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "help.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "hint.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "home.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "horizontal_slider.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "humanize.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "icon.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "icon_small.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "ignore.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "insert_bar.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "instrument_track.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "keep_stop_position.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "knob01.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "knob02.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "knob03.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "knob05.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_11green.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_11green_dot.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_19green.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_19green_dot.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_19pink_dot.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_19purple.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_19purple_dot.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_19red.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_19red_dot.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lcd_21pink.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "led_blue.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "led_green.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "led_off.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "led_red.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "led_yellow.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "lfo_controller_artwork.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lfo_d100_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lfo_d100_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lfo_graph.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lfo_x100_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lfo_x100_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lfo_x1_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "lfo_x1_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "loop_point.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "loop_points_off.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "loop_points_on.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "main_slider.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "master_pitch.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "master_volume.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "max_length.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "maximize.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "metronome.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "microtuner.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "midi_cc_rack.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "midi_file.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "midi_tab.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "min_length.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "misc_tab.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "mixer.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "mixer_send_off.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "mixer_send_on.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "moog_saw_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "moog_saw_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "muted.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "new_channel.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "note_double_whole.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_eight.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_eighth.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_half.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_none.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_quarter.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_sixteenth.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_thirtysecond.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_tripleteighth.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_triplethalf.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_tripletquarter.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "note_tripletsixteenth.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_tripletthirtysecond.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "note_whole.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "open_branch.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "output_graph.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pattern_track.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pattern_track_btn.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pause.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "piano.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "play.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "playpos_marker.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "plugin_tab.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "plugins.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "ports.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pr_black_key.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pr_black_key_pressed.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pr_white_key_big.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pr_white_key_big_pressed.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pr_white_key_small.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "pr_white_key_small_pressed.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "preset_file.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "progression_cubic_hermite.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "progression_discrete.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "progression_linear.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "project_export.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "project_file.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "project_import.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "project_new.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "project_new_from_template.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "project_notes.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "project_open.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "project_open_recent.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "project_save.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "project_saveas.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "proportional_snap.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "quantize.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "random_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "random_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "receive_bg_arrow.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "record.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "record_accompany.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "record_step_off.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "record_step_on.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "recording_playpos_marker.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "recover.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "reload.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "remove_bar.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "restore.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "round_square_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "round_square_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sample_file.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sample_track.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "saw_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "saw_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sbarrow_down.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sbarrow_down_d.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sbarrow_left.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sbarrow_left_d.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sbarrow_right.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sbarrow_right_d.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sbarrow_up.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sbarrow_up_d.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "scale.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "send_bg_arrow.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "setup_audio.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "setup_directories.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "setup_general.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "setup_midi.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "setup_performance.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "shadow_c.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "shadow_p.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sin_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "sin_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "songeditor.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "soundfont_file.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "splash.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "square_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "square_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "star.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "step_btn_add.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "step_btn_duplicate.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "step_btn_highlight.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "step_btn_off.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "step_btn_off_light.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "step_btn_on_0.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "step_btn_on_200.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "step_btn_remove.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "stop.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "tempo_sync.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "text_block.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "text_bold.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "text_center.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "text_italic.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "text_left.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "text_right.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "text_under.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "tool.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "toolbar_bg.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "track_op_grip.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "track_op_grip_c.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "track_shadow_c.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "track_shadow_p.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "triangle_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "triangle_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "tuning_tab.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "uhoh.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "unavailable_sound.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "unknown_file.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "usr_wave_active.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "usr_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "vst_plugin_file.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "whatsthis.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "white_key.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "white_key_disabled.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "white_key_pressed.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "white_noise_wave_active.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "white_noise_wave_inactive.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "zoom.png",
+    "status": "completed",
+    "native_similarity": "pass"
+  },
+  {
+    "source": "zoom_x.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  },
+  {
+    "source": "zoom_y.png",
+    "status": "completed",
+    "native_similarity": "poor_match"
+  }
+]

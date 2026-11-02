@@ -1,0 +1,11 @@
+{
+  "source": "automation_track.png",
+  "svg": "automation_track.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A single white filled quadrilateral with a straight rising upper edge, vertical sides, and a horizontal baseline on a transparent 20 by 20 canvas.",
+  "limitations": "The diagonal is a smooth vector approximation of the source antialiasing; rasterization may differ slightly at native size.",
+  "native_metrics": "20 by 20 pixels; visible bounds x=1–18, y=3–17."
+}

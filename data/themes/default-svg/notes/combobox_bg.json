@@ -1,0 +1,10 @@
+{
+  "source": "combobox_bg.png",
+  "svg": "combobox_bg.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A full-bleed 50 by 20 rectangle filled with a vertical dark blue-gray linear gradient. The source is opaque and horizontally uniform; measured first and last pixel rows are RGB (45, 50, 57) and (26, 30, 34).",
+  "limitations": "The continuous gradient approximates the source's quantized per-row colors."
+}

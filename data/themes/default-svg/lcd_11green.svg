@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="78" height="22" viewBox="0 0 78 22">
+  <defs>
+    <g id="digits" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter">
+      <path d="M1 1.5H4L4.5 2V9L4 9.5H1L.5 9V2Z"/>
+      <path d="M6.5 3.5L8.5 1.5V9.5M6 9.5H11"/>
+      <path d="M12.5 3V2L13 1.5H16L16.5 2V3L12.5 8V9.5H17"/>
+      <path d="M18.5 2.5V2L19 1.5H22L22.5 2V4L21 5.5H22L22.5 6V9L22 9.5H19L18.5 9V8.5"/>
+      <path d="M28.5 1V10M28.5 1.5L24.5 6.5H29"/>
+      <path d="M35 1.5H30.5V4.5H33.5L34.5 5.5V9L34 9.5H31L30.5 9V8.5"/>
+      <path d="M40 1.5H39L36.5 4V9L37 9.5H40L40.5 9V6L40 5.5H36.5"/>
+      <path d="M42 1.5H46.5V2.5L43.5 8V10"/>
+      <path d="M49 1.5H52L52.5 2V4L52 4.5L49 6L48.5 6.5V9L49 9.5H52L52.5 9V6.5L52 6L49 4.5L48.5 4V2Z"/>
+      <path d="M58.5 5.5H55L54.5 5V2L55 1.5H58L58.5 2V6.5L56.5 9.5H55"/>
+      <path d="M66 5.5H71"/>
+    </g>
+  </defs>
+  <path fill="#000" d="M0 0h72v22H0zM74 0h1v22h-1z"/>
+  <path fill="#02200d" d="M0 1h5v9H0zM6 1h5v9H6zM12 1h5v9h-5zM18 1h5v9h-5zM24 1h5v9h-5zM30 1h5v9h-5zM36 1h5v9h-5zM42 1h5v9h-5zM48 1h5v9h-5zM54 1h5v9h-5zM60 1h5v9h-5zM66 1h5v9h-5z"/>
+  <use href="#digits" color="#0bd556"/>
+  <use href="#digits" color="#02200d" transform="translate(0 11)"/>
+</svg>

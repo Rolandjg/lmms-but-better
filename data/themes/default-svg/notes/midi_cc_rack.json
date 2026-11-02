@@ -1,0 +1,16 @@
+{
+  "source": "midi_cc_rack.png",
+  "svg": "midi_cc_rack.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A circular white MIDI connector with a top notch and five transparent circular sockets on a 20 by 20 canvas.",
+  "limitations": "The smooth circular edges approximate the small source raster. The adjusted 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.024537365146861955,
+    "rmse": 0.05751920330193008,
+    "alpha_mae": 0.024537365146861955,
+    "changed_fraction": 0.05622489959839357
+  }
+}

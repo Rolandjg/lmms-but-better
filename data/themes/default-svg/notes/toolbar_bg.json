@@ -1,0 +1,10 @@
+{
+  "source": "toolbar_bg.png",
+  "svg": "toolbar_bg.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 1 by 32 rectangle filled with a vertical dark blue-gray gradient, including brighter top and darker bottom edges. The source is fully opaque.",
+  "limitations": "The smooth gradient approximates the source's small per-pixel color variations."
+}

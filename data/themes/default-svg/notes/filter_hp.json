@@ -1,0 +1,22 @@
+{
+  "source": "filter_hp.png",
+  "svg": "filter_hp.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white high-pass profile with a smooth narrow peak and a flat plateau on a transparent 22 by 16 canvas.",
+  "limitations": "Smooth vector edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.01161578555472822,
+    "rmse": 0.04053381651467433,
+    "alpha_mae": 0.011615785554728222,
+    "changed_fraction": 0.04430379746835443,
+    "full_canvas_mae": 0.005236185383244206,
+    "black_mae": 0.01161578555472822,
+    "white_mae": 4.216036802374012e-18,
+    "max_error": 0.20392156862745098,
+    "support_pixels": 158,
+    "opaque_background_added": false
+  }
+}

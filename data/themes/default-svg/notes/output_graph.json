@@ -1,0 +1,10 @@
+{
+  "source": "output_graph.png",
+  "svg": "output_graph.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "110 by 46 translucent black panel with a vertical alpha gradient, a darker one-pixel top edge, and a subtle one-pixel gray bottom edge with curved corners.",
+  "limitations": "The smooth corner antialiasing and gradient approximate the original raster values."
+}

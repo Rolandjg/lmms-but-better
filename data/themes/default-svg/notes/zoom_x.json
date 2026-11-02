@@ -1,0 +1,22 @@
+{
+  "source": "zoom_x.png",
+  "svg": "zoom_x.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White magnifier ring and handle with independently fitted weights, plus a fine straight-edged double arrow.",
+  "limitations": "Smooth vector geometry approximates the source contours and antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.05780542986425338,
+    "rmse": 0.1489253095309398,
+    "alpha_mae": 0.057805429864253396,
+    "changed_fraction": 0.125,
+    "full_canvas_mae": 0.02094226579520697,
+    "black_mae": 0.05780542986425338,
+    "white_mae": 1.921539850312771e-17,
+    "max_error": 0.9372549019607843,
+    "support_pixels": 208,
+    "opaque_background_added": false
+  }
+}

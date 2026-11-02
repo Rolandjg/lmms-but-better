@@ -1,0 +1,22 @@
+{
+  "source": "plugins.png",
+  "svg": "plugins.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white rectangular instrument panel with a smooth waveform and three softened square control cutouts. Native canvas is 32 by 32.",
+  "limitations": "Smooth geometric contours approximate small antialiased source details. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.06912797906047664,
+    "rmse": 0.1662231104400017,
+    "alpha_mae": 0.06912797906047664,
+    "changed_fraction": 0.1920374707259953,
+    "full_canvas_mae": 0.028848805147058825,
+    "black_mae": 0.06912797906047664,
+    "white_mae": 1.196024804045836e-17,
+    "max_error": 0.7607843137254902,
+    "support_pixels": 427,
+    "opaque_background_added": false
+  }
+}

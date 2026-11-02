@@ -1,0 +1,10 @@
+{
+  "source": "random_wave_active.png",
+  "svg": "random_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 icon with a translucent black background and a one-unit white square-wave stroke. The white waveform spans x=2 to 12 and y=2 to 12; its square-ended steps are centered at x=2.5, 5.5, 8.5 and 11.5.",
+  "limitations": "The four source background corner pixels have slightly lower alpha; the SVG approximates them with a small corner radius."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "restore.png",
+  "svg": "restore.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two overlapping white window outlines on transparency, drawn as filled paths with small softened outer corners. The 17 by 17 source has an alpha bounding box from (3,3) to (14,14), and only opaque white and transparent pixels.",
+  "limitations": "The smooth corner treatment and overlap approximate the aliased source at small sizes. The native and 8x SVG renders were produced, and the 8x render was visually inspected."
+}

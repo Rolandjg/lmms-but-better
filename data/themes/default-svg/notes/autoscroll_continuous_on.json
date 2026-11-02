@@ -1,0 +1,16 @@
+{
+  "source": "autoscroll_continuous_on.png",
+  "svg": "autoscroll_continuous_on.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white right arrow with separate vertical guide marks above and below the arrowhead on a transparent 20 by 20 canvas.",
+  "limitations": "Minor diagonal antialiasing differences remain. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.0028186274509803956,
+    "rmse": 0.007215490903862627,
+    "alpha_mae": 0.0028186274509803956,
+    "changed_fraction": 0.0
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "source": "colorize.png",
+  "svg": "colorize.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Eight colored 45-degree circular arcs with a radial transparency fade at the inner and outer edges.",
+  "limitations": "Smooth reconstructed contours and antialiasing approximate the source; native and 8x renders were inspected.",
+  "native_metrics": {
+    "mae": 0.07840875202659132,
+    "rmse": 0.11553446928889441,
+    "alpha_mae": 0.10535325241207594,
+    "changed_fraction": 0.373015873015873,
+    "full_canvas_mae": 0.041162119252713784,
+    "black_mae": 0.03919766308847432,
+    "white_mae": 0.06670063813470196,
+    "max_error": 0.3262283737024222,
+    "support_pixels": 252,
+    "opaque_background_added": false
+  },
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

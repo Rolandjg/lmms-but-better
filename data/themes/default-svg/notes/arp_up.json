@@ -1,0 +1,10 @@
+{
+  "source": "arp_up.png",
+  "svg": "arp_up.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white upward-pointing triangle with a horizontal base in a transparent 16 by 16 canvas. Its apex is at (8, 5) and its base extends from (2, 11) to (14, 11).",
+  "limitations": "Rasterization of the smooth diagonal edges may differ slightly from the source PNG."
+}

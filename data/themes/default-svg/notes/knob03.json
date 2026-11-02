@@ -1,0 +1,10 @@
+{
+  "source": "knob03.png",
+  "svg": "knob03.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A solid #256546 circle centered at (9.5, 9.5) with radius 5.45 on a transparent 19 by 19 canvas. The source has a nontransparent bounding box from (4, 4) to (15, 15), exclusive.",
+  "limitations": "Antialiased edge coverage can differ slightly between the original raster and SVG renderers."
+}

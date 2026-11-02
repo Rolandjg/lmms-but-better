@@ -1,0 +1,10 @@
+{
+  "source": "step_btn_off_light.png",
+  "svg": "step_btn_off_light.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Opaque 24 by 24 black background; 22 by 22 vertical-gradient rim, dark inset and softly cornered gradient face. The one-pixel rim changes brightness near the vertical midpoint.",
+  "limitations": "Smooth gradient and rounded inner corners approximate the original pixel shading."
+}

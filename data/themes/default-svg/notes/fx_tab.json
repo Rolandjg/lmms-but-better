@@ -1,0 +1,10 @@
+{
+  "source": "fx_tab.png",
+  "svg": "fx_tab.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White block F and crossed straight diagonal strokes forming X on a transparent 14 by 14 canvas. The F occupies x=1–6, y=2–12 with 2-pixel stems; the X spans x=7–13 and y=2–12.",
+  "limitations": "The antialiasing at the diagonal edges can differ slightly from the source raster."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "black_key_pressed.png",
+  "svg": "black_key_pressed.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "10 \u00d7 37 canvas with transparent outer area; a 7 \u00d7 36 dark key body, 5 \u00d7 35 bright green inset and 3 \u00d7 34 vertically shaded face.",
+  "limitations": "The smooth face gradient approximates the original channel rounding."
+}

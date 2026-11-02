@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs><linearGradient id="v" x1="0" y1="0" x2="0" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1a1d21" stop-opacity="0"/><stop offset="0.047" stop-color="#1a1d21" stop-opacity="0.107"/><stop offset="0.078" stop-color="#1a1d21" stop-opacity="0.326"/><stop offset="0.109" stop-color="#1a1d21" stop-opacity="0.629"/><stop offset="0.141" stop-color="#1a1d21" stop-opacity="0.865"/><stop offset="0.172" stop-color="#1a1d21" stop-opacity="0.966"/><stop offset="0.234" stop-color="#1a1d21"/><stop offset="0.766" stop-color="#1a1d21"/><stop offset="0.828" stop-color="#1a1d21" stop-opacity="0.966"/><stop offset="0.859" stop-color="#1a1d21" stop-opacity="0.865"/><stop offset="0.891" stop-color="#1a1d21" stop-opacity="0.629"/><stop offset="0.922" stop-color="#1a1d21" stop-opacity="0.326"/><stop offset="0.953" stop-color="#1a1d21" stop-opacity="0.107"/><stop offset="1" stop-color="#1a1d21" stop-opacity="0"/></linearGradient></defs>
+  <rect x="0" width="1" height="32" fill="url(#v)" opacity="0.03"/>
+  <rect x="1" width="1" height="32" fill="url(#v)" opacity="0.089"/>
+  <rect x="2" width="1" height="32" fill="url(#v)" opacity="0.273"/>
+  <rect x="3" width="1" height="32" fill="url(#v)" opacity="0.528"/>
+  <rect x="4" width="1" height="32" fill="url(#v)" opacity="0.72"/>
+  <rect x="5" width="1" height="32" fill="url(#v)" opacity="0.806"/>
+  <rect x="6" width="1" height="32" fill="url(#v)" opacity="0.821"/>
+  <rect x="7" width="1" height="32" fill="url(#v)" opacity="0.835"/>
+  <rect x="8" width="16" height="32" fill="url(#v)" opacity="0.835"/>
+  <rect x="24" width="1" height="32" fill="url(#v)" opacity="0.835"/>
+  <rect x="25" width="1" height="32" fill="url(#v)" opacity="0.821"/>
+  <rect x="26" width="1" height="32" fill="url(#v)" opacity="0.806"/>
+  <rect x="27" width="1" height="32" fill="url(#v)" opacity="0.72"/>
+  <rect x="28" width="1" height="32" fill="url(#v)" opacity="0.528"/>
+  <rect x="29" width="1" height="32" fill="url(#v)" opacity="0.273"/>
+  <rect x="30" width="1" height="32" fill="url(#v)" opacity="0.089"/>
+  <rect x="31" width="1" height="32" fill="url(#v)" opacity="0.03"/>
+</svg>

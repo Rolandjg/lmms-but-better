@@ -1,0 +1,22 @@
+{
+  "source": "arp_up_and_down.png",
+  "svg": "arp_up_and_down.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two straight white triangles with 12-unit bases and tips at y=1 and y=15.",
+  "limitations": "Smooth geometry approximates the source antialiasing and small-scale details. Native and 8x renders were inspected.",
+  "native_metrics": {
+    "mae": 0.004575163398692808,
+    "rmse": 0.01205675477384998,
+    "alpha_mae": 0.004575163398692809,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0015012254901960777,
+    "black_mae": 0.004575163398692808,
+    "white_mae": 7.93016446160826e-18,
+    "max_error": 0.03529411764705881,
+    "support_pixels": 84,
+    "opaque_background_added": false
+  }
+}

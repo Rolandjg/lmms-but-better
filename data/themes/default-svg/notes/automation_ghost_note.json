@@ -1,0 +1,22 @@
+{
+  "source": "automation_ghost_note.png",
+  "svg": "automation_ghost_note.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White ghost with a smooth domed head, two transparent musical-note eyes, a shallow diagonal split and three curved lower scallops on a transparent 22 by 22 canvas.",
+  "limitations": "Smooth curves and antialiasing approximate the small source, particularly the note heads and scalloped hem. Native and 8x renderings were inspected.",
+  "native_metrics": {
+    "mae": 0.08381062951496389,
+    "rmse": 0.1548139225461853,
+    "alpha_mae": 0.08381062951496387,
+    "changed_fraction": 0.22697368421052633,
+    "full_canvas_mae": 0.052779128180197706,
+    "black_mae": 0.08381062951496389,
+    "white_mae": 1.1321353211638109e-17,
+    "max_error": 0.5490196078431373,
+    "support_pixels": 304,
+    "opaque_background_added": false
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "sample_track.png",
+  "svg": "sample_track.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Ten square-capped white vertical strokes on a transparent 20 by 20 canvas, one pixel wide and spaced two pixels apart. The visible marks span x=0–18 and y=2–17 at native resolution.",
+  "limitations": "None known; the native alpha channel matches the source. The enlarged SVG render was visually inspected."
+}

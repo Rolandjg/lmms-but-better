@@ -1,0 +1,10 @@
+{
+  "source": "lfo_d100_active.png",
+  "svg": "lfo_d100_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "29 by 14 display with rounded black bezel, dark vertical screen gradient and top highlight; green plus sign and outlined 100 glyphs built from straight paths. Glyphs span y=3–11; green is #0bd556.",
+  "limitations": "The screen gradient and antialiased bezel approximate the original's subtle pixel-level shading."
+}

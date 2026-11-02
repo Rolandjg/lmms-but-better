@@ -1,0 +1,22 @@
+{
+  "source": "closed_branch.png",
+  "svg": "closed_branch.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A right-pointing triangular disclosure arrow on a transparent 20 by 20 canvas, extending approximately from x=8 to x=13 and y=6 to y=15. A subtle horizontal gray gradient reflects the source shading.",
+  "limitations": "The source's opaque pixel staircase is replaced by smooth antialiased diagonal edges, so individual edge pixels differ. Inspected the SVG rendering at 8x.",
+  "native_metrics": {
+    "mae": 0.05978742667212362,
+    "rmse": 0.10209624956646991,
+    "alpha_mae": 0.10094876660341555,
+    "changed_fraction": 0.22580645161290322,
+    "full_canvas_mae": 0.004653171856978085,
+    "black_mae": 0.05231833910034602,
+    "white_mae": 0.05073879773288188,
+    "max_error": 0.2709727028066129,
+    "support_pixels": 31,
+    "opaque_background_added": false
+  }
+}

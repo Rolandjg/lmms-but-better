@@ -1,0 +1,22 @@
+{
+  "source": "led_off.png",
+  "svg": "led_off.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 16 by 14 canvas contains a faint rounded outer rim, a 12 by 6 dark rectangular bezel at (2, 4), and a 10 by 4 inset blue-gray face with a vertical gradient at (3, 5).",
+  "limitations": "The source's subtle antialiased outer halo is approximated with a translucent rounded rim; the face gradient smoothly interpolates the original's discrete color bands. Native and 8x SVG renders were inspected. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.015216903754966035,
+    "rmse": 0.021554518922834547,
+    "alpha_mae": 0.00553221288515406,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.008798928067959207,
+    "black_mae": 0.012019049449845295,
+    "white_mae": 0.015195208802475216,
+    "max_error": 0.05882352941176494,
+    "support_pixels": 112,
+    "opaque_background_added": false
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "step_btn_add.png",
+  "svg": "step_btn_add.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two white 8 by 10 rectangles at (1,5) and (11,5), with a square-ended 6 by 6 plus cut out of the second rectangle using 2-unit arms. Native canvas is 20 by 20; the rest is transparent.",
+  "limitations": "None identified at native resolution."
+}

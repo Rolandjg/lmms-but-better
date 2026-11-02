@@ -1,0 +1,10 @@
+{
+  "source": "maximize.png",
+  "svg": "maximize.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two white right triangles with straight diagonal edges in a 17 by 17 viewBox; each occupies a 6 by 6 pixel bounding box, at (7,4) and (4,7).",
+  "limitations": "Antialiasing of the diagonal edges may vary between SVG renderers."
+}

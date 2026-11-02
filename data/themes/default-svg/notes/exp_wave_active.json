@@ -1,0 +1,10 @@
+{
+  "source": "exp_wave_active.png",
+  "svg": "exp_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 14 by 14 translucent black rounded rectangle with a light, 1.15-unit stroked symmetric exponential wave. The wave rises from approximately (2.5, 10.55) to (7, 3.4), then descends to (11.5, 10.55), using two smooth cubic curves and square-ended strokes.",
+  "limitations": "The wave is a smooth geometric interpretation of the small antialiased original; exact pixel coverage and subtle left-right differences are not reproduced. The SVG rendering was inspected at 8x."
+}

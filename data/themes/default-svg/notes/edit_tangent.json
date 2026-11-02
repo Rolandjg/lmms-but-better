@@ -1,0 +1,22 @@
+{
+  "source": "edit_tangent.png",
+  "svg": "edit_tangent.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A smooth cubic S-curve between horizontal guide segments on a transparent 20-unit canvas, with a roughly 1.23-unit stroke.",
+  "limitations": "Smooth geometry approximates source antialiasing and tiny contours. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.05255807595369302,
+    "rmse": 0.06645972027688786,
+    "alpha_mae": 0.0522875816993464,
+    "changed_fraction": 0.06666666666666667,
+    "full_canvas_mae": 0.011913802383698577,
+    "black_mae": 0.05224640095689692,
+    "white_mae": 0.0069465590157631795,
+    "max_error": 0.17254901960784313,
+    "support_pixels": 90,
+    "opaque_background_added": false
+  }
+}

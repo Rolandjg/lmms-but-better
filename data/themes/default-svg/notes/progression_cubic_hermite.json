@@ -1,0 +1,22 @@
+{
+  "source": "progression_cubic_hermite.png",
+  "svg": "progression_cubic_hermite.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white filled cubic B\u00e9zier silhouette in a 20 by 20 viewBox, rising to a rounded peak near (3.5, 3), dipping near y=10 and rising to the right edge; the flat base spans x=1 to 19 at y=18. The background is transparent.",
+  "limitations": "The smooth curve approximates the antialiased 20-pixel source; individual edge alpha values may differ. Inspected the rendered SVG at 8x.",
+  "native_metrics": {
+    "mae": 0.0860566448801743,
+    "rmse": 0.24344511631117022,
+    "alpha_mae": 0.08605664488017428,
+    "changed_fraction": 0.14351851851851852,
+    "full_canvas_mae": 0.04649019607843137,
+    "black_mae": 0.0860566448801743,
+    "white_mae": 3.597944987211155e-18,
+    "max_error": 1.0,
+    "support_pixels": 216,
+    "opaque_background_added": false
+  }
+}

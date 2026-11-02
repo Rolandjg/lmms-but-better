@@ -1,0 +1,10 @@
+{
+  "source": "filter_ap.png",
+  "svg": "filter_ap.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 20 by 11 pixel white rectangle at (1, 4) in a 22 by 16 transparent canvas. The PNG uses a transparent color key for the dark RGB outside the rectangle.",
+  "limitations": "None observed; the visible source geometry is a solid axis-aligned rectangle."
+}

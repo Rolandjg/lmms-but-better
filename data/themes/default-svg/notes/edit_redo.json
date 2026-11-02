@@ -1,0 +1,16 @@
+{
+  "source": "edit_redo.png",
+  "svg": "edit_redo.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White filled redo arrow on a transparent 22 by 22 canvas. Straight arrowhead spans approximately x=13 to 20 and y=2 to 16; a broad curved shaft turns from the lower left into the arrowhead. The enlarged SVG rendering was visually inspected.",
+  "limitations": "The smooth curved tail and antialiased diagonal edges approximate the original raster's pixel coverage. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.06435057244374258,
+    "rmse": 0.15135446538561942,
+    "alpha_mae": 0.06435057244374258,
+    "changed_fraction": 0.15436241610738255
+  }
+}

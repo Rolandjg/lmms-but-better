@@ -1,0 +1,16 @@
+{
+  "source": "max_length.png",
+  "svg": "max_length.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white downward triangle above a 20 by 7 white bar with a 4 by 5 transparent rectangular cutout. The 20 by 20 source contains only opaque white and fully transparent pixels; the bar spans y=8 through 14 and the triangle spans y=2 through 6.",
+  "limitations": "The triangle uses smooth straight edges rather than the source's pixel-stepped diagonal edges. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.021071895424836597,
+    "rmse": 0.08174566007548334,
+    "alpha_mae": 0.0210718954248366,
+    "changed_fraction": 0.06
+  }
+}

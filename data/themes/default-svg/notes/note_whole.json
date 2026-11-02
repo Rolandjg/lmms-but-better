@@ -1,0 +1,10 @@
+{
+  "source": "note_whole.png",
+  "svg": "note_whole.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 8×6 rectangular outline at (4, 9), enclosing a transparent 4×2 opening at (6, 11), on a transparent 16×16 canvas. The source uses a PNG transparency key for its dark RGB pixels.",
+  "limitations": "None observed; the source contains opaque white and fully transparent pixels with axis-aligned rectangular geometry."
+}

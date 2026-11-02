@@ -1,0 +1,10 @@
+{
+  "source": "pr_white_key_big_pressed.png",
+  "svg": "pr_white_key_big_pressed.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "64×24 fully opaque key: a horizontal green gradient across the 63×21 interior, bright green one-pixel top, bottom and right edges, and a dark one-pixel bottom separator.",
+  "limitations": "The continuous gradient approximates the source's quantized color steps."
+}

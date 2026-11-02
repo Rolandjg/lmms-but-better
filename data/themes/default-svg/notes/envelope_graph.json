@@ -1,0 +1,22 @@
+{
+  "source": "envelope_graph.png",
+  "svg": "envelope_graph.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "182 by 32 panel with a translucent black vertical gradient, softly rounded corners and a thin gray bottom edge. The ENVELOPE label occupies approximately x=114\u2013179 and y=4\u201310, constructed from one-unit square-ended strokes and straight diagonals. Native and 8x renders were produced and the enlarged rendering visually inspected.",
+  "limitations": "The original panel's subtle alpha variation and antialiased lettering are approximated; the smooth vector diagonals differ from the source's pixel staircases.",
+  "native_metrics": {
+    "mae": 0.023248621092479205,
+    "rmse": 0.09580484879781372,
+    "alpha_mae": 0.016658586511527674,
+    "changed_fraction": 0.019059065934065936,
+    "full_canvas_mae": 0.023248621092479205,
+    "black_mae": 0.01409399544131378,
+    "white_mae": 0.019411239231740946,
+    "max_error": 1.0,
+    "support_pixels": 5824,
+    "opaque_background_added": false
+  }
+}

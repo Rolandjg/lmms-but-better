@@ -1,0 +1,10 @@
+{
+  "source": "home.png",
+  "svg": "home.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White folder tab and body with a transparent house-shaped cutout, using straight roof edges and square corners. The native canvas is 32 by 32 pixels; visible bounds are x=2–29 and y=4–29. The lower panel occupies x=2–29 and y=14–29.",
+  "limitations": "The roof edge uses clean vector diagonals, so antialiasing may differ slightly from the original PNG. The 8x rendering was visually inspected."
+}

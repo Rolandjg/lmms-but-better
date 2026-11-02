@@ -1,0 +1,10 @@
+{
+  "source": "lcd_19green_dot.png",
+  "svg": "lcd_19green_dot.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 4 by 38 black field contains two square 2 by 2 green LCD dots, at (1,15) and (1,34), with bright and dim colors matching the source.",
+  "limitations": "None observed at native size; the square dot edges are intentionally crisp."
+}

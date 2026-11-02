@@ -1,0 +1,10 @@
+{
+  "source": "pattern_track.png",
+  "svg": "pattern_track.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Six white 5 by 6 rectangles in two rows and three columns on a transparent 20 by 20 canvas. Columns begin at x=0, 7, and 14; rows begin at y=3 and 11.",
+  "limitations": "None observed; the 8x rendering was visually inspected."
+}

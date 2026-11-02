@@ -1,0 +1,22 @@
+{
+  "source": "reload.png",
+  "svg": "reload.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white circular reload arrow with a two-unit arc and straight triangular head.",
+  "limitations": "Smooth vector geometry and gradients approximate the source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.06907993966817497,
+    "rmse": 0.15896628781375038,
+    "alpha_mae": 0.06907993966817497,
+    "changed_fraction": 0.1,
+    "full_canvas_mae": 0.022637254901960786,
+    "black_mae": 0.06907993966817497,
+    "white_mae": 2.6474549048753734e-17,
+    "max_error": 0.7333333333333334,
+    "support_pixels": 130,
+    "opaque_background_added": false
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "source": "open_branch.png",
+  "svg": "open_branch.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A single gray downward-pointing triangle on transparency, in a 20 by 20 viewBox. The source ink occupies x=5\u201313 and y=8\u201312 pixels; the triangle has a 9-unit horizontal top and a centered tip.",
+  "limitations": "The source uses opaque stepped pixels with subtle per-pixel gray variation; the SVG uses smooth antialiased diagonal edges and a uniform gray fill.",
+  "native_metrics": {
+    "mae": 0.08132978294198338,
+    "rmse": 0.13592828892443312,
+    "alpha_mae": 0.13681917211328976,
+    "changed_fraction": 0.3333333333333333,
+    "full_canvas_mae": 0.00555842624631552,
+    "black_mae": 0.07344563581908194,
+    "white_mae": 0.06792449247915093,
+    "max_error": 0.28286043829296437,
+    "support_pixels": 27,
+    "opaque_background_added": false
+  }
+}

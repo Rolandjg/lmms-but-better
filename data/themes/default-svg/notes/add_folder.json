@@ -1,0 +1,10 @@
+{
+  "source": "add_folder.png",
+  "svg": "add_folder.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two white, straight-edged folder silhouettes separated by a transparent horizontal gap; the lower shape contains a transparent plus cutout. Native dimensions are 20 by 20 pixels.",
+  "limitations": "The source uses a stark, hard-edged monochrome design; no material visual limitation was observed in the enlarged SVG rendering."
+}

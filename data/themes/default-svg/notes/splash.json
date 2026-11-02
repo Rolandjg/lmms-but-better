@@ -1,0 +1,10 @@
+{
+  "source": "splash.png",
+  "svg": "splash.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Opaque 681 by 573 vertical gradient (#27ab5f to #249a56) under an explicit triangular lattice measured from the source (vertical lines every 28.73 px from x=24, vertices every 32.23 px from y=27, odd columns offset by half), white at 9.5% opacity, 1.7 px wide; 16 lighter two-triangle facets in the source's cells at 10% white; geometric white emblem with a filter-free drop shadow (three stacked offsets around 8 px); explicitly drawn logo lettering, handwritten-style paths and a smile.",
+  "limitations": "Uses no <pattern>, <filter>, <mask> or <clipPath>, since Qt5's SVG renderer ignores them; the shadow approximates the source's blur with stacked translucent copies. Handwritten lettering remains a simplified approximation."
+}

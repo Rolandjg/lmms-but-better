@@ -1,0 +1,16 @@
+{
+  "source": "moog_saw_wave_active.png",
+  "svg": "moog_saw_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 14 by 14 translucent black rounded-square background and a white angular waveform, with a rising diagonal, vertical drop, and descending diagonal. The waveform spans approximately x=2 to 12 and y=3 to 11, with an approximately 1.35-unit stroke.",
+  "limitations": "The source has soft antialiased edges; the scalable redraw uses clean straight strokes and may differ slightly in edge softness. The 8x render was visually inspected. The adjusted 8x render was inspected.",
+  "native_metrics": {
+    "mae": 0.016536575414479518,
+    "rmse": 0.04592190093003923,
+    "alpha_mae": 0.006522609043617447,
+    "changed_fraction": 0.025510204081632654
+  }
+}

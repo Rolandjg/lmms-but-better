@@ -1,0 +1,22 @@
+{
+  "source": "record.png",
+  "svg": "record.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White circular ring centered at (10,10), with outer radius 8 and inner radius 4.",
+  "limitations": "Smooth vector edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.04611928104575164,
+    "rmse": 0.08199033147864736,
+    "alpha_mae": 0.04611928104575164,
+    "changed_fraction": 0.10416666666666667,
+    "full_canvas_mae": 0.02213725490196079,
+    "black_mae": 0.04611928104575164,
+    "white_mae": 2.0816681711721685e-17,
+    "max_error": 0.27450980392156865,
+    "support_pixels": 192,
+    "opaque_background_added": false
+  }
+}

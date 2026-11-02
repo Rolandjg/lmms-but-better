@@ -1,0 +1,22 @@
+{
+  "source": "triangle_wave_active.png",
+  "svg": "triangle_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white straight-sided triangular waveform of approximately 1.28-unit stroke on a translucent black background.",
+  "limitations": "Vector edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.006738617015433624,
+    "rmse": 0.02020516225783887,
+    "alpha_mae": 0.0035814325730292103,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.006738617015433624,
+    "black_mae": 0.004677792685701732,
+    "white_mae": 0.005218008772136302,
+    "max_error": 0.10588235294117643,
+    "support_pixels": 196,
+    "opaque_background_added": false
+  }
+}

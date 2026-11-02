@@ -1,0 +1,16 @@
+{
+  "source": "edit_draw.png",
+  "svg": "edit_draw.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "20 by 20 transparent canvas with four white polygonal pencil sections: diagonal rectangular body, clipped end cap, tapered tip and separated nib. The body extends approximately from (2, 3) to (17, 18). The native and 8x SVG renders were generated and the 8x render visually inspected.",
+  "limitations": "Straight vector boundaries replace the original half-opacity diagonal pixels; native antialiasing and the clipped nib may differ slightly. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.07555859553123574,
+    "rmse": 0.1894516295086008,
+    "alpha_mae": 0.07555859553123576,
+    "changed_fraction": 0.14534883720930233
+  }
+}

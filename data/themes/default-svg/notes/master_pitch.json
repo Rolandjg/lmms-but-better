@@ -1,0 +1,10 @@
+{
+  "source": "master_pitch.png",
+  "svg": "master_pitch.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Four white, square-cornered piano-key silhouettes on transparency. The native canvas is 20 by 20; visible ink spans x=5–14 and y=1–15, with four 4-unit-wide right-hand key ends.",
+  "limitations": "The source consists entirely of hard-edged, axis-aligned shapes; the redraw follows its native proportions."
+}

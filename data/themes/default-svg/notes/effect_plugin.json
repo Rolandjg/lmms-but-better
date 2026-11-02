@@ -1,0 +1,10 @@
+{
+  "source": "effect_plugin.png",
+  "svg": "effect_plugin.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 214 by 57 panel with a one-pixel dark border, subtly rounded corners, vertical charcoal gradient, and one-pixel top and bottom edge accents. Native and 8x renders were generated and the enlarged render inspected.",
+  "limitations": "Corner antialiasing and the small edge color variations are approximated with smooth vector geometry."
+}

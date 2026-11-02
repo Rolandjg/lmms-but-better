@@ -1,0 +1,22 @@
+{
+  "source": "quantize.png",
+  "svg": "quantize.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white circular ring centered at (12,12), radius 8.2 and stroke width 3.2, with a square-ended diagonal Q tail on a transparent 24 by 24 canvas.",
+  "limitations": "Smooth circular and diagonal edges approximate native antialiasing. The 8x rendering was inspected. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.06820191906549855,
+    "rmse": 0.11412758172567206,
+    "alpha_mae": 0.06820191906549854,
+    "changed_fraction": 0.2851063829787234,
+    "full_canvas_mae": 0.028002450980392155,
+    "black_mae": 0.06820191906549855,
+    "white_mae": 1.842497785548132e-17,
+    "max_error": 0.4784313725490196,
+    "support_pixels": 235,
+    "opaque_background_added": false
+  }
+}

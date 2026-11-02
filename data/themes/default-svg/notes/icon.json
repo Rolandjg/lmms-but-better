@@ -1,0 +1,10 @@
+{
+  "source": "icon.png",
+  "svg": "icon.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "128 by 128 canvas; translucent dark rounded 112-pixel square border, inset green 108-pixel rounded square, and a white angular emblem with a green shadow offset 3 pixels downward. The emblem spans approximately x=22 to 106 and y=22 to 102.",
+  "limitations": "The source shadow and antialiased edges have subtle soft transitions; the redraw uses crisp geometric edges and a flat shadow. Inspected the SVG rendered at 8x."
+}

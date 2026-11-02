@@ -1,0 +1,10 @@
+{
+  "source": "master_volume.png",
+  "svg": "master_volume.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three white sections of a right-aligned triangular wedge, with a shared straight diagonal edge and two horizontal transparent gaps. The 20 by 20 source has ink spanning approximately x=5 to 15 and y=1 to 19, with one-pixel gaps at y=4 and y=8.",
+  "limitations": "The antialiased diagonal is reconstructed as a single ideal straight edge; native pixel coverage may differ slightly from the source. Native and 8x SVG renders were visually inspected."
+}

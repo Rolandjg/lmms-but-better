@@ -1,0 +1,10 @@
+{
+  "source": "folder.png",
+  "svg": "folder.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Transparent background with a white folder tab and rectangular body separated by a horizontal gap.",
+  "limitations": "The source is a 16-pixel two-color icon; its square corners and abrupt tab are retained as simple geometric edges."
+}

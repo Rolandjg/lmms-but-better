@@ -1,0 +1,22 @@
+{
+  "source": "midi_file.png",
+  "svg": "midi_file.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white document silhouette with folded corner and a cutout musical note with squared heads and a straight beam. Native canvas is 16 by 16.",
+  "limitations": "Smooth geometric contours approximate small antialiased source details. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.049249249249249255,
+    "rmse": 0.16288731141761023,
+    "alpha_mae": 0.04924924924924925,
+    "changed_fraction": 0.08108108108108109,
+    "full_canvas_mae": 0.021354166666666664,
+    "black_mae": 0.049249249249249255,
+    "white_mae": 6.00120553851436e-18,
+    "max_error": 0.8745098039215686,
+    "support_pixels": 111,
+    "opaque_background_added": false
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "source": "apply.png",
+  "svg": "apply.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 4.25-unit miter-joined check made from two straight strokes with flat ends on a transparent 22 by 22 canvas.",
+  "limitations": "The source uses antialiased diagonal edges; small differences in stroke placement and coverage remain. The native and 8x SVG renders were inspected.",
+  "native_metrics": {
+    "mae": 0.004502541757443716,
+    "rmse": 0.01132059351352207,
+    "alpha_mae": 0.004502541757443716,
+    "changed_fraction": 0.0
+  }
+}

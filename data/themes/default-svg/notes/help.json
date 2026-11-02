@@ -1,0 +1,22 @@
+{
+  "source": "help.png",
+  "svg": "help.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White circular badge with a curved question mark and square dot cut out of it.",
+  "limitations": "Question mark curvature and circle edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.07616600038073482,
+    "rmse": 0.18432871125148556,
+    "alpha_mae": 0.07616600038073482,
+    "changed_fraction": 0.20631067961165048,
+    "full_canvas_mae": 0.06483552098525361,
+    "black_mae": 0.07616600038073482,
+    "white_mae": 1.3473580395936366e-17,
+    "max_error": 0.9019607843137255,
+    "support_pixels": 412,
+    "opaque_background_added": false
+  }
+}

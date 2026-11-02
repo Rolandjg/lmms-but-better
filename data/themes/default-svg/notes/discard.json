@@ -1,0 +1,10 @@
+{
+  "source": "discard.png",
+  "svg": "discard.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White square-edged trash can with a stepped lid, rectangular body and three transparent vertical slots. Native canvas 22 x 22; lid spans x=4–18 and y=1–5, body spans x=4–18 and y=7–21; slots are 2 pixels wide.",
+  "limitations": "The source is a binary square-edged icon, so its straight geometry is preserved without smoothing."
+}

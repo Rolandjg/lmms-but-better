@@ -1,0 +1,10 @@
+{
+  "source": "sbarrow_left.png",
+  "svg": "sbarrow_left.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A translucent white left-pointing triangle with straight diagonal edges, spanning approximately x=1–4 and y=0–5 in the 5×5 canvas. The source alpha peaks at 51/255; the surrounding pixels are transparent.",
+  "limitations": "The source is only 5×5 pixels, so its antialiased diagonal edge is approximated by a smooth triangle."
+}

@@ -1,0 +1,16 @@
+{
+  "source": "close.png",
+  "svg": "close.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two 2-unit flat-ended diagonal strokes centered on a 17 by 17 transparent canvas.",
+  "limitations": "The antialiased diagonal coverage differs slightly from the source. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.002953280077463096,
+    "rmse": 0.006299273331067974,
+    "alpha_mae": 0.0029532800774630962,
+    "changed_fraction": 0.0
+  }
+}

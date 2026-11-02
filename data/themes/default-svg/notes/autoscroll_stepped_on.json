@@ -1,0 +1,11 @@
+{
+  "source": "autoscroll_stepped_on.png",
+  "svg": "autoscroll_stepped_on.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white right-pointing arrow with a rectangular shaft and straight diagonal head, framed by narrow white vertical edge bars on a transparent 20 by 20 canvas.",
+  "limitations": "The clean diagonal and antialiasing may differ slightly from the original raster. The 8x SVG rendering was visually inspected.",
+  "native_metrics": {"width": 20, "height": 20}
+}

@@ -1,0 +1,22 @@
+{
+  "source": "cancel.png",
+  "svg": "cancel.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two square-ended crossing white diagonal strokes, approximately 4.99 units wide.",
+  "limitations": "Vector edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.0027124183006535935,
+    "rmse": 0.0063131977208069215,
+    "alpha_mae": 0.0027124183006535935,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0013450008102414512,
+    "black_mae": 0.0027124183006535935,
+    "white_mae": 0.0,
+    "max_error": 0.01568627450980392,
+    "support_pixels": 240,
+    "opaque_background_added": false
+  }
+}

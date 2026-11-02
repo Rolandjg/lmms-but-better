@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" viewBox="0 0 16 14">
+  <defs><linearGradient id="v" x1="0" y1="2" x2="0" y2="12" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#00c7bb" stop-opacity="0"/><stop offset="0.1" stop-color="#00c7bb" stop-opacity="0.05"/><stop offset="0.2" stop-color="#00c7bb" stop-opacity="0.2"/><stop offset="0.3" stop-color="#00c7bb" stop-opacity="0.5"/><stop offset="0.4" stop-color="#00c7bb" stop-opacity="0.8"/><stop offset="0.6" stop-color="#00c7bb" stop-opacity="0.8"/><stop offset="0.7" stop-color="#00c7bb" stop-opacity="0.5"/><stop offset="0.8" stop-color="#00c7bb" stop-opacity="0.2"/><stop offset="0.9" stop-color="#00c7bb" stop-opacity="0.05"/><stop offset="1" stop-color="#00c7bb" stop-opacity="0"/></linearGradient><linearGradient id="shine"><stop stop-color="#97fff8"/><stop offset=".5" stop-color="#c0fffb"/><stop offset="1" stop-color="#97fff8"/></linearGradient></defs>
+  <rect x="0" width="1" height="14" fill="url(#v)" opacity="0.06"/>
+  <rect x="1" width="1" height="14" fill="url(#v)" opacity="0.18"/>
+  <rect x="2" width="1" height="14" fill="url(#v)" opacity="0.507"/>
+  <rect x="3" width="1" height="14" fill="url(#v)" opacity="0.755"/>
+  <rect x="4" width="1" height="14" fill="url(#v)" opacity="0.924"/>
+  <rect x="5" width="1" height="14" fill="url(#v)"/>
+  <rect x="6" width="1" height="14" fill="url(#v)"/>
+  <rect x="7" width="1" height="14" fill="url(#v)"/>
+  <rect x="8" width="1" height="14" fill="url(#v)"/>
+  <rect x="9" width="1" height="14" fill="url(#v)"/>
+  <rect x="10" width="1" height="14" fill="url(#v)" opacity="0.924"/>
+  <rect x="11" width="1" height="14" fill="url(#v)" opacity="0.755"/>
+  <rect x="12" width="1" height="14" fill="url(#v)" opacity="0.507"/>
+  <rect x="13" width="1" height="14" fill="url(#v)" opacity="0.18"/>
+  <rect x="14" width="1" height="14" fill="url(#v)" opacity="0.06"/>
+  <rect x="3" y="5" width="10" height="4" fill="#45fff3"/>
+  <rect x="4" y="6" width="8" height="2" fill="url(#shine)"/>
+</svg>

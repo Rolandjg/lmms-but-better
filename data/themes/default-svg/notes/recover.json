@@ -1,0 +1,22 @@
+{
+  "source": "recover.png",
+  "svg": "recover.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A single white check mark built from straight diagonals and short flat ends in a 22 by 22 viewBox. The original uses transparent background pixels and visible ink spans approximately x=2\u201319 and y=4\u201317. Native and 8x SVG renders were visually inspected.",
+  "limitations": "The smooth vector edges approximate the original's half-opacity pixel edges, so antialiasing and corner coverage differ slightly at native size.",
+  "native_metrics": {
+    "mae": 0.06288770053475935,
+    "rmse": 0.13502854401879524,
+    "alpha_mae": 0.06288770053475937,
+    "changed_fraction": 0.14545454545454545,
+    "full_canvas_mae": 0.014292659212445309,
+    "black_mae": 0.06288770053475935,
+    "white_mae": 2.0185873175002845e-18,
+    "max_error": 0.5019607843137255,
+    "support_pixels": 110,
+    "opaque_background_added": false
+  }
+}

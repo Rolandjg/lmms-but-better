@@ -1,0 +1,22 @@
+{
+  "source": "edit_cut.png",
+  "svg": "edit_cut.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Crossed tapered straight blades and continuous curved one-pixel handle outlines, on a transparent canvas.",
+  "limitations": "Smooth curves and antialiased diagonals approximate the pixel-stepped source; the original handles are more angular and slightly asymmetric. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.09338742393509128,
+    "rmse": 0.1521680847370486,
+    "alpha_mae": 0.09338742393509127,
+    "changed_fraction": 0.2896551724137931,
+    "full_canvas_mae": 0.03395098039215686,
+    "black_mae": 0.09338742393509128,
+    "white_mae": 2.4501473646900006e-17,
+    "max_error": 0.4980392156862745,
+    "support_pixels": 145,
+    "opaque_background_added": false
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "clear_notes_out_of_bounds.png",
+  "svg": "clear_notes_out_of_bounds.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white vertical 10-unit band with transparent rectangular cutouts and three white horizontal note bars. Native canvas is 20 by 20 pixels; the source uses opaque white and transparent pixels.",
+  "limitations": "The original is a binary pixel icon; this redraw uses straight vector edges."
+}

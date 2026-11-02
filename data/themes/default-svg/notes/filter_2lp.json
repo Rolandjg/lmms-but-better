@@ -1,0 +1,10 @@
+{
+  "source": "filter_2lp.png",
+  "svg": "filter_2lp.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A single white filled low-pass profile: a flat left plateau, a small peak, and a straight descending edge. Native canvas 22 by 16 pixels; shape extends from x=1 to approximately x=16 and y=4.3 to 15.",
+  "limitations": "The small peak and descending edge are approximated with clean straight lines; antialiasing may differ from the source."
+}

@@ -1,0 +1,16 @@
+{
+  "source": "setup_performance.png",
+  "svg": "setup_performance.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 48 by 48 gauge with a circular ring, seven rectangular ticks, and a tapered needle with a rounded pivot.",
+  "limitations": "The smooth ring and needle contours approximate the antialiased source. The adjusted 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.014318686770637848,
+    "rmse": 0.033898954782807446,
+    "alpha_mae": 0.014318686770637848,
+    "changed_fraction": 0.019801980198019802
+  }
+}

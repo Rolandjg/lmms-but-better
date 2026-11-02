@@ -1,0 +1,10 @@
+{
+  "source": "uhoh.png",
+  "svg": "uhoh.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 48 by 48 circle with a transparent question mark cut out using smooth Bezier curves and a square dot. The main question-mark stroke is approximately 4 pixels wide; the dot is 4 by 4 pixels.",
+  "limitations": "The question mark curves are an approximation of the raster original. The native-size and 8x SVG renders were generated, and the enlarged render was visually inspected."
+}

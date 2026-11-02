@@ -1,0 +1,10 @@
+{
+  "source": "exp_wave_inactive.png",
+  "svg": "exp_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 14 by 14 translucent black rounded rectangle and a symmetric, smoothly curved peaked waveform with a 1.35-unit translucent white stroke. The waveform runs approximately from (2.5, 10.5) to (11.5, 10.5), peaking at (7, 3.2).",
+  "limitations": "The smooth curve and uniform stroke approximate the source's antialiased tonal variations."
+}

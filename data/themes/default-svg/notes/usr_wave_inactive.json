@@ -1,0 +1,10 @@
+{
+  "source": "usr_wave_inactive.png",
+  "svg": "usr_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 canvas with a 2-unit-wide square-ended gray plus spanning x=3..11 and y=3..11, over a translucent black field. The field is cut out beneath the plus to preserve its original alpha.",
+  "limitations": "The four source corner pixels have slightly lower alpha than the rest of the black field; the SVG uses a uniform field."
+}

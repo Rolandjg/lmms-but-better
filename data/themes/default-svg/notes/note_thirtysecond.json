@@ -1,0 +1,10 @@
+{
+  "source": "note_thirtysecond.png",
+  "svg": "note_thirtysecond.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white, square-cornered note with a rectangular head and stem, three horizontal beams, and two rectangular openings. The 16×16 source has visible bounds x=2–13 and y=0–14; all other pixels are transparent.",
+  "limitations": "The source uses only fully opaque white and fully transparent pixels; the SVG retains its deliberately blocky square geometry."
+}

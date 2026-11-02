@@ -1,0 +1,10 @@
+{
+  "source": "black_key_disabled.png",
+  "svg": "black_key_disabled.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 7 by 36 gray key at x=2 is surrounded by transparent canvas; flat outer border and vertically shaded bevel and inset face. The native canvas is 10 by 37 pixels.",
+  "limitations": "Subtle pixel-level color variations are approximated with smooth gradients."
+}

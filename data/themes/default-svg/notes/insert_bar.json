@@ -1,0 +1,10 @@
+{
+  "source": "insert_bar.png",
+  "svg": "insert_bar.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "20 by 20 transparent canvas with a one-pixel white bar outline and divider, plus a two-pixel-wide white plus sign at lower right. The outline and plus are manually specified as straight-edged shapes; the source has 93 opaque white pixels and 307 fully transparent pixels.",
+  "limitations": "None apparent at native size; the source is a simple square-edged monochrome design. Native and 8x renderings were inspected on dark and white backgrounds."
+}

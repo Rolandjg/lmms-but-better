@@ -1,0 +1,16 @@
+{
+  "source": "led_yellow.png",
+  "svg": "led_yellow.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A cyan rectangular LED panel with a horizontal highlight and three layered rounded rectangular glow fields on a transparent 16 by 14 canvas.",
+  "limitations": "The layered glow approximates the source blur and has visible bands at high magnification. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.03620677707054741,
+    "rmse": 0.05624847945526161,
+    "alpha_mae": 0.03754538852578068,
+    "changed_fraction": 0.07407407407407407
+  }
+}

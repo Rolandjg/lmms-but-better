@@ -1,0 +1,16 @@
+{
+  "source": "proportional_snap.png",
+  "svg": "proportional_snap.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "20 by 20 transparent canvas with three one-unit white rectangular outlines and a circular magnifying glass with a diagonal handle. Source alpha bounds are x=1..18 and y=0..19.",
+  "limitations": "The magnifier is reconstructed with idealized circular geometry; its antialiasing and handle attachment can differ slightly from the original. The 8x render was visually inspected. The adjusted 8x render was inspected.",
+  "native_metrics": {
+    "mae": 0.00894698620188816,
+    "rmse": 0.01941810889338317,
+    "alpha_mae": 0.00894698620188816,
+    "changed_fraction": 0.0
+  }
+}

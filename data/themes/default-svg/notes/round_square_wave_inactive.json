@@ -1,0 +1,10 @@
+{
+  "source": "round_square_wave_inactive.png",
+  "svg": "round_square_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 canvas with a translucent black, subtly rounded background and a one-unit semitransparent white stroke. A smooth rising cubic curve joins a vertical drop and horizontal baseline; its approximate extent is x=2 to 12 and y=3 to 12.",
+  "limitations": "The smooth curve and antialiasing approximate the small raster original. Inspected native and 8x SVG renders."
+}

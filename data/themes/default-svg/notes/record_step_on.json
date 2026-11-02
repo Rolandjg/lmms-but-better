@@ -1,0 +1,22 @@
+{
+  "source": "record_step_on.png",
+  "svg": "record_step_on.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A red radius-8 circle centered in a 20 by 20 viewBox, with a smooth S-shaped transparent cutout drawn using cubic curves and an even-odd fill. The source's nonzero alpha bounds are x=2..17 and y=2..17; its opaque ink is red.",
+  "limitations": "The letter is a hand-interpreted smooth outline, so its antialiasing and contours differ slightly from the source at native size. The native and 8x renders were visually inspected.",
+  "native_metrics": {
+    "mae": 0.05259405197485692,
+    "rmse": 0.12856349048987167,
+    "alpha_mae": 0.05259405197485693,
+    "changed_fraction": 0.1339712918660287,
+    "full_canvas_mae": 0.02748039215686274,
+    "black_mae": 0.017531350658285642,
+    "white_mae": 0.035062701316571285,
+    "max_error": 0.7647058823529412,
+    "support_pixels": 209,
+    "opaque_background_added": false
+  }
+}

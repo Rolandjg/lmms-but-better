@@ -1,0 +1,10 @@
+{
+  "source": "new_channel.png",
+  "svg": "new_channel.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white, square-cornered plus on transparency, centered in a 20 by 20 viewBox. Both arms are 4 units wide and span coordinates 2 through 18.",
+  "limitations": "None apparent; the source uses solid axis-aligned geometry. The native and 8x SVG renders were inspected."
+}

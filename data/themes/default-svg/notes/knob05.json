@@ -1,0 +1,10 @@
+{
+  "source": "knob05.png",
+  "svg": "knob05.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A solid #1c4933 circle centered at (16, 16), radius 5.9, on a transparent 32 by 32 canvas. The original has visible antialiased pixels within x=10–21 and y=10–21.",
+  "limitations": "The smooth circle approximates the original antialiased edge; rasterization may vary slightly. Native and 8x renders were generated and the 8x render was visually inspected."
+}

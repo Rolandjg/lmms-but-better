@@ -1,0 +1,22 @@
+{
+  "source": "ports.png",
+  "svg": "ports.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white rectangular plug and stem with a roughly one-unit circular arc centered around its head.",
+  "limitations": "Smooth vector contours approximate source antialiasing and small variations. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.020109439124487,
+    "rmse": 0.06262100131227658,
+    "alpha_mae": 0.020109439124487004,
+    "changed_fraction": 0.023255813953488372,
+    "full_canvas_mae": 0.0035731648031113268,
+    "black_mae": 0.020109439124487,
+    "white_mae": 1.1618613048402802e-17,
+    "max_error": 0.3803921568627451,
+    "support_pixels": 86,
+    "opaque_background_added": false
+  }
+}

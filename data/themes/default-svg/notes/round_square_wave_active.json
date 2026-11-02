@@ -1,0 +1,10 @@
+{
+  "source": "round_square_wave_active.png",
+  "svg": "round_square_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 14 by 14 translucent black rounded rectangle carries a one-unit white stroke: a rising cubic curve from approximately (2.5, 12) to (7.5, 3.5), followed by vertical and horizontal square-ended segments. The source background alpha is 166/255 over most pixels, with partially transparent corner pixels.",
+  "limitations": "The smooth curve and antialiasing approximate the small raster original; corner coverage and individual edge pixels may differ. Native and 8x SVG renders were visually inspected."
+}

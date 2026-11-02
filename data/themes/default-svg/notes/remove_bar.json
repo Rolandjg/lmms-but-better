@@ -1,0 +1,10 @@
+{
+  "source": "remove_bar.png",
+  "svg": "remove_bar.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A one-pixel white bar outline and central divider, with a two-pixel-high minus sign. Native canvas is 20 by 20 pixels; the source contains 92 opaque white pixels and otherwise transparent pixels.",
+  "limitations": "None apparent at native size; the design uses straight, square-edged geometry."
+}

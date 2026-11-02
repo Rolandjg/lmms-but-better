@@ -1,0 +1,23 @@
+{
+  "source": "setup_general.png",
+  "svg": "setup_general.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white eight-tooth gear with approximately 6.9-unit teeth, 16-unit hub and 8.07-unit central opening.",
+  "limitations": "Smooth vector contours approximate source antialiasing and small variations. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.054977124183006536,
+    "rmse": 0.1380689677533133,
+    "alpha_mae": 0.054977124183006536,
+    "changed_fraction": 0.13916666666666666,
+    "full_canvas_mae": 0.028637322984749455,
+    "black_mae": 0.054977124183006536,
+    "white_mae": 7.308968245448947e-18,
+    "max_error": 0.5764705882352941,
+    "support_pixels": 1200,
+    "opaque_background_added": false
+  },
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

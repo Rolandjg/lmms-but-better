@@ -1,0 +1,22 @@
+{
+  "source": "note_triplethalf.png",
+  "svg": "note_triplethalf.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White square-cornered triplet numeral and hollow half-note glyph on transparency. Native canvas is 16 by 16; visible bounds are x=1..11 and y=1..14. The note uses a 2-unit stem and a rectangular 8 by 6 head with a 4 by 2 opening.",
+  "limitations": "The glyph is drawn with geometric outlines. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.0,
+    "rmse": 0.0,
+    "alpha_mae": 0.0,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0,
+    "black_mae": 0.0,
+    "white_mae": 0.0,
+    "max_error": 0.0,
+    "support_pixels": 66,
+    "opaque_background_added": false
+  }
+}

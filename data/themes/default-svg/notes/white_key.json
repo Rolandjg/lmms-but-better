@@ -1,0 +1,10 @@
+{
+  "source": "white_key.png",
+  "svg": "white_key.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 10 by 57 opaque white rectangle with a 1-pixel-wide dark #1a1b1e vertical strip along its left edge. The source is RGB with no alpha channel.",
+  "limitations": "None observed; the native and 8x SVG renders were generated and the enlarged rendering inspected."
+}

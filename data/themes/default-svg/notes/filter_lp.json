@@ -1,0 +1,16 @@
+{
+  "source": "filter_lp.png",
+  "svg": "filter_lp.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white filled low-pass response silhouette with a horizontal shelf, small curved rise and peak, and a straight descending slope. Native canvas is 22 by 16 pixels; the filled baseline runs from x=1 to approximately x=19 at y=15, and the shelf starts at y=6.",
+  "limitations": "The curved peak and slope approximate the source's antialiased raster edges. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.03176966989327377,
+    "rmse": 0.10370991432504702,
+    "alpha_mae": 0.03176966989327377,
+    "changed_fraction": 0.10126582278481013
+  }
+}

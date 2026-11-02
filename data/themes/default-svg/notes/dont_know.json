@@ -1,0 +1,22 @@
+{
+  "source": "dont_know.png",
+  "svg": "dont_know.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white circle centered at (8, 8) with radius 8, with a curved question mark and square dot cut out using an even-odd path. The original is 16 by 16 pixels. Rendered at native size and 8x and inspected the enlarged rendering.",
+  "limitations": "The question mark is a smooth approximation of the small antialiased source; its exact glyph contours and antialiasing may differ. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.04295485636114911,
+    "rmse": 0.08272385150037637,
+    "alpha_mae": 0.04295485636114911,
+    "changed_fraction": 0.12093023255813953,
+    "full_canvas_mae": 0.03624387254901961,
+    "black_mae": 0.04295485636114911,
+    "white_mae": 1.8073398075293247e-17,
+    "max_error": 0.403921568627451,
+    "support_pixels": 215,
+    "opaque_background_added": false
+  }
+}

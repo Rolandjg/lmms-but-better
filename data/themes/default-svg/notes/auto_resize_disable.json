@@ -1,0 +1,22 @@
+{
+  "source": "auto_resize_disable.png",
+  "svg": "auto_resize_disable.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white rectangular outline and dotted outer selection border frame a crossed pair of diagonal strokes on a transparent 20 by 20 canvas.",
+  "limitations": "Smooth diagonal strokes approximate the antialiased cross in the source; edge coverage may differ at native size. Inspected the 8x SVG rendering.",
+  "native_metrics": {
+    "mae": 0.03312418300653595,
+    "rmse": 0.10070366295683209,
+    "alpha_mae": 0.03312418300653594,
+    "changed_fraction": 0.08,
+    "full_canvas_mae": 0.012745098039215684,
+    "black_mae": 0.03312418300653595,
+    "white_mae": 7.401486830834377e-19,
+    "max_error": 0.5411764705882353,
+    "support_pixels": 150,
+    "opaque_background_added": false
+  }
+}

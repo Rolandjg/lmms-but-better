@@ -1,0 +1,10 @@
+{
+  "source": "triangle_wave_inactive.png",
+  "svg": "triangle_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 canvas with a translucent black rounded background and a symmetric, pale translucent triangle-wave stroke. The background alpha is approximately 166/255 over most pixels; the wave spans approximately x=2 to 12 and y=3 to 11.",
+  "limitations": "The smooth vector stroke is crisper than the softly antialiased source at enlarged scale. The native and 8x renders were generated and the enlarged rendering was visually inspected."
+}

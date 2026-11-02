@@ -1,0 +1,10 @@
+{
+  "source": "combobox_arrow.png",
+  "svg": "combobox_arrow.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A solid white left-pointing triangle on an 11 by 15 transparent canvas, with tip at (3, 7.5) and vertical back edge at x=8 from y=3 to y=12. The source has visible alpha within x=3–7 and y=3–11.",
+  "limitations": "The source has subtly softened antialiased edges; the SVG uses straight geometric edges and its rasterized antialiasing will differ slightly. The 8x rendering was visually inspected."
+}

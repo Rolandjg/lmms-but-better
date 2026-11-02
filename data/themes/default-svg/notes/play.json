@@ -1,0 +1,10 @@
+{
+  "source": "play.png",
+  "svg": "play.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white right-pointing triangle on a transparent 20 by 20 canvas, with vertices at (4, 2), (16, 10), and (4, 18). The source alpha bounds are x=4..15 and y=2..17. Inspected the native source and the rendered SVG at 8x.",
+  "limitations": "Raster antialiasing may differ slightly from the source along the diagonal edges."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "star.png",
+  "svg": "star.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white five-point star on transparency, drawn as a continuous path with straight sloping edges and gently softened tips. Native canvas is 22 by 22 pixels; the star reaches all four canvas edges.",
+  "limitations": "The continuous edges and subtle tip curves approximate the antialiased source; exact edge coverage at native size may differ. Inspected the SVG rendering at 8x. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.057521329142343966,
+    "rmse": 0.1171803845975653,
+    "alpha_mae": 0.05752132914234395,
+    "changed_fraction": 0.2099236641221374,
+    "full_canvas_mae": 0.031299627288932104,
+    "black_mae": 0.057521329142343966,
+    "white_mae": 1.0169981904963266e-17,
+    "max_error": 0.39607843137254906,
+    "support_pixels": 262,
+    "opaque_background_added": false
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "note_eighth.png",
+  "svg": "note_eighth.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White square-cornered eighth note on a transparent 16 by 16 canvas. Its head spans x=2–10 and y=10–15, the stem is 2 units wide, and the angular flag reaches x=14 and y=5.",
+  "limitations": "The source is a deliberately block-shaped, binary-alpha icon; the vector retains its square corners."
+}

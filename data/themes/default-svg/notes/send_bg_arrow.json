@@ -1,0 +1,22 @@
+{
+  "source": "send_bg_arrow.png",
+  "svg": "send_bg_arrow.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white down arrow with a three-unit vertical shaft and a straight triangular head.",
+  "limitations": "Vector edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.0034759358288770103,
+    "rmse": 0.0068180361849929745,
+    "alpha_mae": 0.00347593582887701,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0017379679144385052,
+    "black_mae": 0.0034759358288770103,
+    "white_mae": 5.046468293750712e-18,
+    "max_error": 0.02352941176470591,
+    "support_pixels": 44,
+    "opaque_background_added": false
+  }
+}

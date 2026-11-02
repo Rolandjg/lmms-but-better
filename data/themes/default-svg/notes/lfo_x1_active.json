@@ -1,0 +1,10 @@
+{
+  "source": "lfo_x1_active.png",
+  "svg": "lfo_x1_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "29 by 14 display with a rounded black bezel, dark vertical gradient and top highlight. The green x is a deliberate diagonal shape and the numeral is a straight vector path, occupying y=3–11.",
+  "limitations": "The screen gradient and smooth diagonal x approximate the original pixel shading. Native and 8x renders were generated and visually inspected."
+}

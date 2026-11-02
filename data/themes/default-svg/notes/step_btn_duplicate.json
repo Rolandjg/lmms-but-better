@@ -1,0 +1,10 @@
+{
+  "source": "step_btn_duplicate.png",
+  "svg": "step_btn_duplicate.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 2-pixel-wide L-shaped back sheet and an 8 by 10 pixel white front rectangle on a transparent 20 by 20 canvas. The source has 112 opaque white pixels and 288 transparent pixels.",
+  "limitations": "None observed at native size or in the inspected 8x render."
+}

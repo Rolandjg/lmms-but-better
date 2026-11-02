@@ -1,0 +1,10 @@
+{
+  "source": "flip_x.png",
+  "svg": "flip_x.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A single white horizontal double-headed arrow with straight diagonal arrowheads and a 4-unit-high central shaft. The 20 by 20 source has visible ink approximately from x=1 to 19 and y=5 to 15; the vector uses those same nominal extents.",
+  "limitations": "The smooth diagonal edges render with antialiasing rather than the source PNG's pixel-stepped edges. The SVG was rendered at native size and 8x, and the enlarged rendering was visually inspected."
+}

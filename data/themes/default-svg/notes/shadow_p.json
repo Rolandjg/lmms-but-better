@@ -1,0 +1,23 @@
+{
+  "source": "shadow_p.png",
+  "svg": "shadow_p.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A dark square with horizontal and vertical alpha fades; center RGBA approximately (39,44,49,178).",
+  "limitations": "Smooth vector geometry and gradients approximate the source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.004025250834046473,
+    "rmse": 0.0052429263363537836,
+    "alpha_mae": 0.003083491461100567,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.003991493656286058,
+    "black_mae": 0.0029485144257998357,
+    "white_mae": 0.0034468959415940035,
+    "max_error": 0.0178392925797769,
+    "support_pixels": 992,
+    "opaque_background_added": false
+  },
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

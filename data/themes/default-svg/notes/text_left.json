@@ -1,0 +1,10 @@
+{
+  "source": "text_left.png",
+  "svg": "text_left.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Four solid white, square-ended horizontal bars on a transparent 22 by 22 canvas. Each starts at x=3 and is 2 pixels tall; their widths are 16, 7, 13, and 9 pixels at y=4, 8, 12, and 16 respectively. The enlarged SVG render was visually inspected.",
+  "limitations": "None observed."
+}

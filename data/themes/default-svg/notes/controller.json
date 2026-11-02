@@ -1,0 +1,23 @@
+{
+  "source": "controller.png",
+  "svg": "controller.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A hand-drawn curved ring with angular lower ends and a central vertical bar; the right half uses 45% opacity. The source canvas is 20 by 20 pixels, with visible artwork approximately x=1\u201319 and y=2\u201318 and a central bar about 2 pixels wide.",
+  "limitations": "The curved ring and small lower notches are approximations of the antialiased source; the enlarged SVG rendering was visually inspected. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.091883541295306,
+    "rmse": 0.18415816243957672,
+    "alpha_mae": 0.09188354129530601,
+    "changed_fraction": 0.20606060606060606,
+    "full_canvas_mae": 0.03801960784313726,
+    "black_mae": 0.091883541295306,
+    "white_mae": 2.556877268833694e-17,
+    "max_error": 1.0,
+    "support_pixels": 165,
+    "opaque_background_added": false
+  },
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

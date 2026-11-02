@@ -1,0 +1,10 @@
+{
+  "source": "chord.png",
+  "svg": "chord.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three equally spaced white rectangular outlines, each 8 by 5 units with a 6 by 3 unit transparent opening, on a transparent 24 by 24 canvas.",
+  "limitations": "The source has hard pixel-aligned edges; the vector preserves their square corners. Inspected the SVG rendering at 8x."
+}

@@ -1,0 +1,11 @@
+{
+  "source": "arp_free.png",
+  "svg": "arp_free.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Four solid white horizontal rectangular bars with staggered positions on a transparent 16 by 16 canvas.",
+  "limitations": "None observed; the source consists of four one-pixel-high straight bars.",
+  "native_metrics": "16 by 16 pixels; 35 opaque white pixels and 221 transparent pixels."
+}

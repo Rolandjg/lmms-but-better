@@ -1,0 +1,22 @@
+{
+  "source": "edit_paste.png",
+  "svg": "edit_paste.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Square-edged white clipboard and foreground page with four cutout horizontal lines on a 20 by 20 transparent canvas.",
+  "limitations": "Native edge antialiasing is approximated. Native and 8x renders were inspected.",
+  "native_metrics": {
+    "mae": 0.003796791443850267,
+    "rmse": 0.032513779432628315,
+    "alpha_mae": 0.0037967914438502676,
+    "changed_fraction": 0.013636363636363636,
+    "full_canvas_mae": 0.0020882352941176473,
+    "black_mae": 0.003796791443850267,
+    "white_mae": 0.0,
+    "max_error": 0.2784313725490196,
+    "support_pixels": 220,
+    "opaque_background_added": false
+  }
+}

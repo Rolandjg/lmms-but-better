@@ -1,0 +1,10 @@
+{
+  "source": "project_open.png",
+  "svg": "project_open.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White folder back with a rectangular tab and a separate trapezoidal front, on transparency. Native canvas 20 by 20; visible bounds x=1–19 and y=3–17, with a one-pixel gap between folder sections.",
+  "limitations": "The front panel uses continuous sloping edges instead of the original raster's pixel alpha coverage."
+}

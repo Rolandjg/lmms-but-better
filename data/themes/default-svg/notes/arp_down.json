@@ -1,0 +1,10 @@
+{
+  "source": "arp_down.png",
+  "svg": "arp_down.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A centered white downward-pointing triangle with a horizontal top from (2, 5) to (14, 5) and tip at (8, 11), on a transparent 16 by 16 canvas.",
+  "limitations": "Rasterization can differ slightly at the diagonal edges."
+}

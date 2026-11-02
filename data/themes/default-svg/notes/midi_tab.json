@@ -1,0 +1,10 @@
+{
+  "source": "midi_tab.png",
+  "svg": "midi_tab.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three white piano-key silhouettes on a transparent 14 by 14 canvas. The keys occupy rows 1–12, with narrow upper stems through row 7 and wider lower portions from row 8. All surrounding space and gaps are transparent.",
+  "limitations": "The source consists of axis-aligned, opaque white shapes and fully transparent pixels; the vector follows those native edges. Native and 8x renderings were inspected against dark and white backgrounds."
+}

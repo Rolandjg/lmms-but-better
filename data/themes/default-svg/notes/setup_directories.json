@@ -1,0 +1,22 @@
+{
+  "source": "setup_directories.png",
+  "svg": "setup_directories.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two white folder silhouettes: a tabbed rear panel and a slanted front panel separated by a transparent gap, with short curved corners. Native canvas is 48 by 48 pixels; source alpha bounds are (2, 4) to (48, 44).",
+  "limitations": "Smooth diagonals and corners approximate the source's rasterized edges. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.05226151457650509,
+    "rmse": 0.1612321697856196,
+    "alpha_mae": 0.05226151457650509,
+    "changed_fraction": 0.11495601173020528,
+    "full_canvas_mae": 0.03869144880174292,
+    "black_mae": 0.05226151457650509,
+    "white_mae": 4.558100394355481e-18,
+    "max_error": 1.0,
+    "support_pixels": 1705,
+    "opaque_background_added": false
+  }
+}

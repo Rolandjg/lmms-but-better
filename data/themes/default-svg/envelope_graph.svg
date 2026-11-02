@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="182" height="32" viewBox="0 0 182 32">
+  <defs>
+    <linearGradient id="panel" x2="0" y2="1">
+      <stop stop-color="#000" stop-opacity=".95"/>
+      <stop offset=".065" stop-color="#000" stop-opacity=".73"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".50"/>
+    </linearGradient>
+  </defs>
+  <path d="M2 0H180Q182 0 182 2V29Q182 31.5 179 32H3Q0 31.5 0 29V2Q0 0 2 0Z" fill="url(#panel)"/>
+  <path d="M.5 28.5V29Q.5 31.5 3 31.5H179Q181.5 31.5 181.5 29V28.5" fill="none" stroke="#777" stroke-opacity=".55" stroke-width="1"/>
+  <g fill="none" stroke="#fff" stroke-width="1" stroke-linejoin="miter" stroke-linecap="square">
+    <path d="M119.5 4.5H114.5V9.5H119.5M114.5 7H118.5"/>
+    <path d="M122.5 9.5V4.5L128.5 9.5V4.5"/>
+    <path d="M131.5 4.5L134.5 9.5L137.5 4.5"/>
+    <path d="M145.5 4.5H140.5V9.5H145.5M140.5 7H144.5"/>
+    <path d="M148.5 4.5V9.5H153.5"/>
+    <path d="M156.5 4.5H161.5V9.5H156.5Z"/>
+    <path d="M164.5 9.5V4.5H169.5V7.5H164.5"/>
+    <path d="M178.5 4.5H173.5V9.5H178.5M173.5 7H177.5"/>
+  </g>
+</svg>

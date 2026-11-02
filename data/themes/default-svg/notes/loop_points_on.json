@@ -1,0 +1,22 @@
+{
+  "source": "loop_points_on.png",
+  "svg": "loop_points_on.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "20 by 20 canvas; white loop outline spans x=2\u201318 and y=5\u201315, with 2-unit thickness and rounded corners. A gap in the lower edge precedes a left-pointing triangular marker spanning x=10\u201314 and y=10\u201318.",
+  "limitations": "Antialiasing and corner coverage may differ slightly from the raster original. The SVG rendering was inspected at native size and 8x.",
+  "native_metrics": {
+    "mae": 0.029686274509803916,
+    "rmse": 0.08617909161955796,
+    "alpha_mae": 0.029686274509803923,
+    "changed_fraction": 0.1,
+    "full_canvas_mae": 0.007421568627450981,
+    "black_mae": 0.029686274509803916,
+    "white_mae": 4.440892098500626e-18,
+    "max_error": 0.4980392156862745,
+    "support_pixels": 100,
+    "opaque_background_added": false
+  }
+}

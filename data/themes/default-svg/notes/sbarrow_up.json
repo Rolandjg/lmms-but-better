@@ -1,0 +1,10 @@
+{
+  "source": "sbarrow_up.png",
+  "svg": "sbarrow_up.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white upward triangle with straight diagonal edges on a transparent 5 by 5 canvas. Its apex is at (2.5, 1), its base spans x=0 to 5 at y=4, and fill opacity is 0.2, matching the source peak alpha of 51/255.",
+  "limitations": "Antialiasing differs slightly from the original raster at native size. Native and 8x SVG renderings were visually inspected."
+}

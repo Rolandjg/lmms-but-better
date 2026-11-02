@@ -1,0 +1,22 @@
+{
+  "source": "clip_rec.png",
+  "svg": "clip_rec.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A red circle and hand-drawn REC letterforms with a cutout R, on a transparent 40 by 15 canvas.",
+  "limitations": "Small curved letterforms approximate source antialiasing and proportions. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.0814101786099423,
+    "rmse": 0.189137425960528,
+    "alpha_mae": 0.09784791965566715,
+    "changed_fraction": 0.1986062717770035,
+    "full_canvas_mae": 0.03894120210175574,
+    "black_mae": 0.03015334493433911,
+    "white_mae": 0.06770757785020592,
+    "max_error": 0.9450980392156862,
+    "support_pixels": 287,
+    "opaque_background_added": false
+  }
+}

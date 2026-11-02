@@ -1,0 +1,23 @@
+{
+  "source": "track_shadow_c.png",
+  "svg": "track_shadow_c.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 158 by 32 rectangle with a dark vertical color gradient and independent horizontal and vertical transparency gradients. The central alpha is approximately 179/255, fading over roughly 7 pixels at each side and 6 pixels at top and bottom.",
+  "limitations": "Smooth mask gradients approximate source fade; adjusted opacity accounts for renderer compositing. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.038778888716891606,
+    "rmse": 0.0686269451602711,
+    "alpha_mae": 0.0398606913892598,
+    "changed_fraction": 0.1282357626443648,
+    "full_canvas_mae": 0.0385433466842516,
+    "black_mae": 0.0038839987050697296,
+    "white_mae": 0.038518079593706706,
+    "max_error": 0.22076124567474043,
+    "support_pixels": 5022,
+    "opaque_background_added": false
+  },
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

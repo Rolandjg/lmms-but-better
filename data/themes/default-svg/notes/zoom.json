@@ -1,0 +1,22 @@
+{
+  "source": "zoom.png",
+  "svg": "zoom.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A circular magnifying-glass ring and square-ended diagonal handle on transparency. Native canvas is 24 by 24.",
+  "limitations": "Smooth geometric contours approximate small antialiased source details. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.018788080203832942,
+    "rmse": 0.03408563352646876,
+    "alpha_mae": 0.018788080203832942,
+    "changed_fraction": 0.01694915254237288,
+    "full_canvas_mae": 0.005855119825708059,
+    "black_mae": 0.018788080203832942,
+    "white_mae": 1.5053871520341106e-17,
+    "max_error": 0.19607843137254902,
+    "support_pixels": 177,
+    "opaque_background_added": false
+  }
+}

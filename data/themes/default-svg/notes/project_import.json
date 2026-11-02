@@ -1,0 +1,22 @@
+{
+  "source": "project_import.png",
+  "svg": "project_import.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White 16 by 16 document silhouette with a folded corner and an entering arrow, using a transparent angular cutout; visible artwork spans approximately x=1\u201315 and y=1\u201315. The source background is transparent.",
+  "limitations": "The diagonal cutout and fold use smooth vector edges, so their antialiasing differs somewhat from the raster source.",
+  "native_metrics": {
+    "mae": 0.09586683594301029,
+    "rmse": 0.2503545236295188,
+    "alpha_mae": 0.09586683594301029,
+    "changed_fraction": 0.16546762589928057,
+    "full_canvas_mae": 0.05219056372549019,
+    "black_mae": 0.09586683594301029,
+    "white_mae": 1.1980824006746293e-17,
+    "max_error": 1.0,
+    "support_pixels": 139,
+    "opaque_background_added": false
+  }
+}

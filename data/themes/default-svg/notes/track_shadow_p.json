@@ -1,0 +1,11 @@
+{
+  "source": "track_shadow_p.png",
+  "svg": "track_shadow_p.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 158 by 32 translucent rectangular shadow, with a dark blue-gray to near-black vertical gradient and soft fades on all four edges. Center alpha peaks at 179/255; edge fades span roughly 6 pixels.",
+  "limitations": "Smooth gradient approximates the source's subtle color variation and corner falloff; the enlarged SVG rendering was visually inspected.",
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

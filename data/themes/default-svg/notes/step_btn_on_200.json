@@ -1,0 +1,10 @@
+{
+  "source": "step_btn_on_200.png",
+  "svg": "step_btn_on_200.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "24 by 24 opaque image with a one-pixel black outer border, a one-pixel vertically shaded rim, a one-pixel dark teal inset, and a turquoise inner border around a vertically shaded cyan face. Inner rectangles have subtly rounded corners.",
+  "limitations": "Gradients approximate the discrete original color values and the small corner transitions."
+}

@@ -1,0 +1,16 @@
+{
+  "source": "ghost_note.png",
+  "svg": "ghost_note.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A ghost with an elliptical crown, straight sides, three pointed hem notches and two transparent musical-note shapes on a 22 by 22 canvas.",
+  "limitations": "The crown, hem and note shapes approximate the antialiased raster. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.06797385620915032,
+    "rmse": 0.19150770827580543,
+    "alpha_mae": 0.06797385620915031,
+    "changed_fraction": 0.14779874213836477
+  }
+}

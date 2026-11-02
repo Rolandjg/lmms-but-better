@@ -1,0 +1,16 @@
+{
+  "source": "edit_undo.png",
+  "svg": "edit_undo.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A left-pointing white arrow with a smoothly curved return tail on a transparent 22 by 22 canvas.",
+  "limitations": "The smooth tail approximates the source\u2019s antialiased contour. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.06363995262534544,
+    "rmse": 0.15060076383378843,
+    "alpha_mae": 0.06363995262534543,
+    "changed_fraction": 0.1476510067114094
+  }
+}

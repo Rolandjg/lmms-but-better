@@ -1,0 +1,10 @@
+{
+  "source": "lcd_19purple_dot.png",
+  "svg": "lcd_19purple_dot.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 4 by 38 black field contains two square 2 by 2 purple LCD dots at (1,15) and (1,34), matching the measured source colors.",
+  "limitations": "None observed; square edges are intentionally crisp."
+}

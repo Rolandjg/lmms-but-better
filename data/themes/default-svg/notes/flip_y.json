@@ -1,0 +1,10 @@
+{
+  "source": "flip_y.png",
+  "svg": "flip_y.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white double-headed vertical arrow drawn as one straight-edged path, with a 4-unit-wide shaft and 10-unit-wide arrowheads. Native canvas is 20 by 20; the arrow spans approximately x=5 to 15 and y=1 to 19.",
+  "limitations": "Smooth diagonal edges replace the original pixel staircases; native-size antialiasing may differ."
+}

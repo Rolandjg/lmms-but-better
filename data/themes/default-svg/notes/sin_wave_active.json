@@ -1,0 +1,10 @@
+{
+  "source": "sin_wave_active.png",
+  "svg": "sin_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 x 14 canvas with a translucent black rounded background and a smooth white sine-like cubic curve, approximately 1.3 units wide, spanning x=2.5–11.5 and y=3.5–10.5.",
+  "limitations": "The source's antialiased pixel values and slightly varied corner opacity are approximated by smooth vector geometry."
+}

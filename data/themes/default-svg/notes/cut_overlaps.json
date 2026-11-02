@@ -1,0 +1,10 @@
+{
+  "source": "cut_overlaps.png",
+  "svg": "cut_overlaps.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three white, square-cornered rectangles on transparency: a 9 × 6 left block at (0, 4), a 1 × 18 vertical divider at (10, 1), and an 8 × 6 right block at (12, 10), in a 20 × 20 viewBox. The native and 8× renderings were generated and the 8× rendering visually inspected.",
+  "limitations": "None observed for this rectilinear design."
+}

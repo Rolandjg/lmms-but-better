@@ -1,0 +1,10 @@
+{
+  "source": "black_key.png",
+  "svg": "black_key.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 7-pixel-wide dark key occupies x=2–8 and y=0–35 on a transparent 10 by 37 canvas. Its opaque outer body contains a vertical face gradient, brighter side bevels, and a bottom edge; the surrounding 118 pixels are fully transparent in the source.",
+  "limitations": "The source’s slight tonal variation is approximated with smooth linear gradients; the native and 8× renders were inspected over dark and white backgrounds."
+}

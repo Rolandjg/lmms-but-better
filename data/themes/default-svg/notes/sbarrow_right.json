@@ -1,0 +1,10 @@
+{
+  "source": "sbarrow_right.png",
+  "svg": "sbarrow_right.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A translucent white right-pointing triangle in a 5 by 5 viewBox, with a vertical edge at x=1 and its tip at (3.5, 2.5). The source alpha peaks at 51/255 and its nonzero pixels span x=1–3 and y=0–4; the surrounding background is transparent.",
+  "limitations": "The smooth triangular edges approximate the source's tiny antialiased raster; individual edge alpha values differ slightly. Native and 8x renderings were inspected."
+}

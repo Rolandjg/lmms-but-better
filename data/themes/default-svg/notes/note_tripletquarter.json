@@ -1,0 +1,22 @@
+{
+  "source": "note_tripletquarter.png",
+  "svg": "note_tripletquarter.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White square-cornered quarter note and explicit rectilinear triplet numeral on a transparent 16 by 16 canvas. The note spans x=4\u201312 and y=1\u201315, with a 2-unit stem and 8 by 5 head; the numeral spans x=1\u20134 and y=1\u20136.",
+  "limitations": "The tiny numeral retains the source's deliberately blocky design. Native and 8x renders were visually inspected.",
+  "native_metrics": {
+    "mae": 0.014705882352941176,
+    "rmse": 0.12126781251816648,
+    "alpha_mae": 0.014705882352941176,
+    "changed_fraction": 0.014705882352941176,
+    "full_canvas_mae": 0.00390625,
+    "black_mae": 0.014705882352941176,
+    "white_mae": 0.0,
+    "max_error": 1.0,
+    "support_pixels": 68,
+    "opaque_background_added": false
+  }
+}

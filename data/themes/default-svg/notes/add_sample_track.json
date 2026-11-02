@@ -1,0 +1,10 @@
+{
+  "source": "add_sample_track.png",
+  "svg": "add_sample_track.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Ten white vertical waveform bars of varying heights and a white plus sign, drawn as straight vector shapes on a transparent 20 by 20 canvas.",
+  "limitations": "The original is a very small, hard-edged monochrome icon; the reconstruction preserves its deliberately simple geometry."
+}

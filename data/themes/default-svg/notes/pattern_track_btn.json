@@ -1,0 +1,10 @@
+{
+  "source": "pattern_track_btn.png",
+  "svg": "pattern_track_btn.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Six white, square-cornered rectangles in a three-column, two-row grid on transparency. Native canvas is 20 by 20 pixels; each rectangle is 5 by 6, with columns starting at x=0, 7, and 14 and rows at y=3 and 11.",
+  "limitations": "No material visual limitations observed at native size or in the 8x rendering."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "text_under.png",
+  "svg": "text_under.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White filled U with square vertical ends and smooth curved bowl, above a separate rectangular underline on a transparent 22 by 22 canvas. The uprights span x=6\u20138 and x=14\u201316 from y=5, and the underline spans x=5\u201317 at y=18\u201319. The source alpha bounding box is x=5\u201316, y=5\u201318 inclusive.",
+  "limitations": "The smooth bowl approximates the source's antialiased small-scale shape; exact pixel coverage differs. The 8x SVG rendering was visually inspected.",
+  "native_metrics": {
+    "mae": 0.035581061692969866,
+    "rmse": 0.06761638212383164,
+    "alpha_mae": 0.035581061692969866,
+    "changed_fraction": 0.04878048780487805,
+    "full_canvas_mae": 0.006028196402527952,
+    "black_mae": 0.035581061692969866,
+    "white_mae": 9.477513624848898e-18,
+    "max_error": 0.2549019607843137,
+    "support_pixels": 82,
+    "opaque_background_added": false
+  }
+}

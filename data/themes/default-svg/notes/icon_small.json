@@ -1,0 +1,23 @@
+{
+  "source": "icon_small.png",
+  "svg": "icon_small.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "32 by 32 viewBox; dark green rounded square surrounding a lighter green inset, with a single white angular house-shaped emblem and open lower center. The source alpha bounds are approximately x=2..29 and y=2..29. The SVG was rendered at native size and 8x, and the enlarged rendering was visually inspected.",
+  "limitations": "The original has notably soft raster edges and color transitions; the vector uses simplified flat fills and deliberate straight edges, so its rendered edges can appear sharper.",
+  "native_metrics": {
+    "mae": 0.06322947514989036,
+    "rmse": 0.10329587825643737,
+    "alpha_mae": 0.05563063063063064,
+    "changed_fraction": 0.2668918918918919,
+    "full_canvas_mae": 0.05483181048154554,
+    "black_mae": 0.021004349216575288,
+    "white_mae": 0.06298273475320765,
+    "max_error": 0.5882352941176471,
+    "support_pixels": 888,
+    "opaque_background_added": false
+  },
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

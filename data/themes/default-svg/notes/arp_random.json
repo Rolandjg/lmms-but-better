@@ -1,0 +1,22 @@
+{
+  "source": "arp_random.png",
+  "svg": "arp_random.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two smooth crossing white stroked paths with horizontal ends and straight-sided triangular arrowheads on a transparent 16 by 16 canvas.",
+  "limitations": "Smooth antialiased crossings approximate the pixel-stepped source; arrowhead tips reach the canvas edge. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.05530891601923789,
+    "rmse": 0.15122451207927598,
+    "alpha_mae": 0.05530891601923789,
+    "changed_fraction": 0.10377358490566038,
+    "full_canvas_mae": 0.023146446078431374,
+    "black_mae": 0.05530891601923789,
+    "white_mae": 1.466332296674735e-17,
+    "max_error": 0.8352941176470589,
+    "support_pixels": 106,
+    "opaque_background_added": false
+  }
+}

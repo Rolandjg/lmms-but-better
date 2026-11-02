@@ -1,0 +1,10 @@
+{
+  "source": "lcd_11green_dot.png",
+  "svg": "lcd_11green_dot.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 6 by 22 black two-state sprite with a 5 by 9 dark green upper field and two centered green circular dots, each 3 units in diameter. The dot centers are at (2.5, 8.5) and (2.5, 19.5).",
+  "limitations": "The original dots are five-pixel crosses; smooth circles approximate their intended shape and antialias at native resolution."
+}

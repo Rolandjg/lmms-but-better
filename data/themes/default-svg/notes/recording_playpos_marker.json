@@ -1,0 +1,16 @@
+{
+  "source": "recording_playpos_marker.png",
+  "svg": "recording_playpos_marker.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A red downward triangle with straight diagonals, clipped at the top corners, on a transparent 17 by 9 canvas.",
+  "limitations": "Smooth diagonal edges differ from the source pixel staircase. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.03466707887925739,
+    "rmse": 0.06274427154908231,
+    "alpha_mae": 0.04378411158277745,
+    "changed_fraction": 0.16494845360824742
+  }
+}

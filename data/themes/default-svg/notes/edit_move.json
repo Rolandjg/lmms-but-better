@@ -1,0 +1,10 @@
+{
+  "source": "edit_move.png",
+  "svg": "edit_move.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A single white, four-direction arrow silhouette with straight 45-degree arrowhead edges. The 20 by 20 canvas has 2-unit-wide crossing shafts and arrowheads extending 4 units from each edge; the original uses fully opaque white with half-alpha diagonal edge pixels.",
+  "limitations": "The smooth diagonal edges are rasterized by the SVG renderer and may differ slightly from the source at individual edge pixels. The 8x rendering was visually inspected."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "project_open_recent.png",
+  "svg": "project_open_recent.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white clock ring with radius approximately 5.93 and 1.98-unit stroke, plus square hands.",
+  "limitations": "Smooth vector contours approximate source antialiasing and small variations. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.011505428617728089,
+    "rmse": 0.018348818869815008,
+    "alpha_mae": 0.011505428617728087,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.005545343137254906,
+    "black_mae": 0.011505428617728089,
+    "white_mae": 2.3856031934094273e-17,
+    "max_error": 0.04705882352941182,
+    "support_pixels": 121,
+    "opaque_background_added": false
+  }
+}

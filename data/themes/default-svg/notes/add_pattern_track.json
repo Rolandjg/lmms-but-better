@@ -1,0 +1,12 @@
+{
+  "source": "add_pattern_track.png",
+  "svg": "add_pattern_track.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Five white rectangular cells and a white plus sign on a transparent 20 by 20 canvas, placed on the source's integer grid.",
+  "limitations": "None observed at native or enlarged scale.",
+  "native_metrics": "20 by 20 pixels; white and transparent only. The source contains 170 opaque pixels.",
+  "visual_qa": "Inspected the SVG rendered at 8x."
+}

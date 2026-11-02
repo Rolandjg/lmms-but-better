@@ -1,0 +1,10 @@
+{
+  "source": "progression_discrete.png",
+  "svg": "progression_discrete.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A single white, square-cornered stepped silhouette on a transparent 20 by 20 canvas. The upper tier spans x=5 to 13 and y=3 to 7, the middle tier x=1 to 13 and y=7 to 10, and the base x=1 to 19 and y=10 to 18. The native alpha channel matches the source, and the 8x rendering was visually inspected.",
+  "limitations": "None observed."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "white_noise_wave_active.png",
+  "svg": "white_noise_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 14 by 14 canvas with a translucent black, subtly rounded background and a white, square-ended zigzag waveform. The waveform spans approximately x=2 to 12 and y=2 to 12, with a 1.15-unit stroke.",
+  "limitations": "The waveform uses deliberate straight segments and approximates the small source's softened antialiasing. The native and 8x renders were generated and the enlarged rendering visually inspected.",
+  "native_metrics": {
+    "mae": 0.06328829571044105,
+    "rmse": 0.12681022518463642,
+    "alpha_mae": 0.022328931572629048,
+    "changed_fraction": 0.20408163265306123,
+    "full_canvas_mae": 0.06328829571044105,
+    "black_mae": 0.06292815165281798,
+    "white_mae": 0.041319508195435055,
+    "max_error": 0.6181314878892733,
+    "support_pixels": 196,
+    "opaque_background_added": false
+  }
+}

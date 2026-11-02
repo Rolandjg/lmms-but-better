@@ -1,0 +1,16 @@
+{
+  "source": "tool.png",
+  "svg": "tool.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "An open-jaw wrench with curved head, diagonal handle, and circular handle hole on a transparent 22 by 21 canvas.",
+  "limitations": "The jaw and handle contours approximate the source\u2019s small antialiased features. The adjusted 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.09340463458110516,
+    "rmse": 0.1602556414270844,
+    "alpha_mae": 0.09340463458110516,
+    "changed_fraction": 0.2727272727272727
+  }
+}

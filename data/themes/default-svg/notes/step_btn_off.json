@@ -1,0 +1,10 @@
+{
+  "source": "step_btn_off.png",
+  "svg": "step_btn_off.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Opaque 24 by 24 black background, one-pixel square frame from (1,1) to (22,22) with a vertically shaded gray edge, and an inset dark face from (3,3) to (20,20) with a vertical gradient.",
+  "limitations": "The source has subtle pixel-level variations in its edge and inset; the smooth gradients approximate them."
+}

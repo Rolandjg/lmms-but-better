@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="158" height="32" viewBox="0 0 158 32">
+  <defs><linearGradient id="v" x1="0" y1="0" x2="0" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#26383d" stop-opacity="0.04"/><stop offset="0.08" stop-color="#292f35" stop-opacity="0.24"/><stop offset="0.18" stop-color="#2d3338" stop-opacity="0.68"/><stop offset="0.24" stop-color="#293034" stop-opacity="0.702"/><stop offset="0.5" stop-color="#202529" stop-opacity="0.702"/><stop offset="0.78" stop-color="#15171a" stop-opacity="0.702"/><stop offset="0.84" stop-color="#0e1517" stop-opacity="0.68"/><stop offset="0.94" stop-color="#0b1212" stop-opacity="0.24"/><stop offset="1" stop-color="#000000" stop-opacity="0.02"/></linearGradient></defs>
+  <rect x="0" width="1" height="32" fill="url(#v)" opacity="0.122"/>
+  <rect x="1" width="1" height="32" fill="url(#v)" opacity="0.325"/>
+  <rect x="2" width="1" height="32" fill="url(#v)" opacity="0.528"/>
+  <rect x="3" width="1" height="32" fill="url(#v)" opacity="0.686"/>
+  <rect x="4" width="1" height="32" fill="url(#v)" opacity="0.797"/>
+  <rect x="5" width="1" height="32" fill="url(#v)" opacity="0.909"/>
+  <rect x="6" width="1" height="32" fill="url(#v)" opacity="1"/>
+  <rect x="7" width="144" height="32" fill="url(#v)"/>
+  <rect x="151" width="1" height="32" fill="url(#v)" opacity="1"/>
+  <rect x="152" width="1" height="32" fill="url(#v)" opacity="0.909"/>
+  <rect x="153" width="1" height="32" fill="url(#v)" opacity="0.797"/>
+  <rect x="154" width="1" height="32" fill="url(#v)" opacity="0.686"/>
+  <rect x="155" width="1" height="32" fill="url(#v)" opacity="0.528"/>
+  <rect x="156" width="1" height="32" fill="url(#v)" opacity="0.325"/>
+  <rect x="157" width="1" height="32" fill="url(#v)" opacity="0.122"/>
+</svg>

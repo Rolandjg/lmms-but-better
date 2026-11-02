@@ -1,0 +1,10 @@
+{
+  "source": "pr_white_key_small_pressed.png",
+  "svg": "pr_white_key_small_pressed.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "64 by 18 opaque image: a horizontal green gradient spans x=0..62 and y=1..15, bordered by a one-pixel bright green top, right, and bottom edge, with a one-pixel dark bottom separator.",
+  "limitations": "The smooth gradient approximates the source's quantized color values. Native and 8x renders were inspected."
+}

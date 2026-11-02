@@ -1,0 +1,10 @@
+{
+  "source": "edit_rename.png",
+  "svg": "edit_rename.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 1-unit rectangular frame spanning x=1–15 and y=3–13, enclosing a white I-shaped text cursor spanning x=3–6 and y=5–11 on a transparent 16×16 canvas.",
+  "limitations": "None apparent at native size. The 8× rendering was visually inspected."
+}

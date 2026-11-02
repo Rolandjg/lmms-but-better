@@ -1,0 +1,11 @@
+{
+  "source": "arp_sort.png",
+  "svg": "arp_sort.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Six white 2 by 1 horizontal bars, arranged in two parallel descending diagonal sequences on a transparent 16 by 16 canvas.",
+  "limitations": "None observed; the source consists of six solid rectangular marks.",
+  "native_metrics": {"width": 16, "height": 16, "opaque_pixels": 12}
+}

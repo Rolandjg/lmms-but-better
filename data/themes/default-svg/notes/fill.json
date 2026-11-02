@@ -1,0 +1,22 @@
+{
+  "source": "fill.png",
+  "svg": "fill.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A straight-sided diagonal white bucket with a softly curved pour and a translucent upright handle, on a transparent 19 by 18 canvas.",
+  "limitations": "The continuous pour and antialiased edges approximate the small source; the handle and bucket junction remain simplified. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.09950149551345963,
+    "rmse": 0.19222738649284243,
+    "alpha_mae": 0.09950149551345963,
+    "changed_fraction": 0.22033898305084745,
+    "full_canvas_mae": 0.05162252035317051,
+    "black_mae": 0.09950149551345963,
+    "white_mae": 1.881733940042638e-17,
+    "max_error": 0.8784313725490196,
+    "support_pixels": 177,
+    "opaque_background_added": false
+  }
+}

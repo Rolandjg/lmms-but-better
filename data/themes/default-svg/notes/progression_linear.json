@@ -1,0 +1,10 @@
+{
+  "source": "progression_linear.png",
+  "svg": "progression_linear.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white four-sided ramp on transparency, with a straight rising top edge. Native canvas is 20 by 20; the filled region spans x=1 to 19 and y approximately 3.2 to 18.",
+  "limitations": "The diagonal is a smooth geometric approximation of the source's antialiased edge."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "edit_draw_small.png",
+  "svg": "edit_draw_small.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White pencil assembled from deliberately straight diagonal barrel, separate cap, diagonal tip band, and triangular point; components individually positioned and sized.",
+  "limitations": "Straight scalable edges approximate the source antialiasing; the source\u2019s tiny raster edge variations are not reproduced. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.019278299555116164,
+    "rmse": 0.025925656689575208,
+    "alpha_mae": 0.01927829955511616,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.00896139705882353,
+    "black_mae": 0.019278299555116164,
+    "white_mae": 1.679328944811161e-17,
+    "max_error": 0.07843137254901966,
+    "support_pixels": 119,
+    "opaque_background_added": false
+  }
+}

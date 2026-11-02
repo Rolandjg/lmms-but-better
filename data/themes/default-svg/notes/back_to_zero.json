@@ -1,0 +1,22 @@
+{
+  "source": "back_to_zero.png",
+  "svg": "back_to_zero.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white 2 by 12 vertical stop bar and two straight-sided left-facing triangles on a transparent 20 by 20 canvas.",
+  "limitations": "Smooth diagonals approximate the raster edge coverage. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.004010695187165773,
+    "rmse": 0.012748525522950955,
+    "alpha_mae": 0.004010695187165772,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0008823529411764701,
+    "black_mae": 0.004010695187165773,
+    "white_mae": 5.046468293750712e-18,
+    "max_error": 0.06666666666666665,
+    "support_pixels": 88,
+    "opaque_background_added": false
+  }
+}

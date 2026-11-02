@@ -25,6 +25,7 @@
 #include "embed.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImageReader>
 #include <QPainter>
@@ -80,11 +81,30 @@ auto loadSvgPixmap(const QString& resourceName, int width, int height) -> QPixma
 	return pixmap;
 }
 
+// Find the artwork file for a name like "add", preferring SVG over PNG within each artwork directory.
+// Qt's own lookup tries every directory for each suffix in turn, so a PNG anywhere would always beat an SVG.
+auto resolveArtwork(const QString& name) -> QString
+{
+	if (QDir::isAbsolutePath(name)) { return name; }
+
+	for (const auto& path : QDir::searchPaths("artwork"))
+	{
+		const auto base = QDir{path}.filePath(name);
+		for (const auto& candidate : {base, base + ".svg", base + ".png"})
+		{
+			if (QFileInfo{candidate}.isFile()) { return candidate; }
+		}
+	}
+
+	// Let Qt try any other image formats
+	return "artwork:" + name;
+}
+
 auto loadPixmap(const QString& name, int width, int height, const char* const* xpm) -> QPixmap
 {
 	if (xpm) { return QPixmap{xpm}; }
 
-	const auto resourceName = QDir::isAbsolutePath(name) ? name : "artwork:" + name;
+	const auto resourceName = resolveArtwork(name);
 	auto reader = QImageReader{resourceName};
 
 	if (reader.format().toLower() == "svg")

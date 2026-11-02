@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="14" viewBox="0 0 16 14">
+  <defs><linearGradient id="shine"><stop stop-color="#45fff3"/><stop offset=".16" stop-color="#c0fffb" stop-opacity=".7"/><stop offset=".5" stop-color="#c0fffb"/><stop offset=".84" stop-color="#c0fffb" stop-opacity=".7"/><stop offset="1" stop-color="#45fff3"/></linearGradient></defs>
+  <rect x=".5" y="2.5" width="14" height="9" rx="3" fill="#00c7bb" opacity=".02"/>
+  <rect x="1.5" y="3.4" width="12" height="7.2" rx="2.5" fill="#00c7bb" opacity=".08"/>
+  <rect x="2.3" y="4.2" width="10.4" height="5.6" rx="1.8" fill="#00c7bb" opacity=".2"/>
+  <rect x="3" y="5" width="10" height="4" fill="#45fff3"/>
+  <rect x="4" y="6" width="8" height="2" fill="url(#shine)"/>
+</svg>

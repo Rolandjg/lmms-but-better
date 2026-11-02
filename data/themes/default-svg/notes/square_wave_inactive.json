@@ -1,0 +1,10 @@
+{
+  "source": "square_wave_inactive.png",
+  "svg": "square_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 canvas with a translucent black field and a one-unit-wide, square-cornered gray square wave. The wave occupies x=2–11 and y=3–11; the field has subtly rounded outer corners. Source wave pixels are RGBA (142,142,142,206), while the field is predominantly (0,0,0,166).",
+  "limitations": "Outer corner antialiasing is approximated with a half-unit rounded corner. Native and 8x SVG renders were generated and the 8x render was inspected."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "env_lfo_tab.png",
+  "svg": "env_lfo_tab.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white envelope with square-ended vertical, horizontal and diagonal segments. Native canvas is 14 by 14.",
+  "limitations": "Smooth geometric contours approximate small antialiased source details. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.04217293474766956,
+    "rmse": 0.18167197954374126,
+    "alpha_mae": 0.04217293474766956,
+    "changed_fraction": 0.04918032786885246,
+    "full_canvas_mae": 0.013125250100040014,
+    "black_mae": 0.04217293474766956,
+    "white_mae": 1.820037745287142e-18,
+    "max_error": 1.0,
+    "support_pixels": 61,
+    "opaque_background_added": false
+  }
+}

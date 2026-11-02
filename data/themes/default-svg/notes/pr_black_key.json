@@ -1,0 +1,10 @@
+{
+  "source": "pr_black_key.png",
+  "svg": "pr_black_key.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 40 by 11 pixel rectangular key at y=2, with a one-pixel dark outer edge, a horizontal-gradient bevel and an inset horizontal-gradient face. The 41 by 16 canvas remains transparent outside the key.",
+  "limitations": "Gradients approximate the source's quantized color transitions; the 8x SVG rendering was visually inspected."
+}

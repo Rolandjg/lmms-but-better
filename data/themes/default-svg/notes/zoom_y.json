@@ -1,0 +1,16 @@
+{
+  "source": "zoom_y.png",
+  "svg": "zoom_y.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white circular magnifying lens with a straight diagonal handle and a narrow, double-headed vertical arrow on a transparent 24 by 24 canvas.",
+  "limitations": "The smooth circular lens and straight arrow diagonals rasterize differently from the original. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.059013896820864276,
+    "rmse": 0.10231308754943463,
+    "alpha_mae": 0.059013896820864276,
+    "changed_fraction": 0.1262135922330097
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "note_none.png",
+  "svg": "note_none.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 16 by 16 icon with a white 35%-opacity circular ring centered at (8,8), outer radius 7 and inner radius 5, and square-ended one-pixel clock hands from (7,4) to (8,9) and (12,9).",
+  "limitations": "The smooth circle approximates the source's native antialiasing; enlarged SVG rendering was visually inspected."
+}

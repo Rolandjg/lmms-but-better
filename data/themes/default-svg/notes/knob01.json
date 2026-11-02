@@ -1,0 +1,10 @@
+{
+  "source": "knob01.png",
+  "svg": "knob01.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A solid dark green circle centered at (14.5, 14.5), radius 8.45, on a transparent 29 by 29 canvas. The source has nonzero alpha in the 17 by 17 pixel bounds from (6, 6) through (22, 22). Native and 8x renders were made and the 8x render visually inspected.",
+  "limitations": "The smooth circle approximates the source antialiasing; edge pixels can differ between renderers."
+}

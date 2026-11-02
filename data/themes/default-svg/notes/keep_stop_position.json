@@ -1,0 +1,22 @@
+{
+  "source": "keep_stop_position.png",
+  "svg": "keep_stop_position.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two identical white right-pointing triangles on a transparent 20 by 20 canvas. Their vertical edges begin at x=3 and x=11; each is approximately 5.5 units wide and 7.34 units tall, centered at y=10. The native and 8x renders were produced and the 8x rendering inspected.",
+  "limitations": "Straight vector edges approximate the original antialiased pixel coverage. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.0434436274509804,
+    "rmse": 0.06717832775611231,
+    "alpha_mae": 0.04344362745098039,
+    "changed_fraction": 0.09375,
+    "full_canvas_mae": 0.006990196078431373,
+    "black_mae": 0.0434436274509804,
+    "white_mae": 4.5102810375396984e-17,
+    "max_error": 0.19999999999999998,
+    "support_pixels": 64,
+    "opaque_background_added": false
+  }
+}

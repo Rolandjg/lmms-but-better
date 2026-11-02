@@ -1,0 +1,16 @@
+{
+  "source": "note_tripletsixteenth.png",
+  "svg": "note_tripletsixteenth.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A square-ended sixteenth note and explicit angular numeral three on a transparent 16 by 16 canvas.",
+  "limitations": "No difference at native size. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.0,
+    "rmse": 0.0,
+    "alpha_mae": 0.0,
+    "changed_fraction": 0.0
+  }
+}

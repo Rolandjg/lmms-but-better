@@ -1,0 +1,10 @@
+{
+  "source": "songeditor.png",
+  "svg": "songeditor.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three square-cornered white horizontal bars on a transparent 20 by 20 canvas, spanning x=1 to 19 and y=3 to 7, 8 to 12, and 13 to 17. Each bar has a six-unit central section at 140/255 opacity, with opaque six-unit end sections.",
+  "limitations": "No material visual limitations observed; native and 8x SVG renders were inspected."
+}

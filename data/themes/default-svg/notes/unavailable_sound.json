@@ -1,0 +1,22 @@
+{
+  "source": "unavailable_sound.png",
+  "svg": "unavailable_sound.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white rectangular speaker rear, straight-sided cone and two square-ended diagonal strokes on a transparent 48 by 48 canvas.",
+  "limitations": "Smooth diagonal edges approximate source antialiasing. The 8x rendering was inspected. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.06591827570722947,
+    "rmse": 0.15516851860287903,
+    "alpha_mae": 0.06591827570722945,
+    "changed_fraction": 0.1801526717557252,
+    "full_canvas_mae": 0.018860634531590415,
+    "black_mae": 0.06591827570722947,
+    "white_mae": 1.067848100021143e-17,
+    "max_error": 0.9921568627450981,
+    "support_pixels": 655,
+    "opaque_background_added": false
+  }
+}

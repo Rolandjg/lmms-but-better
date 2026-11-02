@@ -1,0 +1,16 @@
+{
+  "source": "ignore.png",
+  "svg": "ignore.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white circular prohibition ring with a straight diagonal slash, both approximately two units wide, on a transparent 22 by 22 canvas.",
+  "limitations": "The antialiased edges differ slightly from the source. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.02326662623812412,
+    "rmse": 0.03181789226943394,
+    "alpha_mae": 0.02326662623812412,
+    "changed_fraction": 0.0
+  }
+}

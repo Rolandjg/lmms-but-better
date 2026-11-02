@@ -1,0 +1,10 @@
+{
+  "source": "filter_notch.png",
+  "svg": "filter_notch.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white filled 22 by 16 icon with square outer corners, spanning x=1 to 21 and y=4 to 15. A symmetric pair of smooth cubic curves forms the central notch, reaching y=10. Rendered at native size and 8x; inspected the 8x rendering.",
+  "limitations": "The notch curve is an approximation of the antialiased raster edge."
+}

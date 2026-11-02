@@ -1,0 +1,10 @@
+{
+  "source": "lcd_11green.png",
+  "svg": "lcd_11green.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 78 by 22 two-row LCD atlas with twelve 5 by 9 cells on a 6-pixel pitch. Explicit stroked numeral and minus paths are reused in bright green and dark green, with black backing, dark upper cell fields, and the original transparent right-side gaps.",
+  "limitations": "The hand-drawn diagonal and beveled glyph strokes are smooth at scale, so some native-size antialiasing and individual glyph contours differ slightly from the pixel source. Native and 8x renders were inspected."
+}

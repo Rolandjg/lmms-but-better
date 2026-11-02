@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="143" height="38" viewBox="0 0 143 38">
+  <defs>
+    <!-- Each character is a seven-segment display, with square, two-unit strokes. -->
+    <path id="unlit" d="M0 0h9v14H0z M2 2v4h5V2z M2 8v4h5V8z" fill-rule="evenodd"/>
+    <path id="zero" d="M0 0h9v14H0z M2 2v10h5V2z" fill-rule="evenodd"/>
+    <path id="one" d="M7 0h2v14H7z"/>
+    <path id="two" d="M0 0h9v8H2v4h7v2H0V6h7V2H0z"/>
+    <path id="three" d="M0 0h9v14H0v-2h7V8H2V6h5V2H0z"/>
+    <path id="four" d="M0 0h2v6h5V0h2v14H7V8H0z"/>
+    <path id="five" d="M0 0h9v2H2v4h7v8H0v-2h7V8H0z"/>
+    <path id="six" d="M0 0h9v2H2v4h7v8H0z M2 8v4h5V8z" fill-rule="evenodd"/>
+    <path id="seven" d="M0 0h9v14H7V2H0z"/>
+    <path id="eight" d="M0 0h9v14H0z M2 2v4h5V2z M2 8v4h5V8z" fill-rule="evenodd"/>
+    <path id="nine" d="M0 0h9v14H0v-2h7V8H0z M2 2v4h5V2z" fill-rule="evenodd"/>
+    <path id="minus" d="M2 6h5v2H2z"/>
+    <g id="backgrounds"><use href="#unlit"/><use href="#unlit" x="11"/><use href="#unlit" x="22"/><use href="#unlit" x="33"/><use href="#unlit" x="44"/><use href="#unlit" x="55"/><use href="#unlit" x="66"/><use href="#unlit" x="77"/><use href="#unlit" x="88"/><use href="#unlit" x="99"/><use href="#unlit" x="110"/><use href="#unlit" x="121"/></g>
+    <g id="digits"><use href="#zero"/><use href="#one" x="11"/><use href="#two" x="22"/><use href="#three" x="33"/><use href="#four" x="44"/><use href="#five" x="55"/><use href="#six" x="66"/><use href="#seven" x="77"/><use href="#eight" x="88"/><use href="#nine" x="99"/><use href="#minus" x="121"/></g>
+  </defs>
+  <path fill="#000" d="M0 0h143v38H0z"/>
+  <g transform="translate(1 3)"><use href="#backgrounds" fill="#02200d"/><use href="#digits" fill="#0bd556"/></g>
+  <g transform="translate(1 22)"><use href="#backgrounds" fill="#011408"/><use href="#digits" fill="#078837"/></g>
+</svg>

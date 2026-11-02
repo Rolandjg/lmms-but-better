@@ -1,0 +1,22 @@
+{
+  "source": "cpuload_bg.png",
+  "svg": "cpuload_bg.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 112 by 11 canvas with outlined white CPU lettering, approximately 17 by 7 units, and a translucent gradient meter well spanning x=21 to 108.5 and y=2 to 9 with a curved right end. The SVG was rendered at native size and 8x; the 8x rendering was visually inspected.",
+  "limitations": "The tiny original lettering and meter gradient are approximated with smooth vector contours and gradient stops; their native antialiasing and opacity may differ from the raster.",
+  "native_metrics": {
+    "mae": 0.031032298093865422,
+    "rmse": 0.05358385781328063,
+    "alpha_mae": 0.03052604301632548,
+    "changed_fraction": 0.032305433186490456,
+    "full_canvas_mae": 0.017172503582538197,
+    "black_mae": 0.011989740758242199,
+    "white_mae": 0.019561503793017593,
+    "max_error": 0.2901960784313726,
+    "support_pixels": 681,
+    "opaque_background_added": false
+  }
+}

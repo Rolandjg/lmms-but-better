@@ -1,0 +1,10 @@
+{
+  "source": "pr_white_key_big.png",
+  "svg": "pr_white_key_big.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "64 by 24 opaque white rectangle with a full-width, 1-pixel dark bottom edge (#1a1b1e); source alpha is 255 throughout.",
+  "limitations": "None identified; the source consists of two solid colors."
+}

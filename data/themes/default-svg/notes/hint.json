@@ -1,0 +1,16 @@
+{
+  "source": "hint.png",
+  "svg": "hint.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White light-bulb silhouette with a smooth curved envelope, tapered shoulders and a stepped rectangular base. The native canvas is 22 by 22 pixels; visible source pixels occupy x=4\u201317 and y=2\u201319. Rendered at native size and 8x, and inspected the enlarged rendering.",
+  "limitations": "The smooth bulb contour approximates the original antialiased silhouette and may differ slightly in curvature and edge coverage. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.03362229102167182,
+    "rmse": 0.09288450850879872,
+    "alpha_mae": 0.03362229102167182,
+    "changed_fraction": 0.11578947368421053
+  }
+}

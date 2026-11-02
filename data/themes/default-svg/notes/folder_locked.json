@@ -1,0 +1,22 @@
+{
+  "source": "folder_locked.png",
+  "svg": "folder_locked.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White folder silhouette with a raised tab and a horizontal transparent gap; a pair of straight diagonal strokes cut a transparent cross into the lower panel. Native canvas is 16 by 16, with the white silhouette spanning x=1\u201315 and y=2\u201315.",
+  "limitations": "The diagonal cross is rendered as smooth vector strokes rather than the source's pixel staircase. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.037231833910034595,
+    "rmse": 0.09408400013711746,
+    "alpha_mae": 0.0372318339100346,
+    "changed_fraction": 0.11764705882352941,
+    "full_canvas_mae": 0.02556678921568628,
+    "black_mae": 0.037231833910034595,
+    "white_mae": 1.3714519715957817e-17,
+    "max_error": 0.3254901960784314,
+    "support_pixels": 170,
+    "opaque_background_added": false
+  }
+}

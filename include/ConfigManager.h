@@ -48,6 +48,7 @@ const QString GIG_PATH = "samples/gig/";
 const QString SF2_PATH = "samples/soundfonts/";
 const QString LADSPA_PATH ="plugins/ladspa/";
 const QString DEFAULT_THEME_PATH = "themes/default/";
+const QString DEFAULT_SVG_THEME_PATH = "themes/default-svg/";
 const QString TRACK_ICON_PATH = "track_icons/";
 const QString LOCALE_PATH = "locale/";
 const QString PORTABLE_MODE_FILE = "/portable_mode.txt";
@@ -186,6 +187,15 @@ public:
 	{
 		return m_dataDir + DEFAULT_THEME_PATH;
 	}
+
+	//! Scalable replacements for the default theme's raster artwork
+	QString defaultSvgThemeDir() const
+	{
+		return m_dataDir + DEFAULT_SVG_THEME_PATH;
+	}
+
+	//! Directories searched for theme artwork, highest priority first
+	QStringList themeSearchPaths() const;
 
 	QString themeDir() const
 	{

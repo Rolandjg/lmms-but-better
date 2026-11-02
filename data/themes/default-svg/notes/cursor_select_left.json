@@ -1,0 +1,10 @@
+{
+  "source": "cursor_select_left.png",
+  "svg": "cursor_select_left.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A square-cornered white left bracket inside a black silhouette on an opaque #555 background. The canvas is 32 by 32; the bracket spans x=0–8 and the full height, with a two-pixel white stem and two-pixel white end bars bounded by one-pixel black edges.",
+  "limitations": "The source is an axis-aligned, three-color design; the enlarged SVG rendering was visually inspected."
+}

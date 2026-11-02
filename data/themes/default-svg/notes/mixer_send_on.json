@@ -1,0 +1,22 @@
+{
+  "source": "mixer_send_on.png",
+  "svg": "mixer_send_on.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "29 by 19 canvas; black 27 by 13 surround with dark vertical gradient and top highlight; SEND drawn as explicit green stroked letterforms approximately one pixel thick.",
+  "limitations": "The tiny raster lettering has antialiased and subpixel color variations; clean vector letterforms and panel shading approximate these details.",
+  "native_metrics": {
+    "mae": 0.022732435804331236,
+    "rmse": 0.09447974835525884,
+    "alpha_mae": 0.013541142952907658,
+    "changed_fraction": 0.09971509971509972,
+    "full_canvas_mae": 0.0144810979443199,
+    "black_mae": 0.009191292851423569,
+    "white_mae": 0.02273243580433123,
+    "max_error": 0.7647058823529411,
+    "support_pixels": 351,
+    "opaque_background_added": false
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "pr_white_key_small.png",
+  "svg": "pr_white_key_small.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 64 × 17 white rectangle over a 64 × 1 dark #1a1b1e bottom edge, on a 64 × 18 canvas. The source alpha is fully opaque.",
+  "limitations": "None observed."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "edit_draw_outvalue.png",
+  "svg": "edit_draw_outvalue.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "At the native 20 by 20 size, two translucent stroked circles centered near (3.5, 3.5) and (3.5, 16.5) are joined by a thin vertical stroke. A curved, gray-edged silhouette at the right uses a radial highlight and gradient outline. Rendered at native size and 8x; the 8x rendering was visually inspected.",
+  "limitations": "The right silhouette is an approximation of the softly blurred original, and its vector edge and circular rings appear cleaner at high magnification. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.09708478136865407,
+    "rmse": 0.13669760707658588,
+    "alpha_mae": 0.0990003844675125,
+    "changed_fraction": 0.3480392156862745,
+    "full_canvas_mae": 0.04966029732154299,
+    "black_mae": 0.09670649549067352,
+    "white_mae": 0.016608142167542413,
+    "max_error": 0.5275355632449058,
+    "support_pixels": 204,
+    "opaque_background_added": false
+  }
+}

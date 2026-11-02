@@ -1,0 +1,11 @@
+{
+  "source": "random_wave_inactive.png",
+  "svg": "random_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 canvas with a partially transparent black background and a one-unit square-cornered gray waveform stroke spanning x=2 to 12 and y=2 to 12. Source background alpha is 166/255 except corners near 128/255; waveform is gray 142 with alpha 206/255. A vector mask keeps waveform and background alpha independent.",
+  "limitations": "The lightly rounded background corners approximate the source's reduced corner alpha. Native and 8x renders were visually inspected.",
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "step_btn_highlight.png",
+  "svg": "step_btn_highlight.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A square-cornered 22 by 22 pixel frame, one pixel thick, inset one pixel from the 24 by 24 canvas. A vertical teal gradient darkens sharply near the midpoint; the interior and outer margin are transparent.",
+  "limitations": "The smooth gradient approximates the source's individual row colors."
+}

@@ -77,11 +77,11 @@ QTreeWidget::branch:selected {
 }
 
 QTreeView::branch:has-children:open {
-	border-image: url("resources:open_branch.png") 0;
+	border-image: url("resources:open_branch.svg") 0;
 }
 
 QTreeView::branch:has-children:closed {
-	border-image: url("resources:closed_branch.png") 0;
+	border-image: url("resources:closed_branch.svg") 0;
 }
 
 QHeaderView::section {
@@ -452,7 +452,7 @@ lmms--gui--Oscilloscope {
 
 lmms--gui--CPULoadWidget {
 	border: none;
-	background: url("resources:cpuload_bg.png");
+	background: url("resources:cpuload_bg.svg");
 	qproperty-stepSize: 1;
 }
 

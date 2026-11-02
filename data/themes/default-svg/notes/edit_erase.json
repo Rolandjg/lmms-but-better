@@ -1,0 +1,16 @@
+{
+  "source": "edit_erase.png",
+  "svg": "edit_erase.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A straight-sided diagonal eraser with a diamond-shaped transparent opening on a 20 by 20 canvas; outer body and opening were independently sized.",
+  "limitations": "Smooth diagonal edges approximate the source antialiasing. The adjusted 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.039769036448935396,
+    "rmse": 0.08893516625918214,
+    "alpha_mae": 0.039769036448935396,
+    "changed_fraction": 0.147239263803681
+  }
+}

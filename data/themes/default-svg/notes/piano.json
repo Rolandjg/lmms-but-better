@@ -1,0 +1,10 @@
+{
+  "source": "piano.png",
+  "svg": "piano.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three square-cornered white piano keys on transparency. The 20 by 20 image has ink from x=3 to 16 and y=2 to 17; key shapes widen below y=12.",
+  "limitations": "None apparent at native resolution."
+}

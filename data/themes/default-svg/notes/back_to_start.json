@@ -1,0 +1,18 @@
+{
+  "source": "back_to_start.png",
+  "svg": "back_to_start.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two white straight-sided left-pointing triangles on a transparent 20 by 20 canvas.",
+  "limitations": "Minor edge coverage differences remain. The 8x render was visually inspected.",
+  "observed_native_metrics": "20 by 20 pixels; white glyphs on transparency.",
+  "visual_qa": "Rendered at native size and 8x; inspected the 8x rendering.",
+  "native_metrics": {
+    "mae": 0.005514705882352936,
+    "rmse": 0.014948971256840098,
+    "alpha_mae": 0.005514705882352937,
+    "changed_fraction": 0.0
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "cpuload_leds.png",
+  "svg": "cpuload_leds.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "An 86 by 5 canvas with a three-pixel-high horizontal cyan-to-green-to-yellow-to-red gradient bar, square at the left and subtly rounded at the right. The top and bottom rows are transparent.",
+  "limitations": "Gradient stops approximate the source colors and the right edge is a smooth curve. Inspected the SVG rendering at 8x."
+}

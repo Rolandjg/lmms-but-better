@@ -1,0 +1,10 @@
+{
+  "source": "project_new_from_template.png",
+  "svg": "project_new_from_template.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White 12-by-18 document silhouette at (4,1), with a separate triangular folded corner and a transparent square-ended plus cutout. The source is 20-by-20 with transparent background; the fold diagonal is drawn as a straight line. Inspected native and 8x SVG renders.",
+  "limitations": "The fold diagonal is smoothly antialiased instead of following the source pixel staircase."
+}

@@ -1,0 +1,10 @@
+{
+  "source": "lfo_x100_inactive.png",
+  "svg": "lfo_x100_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "29 x 14 panel with black rounded border, charcoal vertical gradient and top highlight; explicit vector X and square-edged 100 glyphs spanning x=2–27 and y=3–11. Native and 8x renders inspected.",
+  "limitations": "The panel gradient, border antialiasing, and smooth X diagonals approximate the source pixels."
+}

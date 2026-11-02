@@ -1,0 +1,10 @@
+{
+  "source": "fullscreen.png",
+  "svg": "fullscreen.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Four white, square-cornered L shapes at the corners of a transparent 16 by 16 canvas. Each arm extends 6 pixels along an outer edge and is 2 pixels thick. The SVG was rendered at native size and 8x; the 8x rendering was visually inspected.",
+  "limitations": "None observed for this axis-aligned design."
+}

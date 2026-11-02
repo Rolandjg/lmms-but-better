@@ -1,0 +1,10 @@
+{
+  "source": "receive_bg_arrow.png",
+  "svg": "receive_bg_arrow.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "An 11 by 8 white upward arrow, with a straight-sided triangular head spanning the full width and a centered 3-pixel-wide, 3-pixel-tall rectangular stem. The surrounding background is transparent.",
+  "limitations": "Smooth diagonal edges may differ slightly from the source's antialiasing at native size."
+}

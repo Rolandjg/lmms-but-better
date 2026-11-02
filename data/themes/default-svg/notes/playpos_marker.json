@@ -1,0 +1,16 @@
+{
+  "source": "playpos_marker.png",
+  "svg": "playpos_marker.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white downward triangle with straight diagonals, clipped at the top corners, on a transparent 17 by 9 canvas.",
+  "limitations": "Smooth diagonal edges differ from the source pixel staircase. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.04572468162522742,
+    "rmse": 0.08859102202784422,
+    "alpha_mae": 0.045724681625227415,
+    "changed_fraction": 0.17525773195876287
+  }
+}

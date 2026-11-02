@@ -1,0 +1,10 @@
+{
+  "source": "mixer.png",
+  "svg": "mixer.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three 2-pixel-wide vertical stems and three 6-pixel-wide square slider blocks, with translucent edge details. Native canvas is 20 by 20 pixels.",
+  "limitations": "The source uses partially transparent pixel rows at the slider edges and stem bottoms; these are represented as flat translucent vector shapes."
+}

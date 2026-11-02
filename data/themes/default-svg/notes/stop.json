@@ -1,0 +1,10 @@
+{
+  "source": "stop.png",
+  "svg": "stop.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 14 by 14 pixel white square at (3, 3) in a transparent 20 by 20 canvas; square corners and axis-aligned edges.",
+  "limitations": "None identified."
+}

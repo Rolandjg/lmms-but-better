@@ -1,0 +1,10 @@
+{
+  "source": "instrument_track.png",
+  "svg": "instrument_track.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three solid white, square-cornered piano keys on transparency, drawn as stepped paths. The 20 by 20 image has visible ink spanning x=3–16 and y=2–17; the lower key portions extend to y=18.",
+  "limitations": "The source consists entirely of axis-aligned hard edges; the enlarged SVG was visually inspected."
+}

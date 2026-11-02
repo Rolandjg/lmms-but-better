@@ -1,0 +1,22 @@
+{
+  "source": "autoscroll_on.png",
+  "svg": "autoscroll_on.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White horizontal arrow with shaft from x=2 to 11 and triangular head spanning x=11 to 18.",
+  "limitations": "Smooth geometry approximates the source antialiasing and small-scale details. Native and 8x renders were inspected.",
+  "native_metrics": {
+    "mae": 0.003074866310160432,
+    "rmse": 0.007536334458684394,
+    "alpha_mae": 0.0030748663101604315,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0006862745098039224,
+    "black_mae": 0.003074866310160432,
+    "white_mae": 0.0,
+    "max_error": 0.03921568627450983,
+    "support_pixels": 88,
+    "opaque_background_added": false
+  }
+}

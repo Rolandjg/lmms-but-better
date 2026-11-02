@@ -1,0 +1,10 @@
+{
+  "source": "project_new.png",
+  "svg": "project_new.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White document silhouette and separate triangular folded corner, with a one-pixel transparent gap. Native canvas 20 by 20; visible bounds x=4–15, y=1–18.",
+  "limitations": "The folded corner uses a straight vector diagonal in place of the source's antialiased pixel steps."
+}

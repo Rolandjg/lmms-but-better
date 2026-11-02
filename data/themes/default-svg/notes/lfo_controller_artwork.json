@@ -1,0 +1,10 @@
+{
+  "source": "lfo_controller_artwork.png",
+  "svg": "lfo_controller_artwork.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "An opaque 240 by 58 rectangle with a vertical dark charcoal gradient, from approximately RGB (16, 19, 22) at the top to (8, 9, 12) at the bottom. Native and 8x renders were inspected.",
+  "limitations": "The smooth gradient omits the source image's subtle per-pixel dithering."
+}

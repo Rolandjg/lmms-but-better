@@ -1,0 +1,23 @@
+{
+  "source": "led_red.png",
+  "svg": "led_red.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A ten-by-four rectangular illuminated bar with an inner highlight and a separable horizontal and vertical gradient glow.",
+  "limitations": "Smooth curves and gradients approximate the source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.021058647315135206,
+    "rmse": 0.035267296832676286,
+    "alpha_mae": 0.02126225490196078,
+    "changed_fraction": 0.015625,
+    "full_canvas_mae": 0.012418666813130483,
+    "black_mae": 0.008595011534025374,
+    "white_mae": 0.013971229014481617,
+    "max_error": 0.15294117647058822,
+    "support_pixels": 128,
+    "opaque_background_added": false
+  },
+  "qt5_compatibility": "Rewritten without <mask>, <clipPath> or <filter>, which Qt5's SVG renderer ignores: masked gradient products became 1px strips, clips became hard-stop gradients or even-odd paths, and blur became stacked translucent shapes."
+}

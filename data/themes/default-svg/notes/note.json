@@ -1,0 +1,22 @@
+{
+  "source": "note.png",
+  "svg": "note.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white elliptical note head with a straight two-unit stem and a narrow tapered curved flag.",
+  "limitations": "The curved flag and elliptical head approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.05444596443228454,
+    "rmse": 0.12649176613766439,
+    "alpha_mae": 0.05444596443228455,
+    "changed_fraction": 0.13178294573643412,
+    "full_canvas_mae": 0.014584346135148276,
+    "black_mae": 0.05444596443228454,
+    "white_mae": 2.3237226096805603e-17,
+    "max_error": 0.584313725490196,
+    "support_pixels": 129,
+    "opaque_background_added": false
+  }
+}

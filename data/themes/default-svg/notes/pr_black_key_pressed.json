@@ -1,0 +1,10 @@
+{
+  "source": "pr_black_key_pressed.png",
+  "svg": "pr_black_key_pressed.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "41×16 transparent canvas with a 40×11 dark rectangular backing at (0,2), a bright green 39×9 inset at (0,3), and a 38×7 horizontal green gradient at (0,4). The original has binary alpha, including transparent margins. Native and 8× renders were generated and the enlarged render inspected.",
+  "limitations": "The gradient approximates the original's sampled color progression."
+}

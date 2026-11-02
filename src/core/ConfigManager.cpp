@@ -287,6 +287,18 @@ void ConfigManager::setGIGDir(const QString & gigDir)
 
 
 
+QStringList ConfigManager::themeSearchPaths() const
+{
+	// The SVG artwork overrides the default theme's PNGs, but a custom theme still overrides both
+	auto paths = QStringList{};
+	if (QDir{themeDir()} != QDir{defaultThemeDir()}) { paths << themeDir(); }
+	paths << defaultSvgThemeDir() << defaultThemeDir();
+	return paths;
+}
+
+
+
+
 void ConfigManager::setThemeDir(const QString & themeDir)
 {
 	m_themeDir = ensureTrailingSlash(themeDir);
@@ -592,7 +604,7 @@ void ConfigManager::loadConfigFile(const QString & configFile)
 	QStringList searchPaths;
 	if (std::getenv("LMMS_THEME_PATH"))
 		searchPaths << std::getenv("LMMS_THEME_PATH");
-	searchPaths << themeDir() << defaultThemeDir();
+	searchPaths << themeSearchPaths();
 	QDir::setSearchPaths("resources", searchPaths);
 
 	// Create any missing subdirectories in the working dir, but only if the working dir exists

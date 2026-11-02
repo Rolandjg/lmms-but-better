@@ -1,0 +1,22 @@
+{
+  "source": "edit_merge.png",
+  "svg": "edit_merge.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two individually positioned rounded outline frames and a filled diagonal arrow, drawn with straight edges on a 20 by 20 canvas.",
+  "limitations": "The smooth frame corners and arrow approximate the soft, uneven antialiasing of the source; the overlap and arrow junction retain visible differences. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.10928045172457604,
+    "rmse": 0.19001478583866183,
+    "alpha_mae": 0.10908019860304637,
+    "changed_fraction": 0.22746781115879827,
+    "full_canvas_mae": 0.06375390234525183,
+    "black_mae": 0.10925827471441323,
+    "white_mae": 0.000990705126618541,
+    "max_error": 1.0,
+    "support_pixels": 233,
+    "opaque_background_added": false
+  }
+}

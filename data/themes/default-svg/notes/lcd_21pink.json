@@ -1,0 +1,10 @@
+{
+  "source": "lcd_21pink.png",
+  "svg": "lcd_21pink.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "143 x 38 opaque black sprite with two rows of 9 x 14 square-segment glyphs on an 11-unit pitch, 2-unit strokes, and dark inactive segments. Explicit reusable paths form digits and minus signs in the source colors.",
+  "limitations": "None observed; native rendering matches the source pixels, and both native and 8x renderings were visually inspected."
+}

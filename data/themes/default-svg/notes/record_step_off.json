@@ -1,0 +1,22 @@
+{
+  "source": "record_step_off.png",
+  "svg": "record_step_off.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white circle centered at (10, 10), radius 8, with a transparent, curved S-shaped cutout. The 20 by 20 source has nonzero alpha within coordinates 2 through 17 on both axes; its exterior is transparent.",
+  "limitations": "The S is a smooth approximation of the small antialiased original; its curve and stroke thickness may differ slightly. Native and 8x SVG renders were inspected. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.03978148473319676,
+    "rmse": 0.07433812093319742,
+    "alpha_mae": 0.03978148473319676,
+    "changed_fraction": 0.11442786069651742,
+    "full_canvas_mae": 0.02008823529411765,
+    "black_mae": 0.03978148473319676,
+    "white_mae": 1.8779891958833495e-17,
+    "max_error": 0.32156862745098036,
+    "support_pixels": 201,
+    "opaque_background_added": false
+  }
+}

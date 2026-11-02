@@ -1,0 +1,10 @@
+{
+  "source": "error.png",
+  "svg": "error.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white triangle with straight diagonal edges spans x=1–21 and y=1–21 in the 22×22 canvas. Two square-cornered transparent cutouts form the exclamation mark, each 2 units wide; their vertical spans are y=7–15 and y=17–19.",
+  "limitations": "The smooth diagonal edges differ from the source's stepped antialiasing at native resolution."
+}

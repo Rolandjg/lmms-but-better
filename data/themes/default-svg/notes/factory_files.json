@@ -1,0 +1,16 @@
+{
+  "source": "factory_files.png",
+  "svg": "factory_files.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A folded white document with a transparent rounded gear cutout, four broad square tabs, and a white circular hub.",
+  "limitations": "The simplified gear curvature and antialiasing remain approximate. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.07750865051903114,
+    "rmse": 0.19977673345129984,
+    "alpha_mae": 0.07750865051903114,
+    "changed_fraction": 0.19607843137254902
+  }
+}

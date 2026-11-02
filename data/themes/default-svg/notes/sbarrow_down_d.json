@@ -1,0 +1,10 @@
+{
+  "source": "sbarrow_down_d.png",
+  "svg": "sbarrow_down_d.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A small, faint white downward triangle on a transparent 5 by 5 canvas. Source alpha occupies rows 1 and 2, with values from 1 to 7 out of 255; its nonzero bounds are x=0..4 and y=1..2.",
+  "limitations": "A uniform translucent triangle approximates the uneven, extremely low source alpha rather than preserving individual pixel values."
+}

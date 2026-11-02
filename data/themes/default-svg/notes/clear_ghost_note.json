@@ -1,0 +1,16 @@
+{
+  "source": "clear_ghost_note.png",
+  "svg": "clear_ghost_note.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white ghost with an elliptical crown, straight sides, three pointed hem notches and two crossed transparent eyes on a 22 by 22 canvas.",
+  "limitations": "The smooth crown and straight notches approximate the raster contours and eye antialiasing. The native and 8x SVG renders were inspected.",
+  "native_metrics": {
+    "mae": 0.07212539336722344,
+    "rmse": 0.1492969364541563,
+    "alpha_mae": 0.07212539336722343,
+    "changed_fraction": 0.24382716049382716
+  }
+}

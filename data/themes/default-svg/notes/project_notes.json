@@ -1,0 +1,10 @@
+{
+  "source": "project_notes.png",
+  "svg": "project_notes.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White 12-by-18 document silhouette with a folded upper-right corner and five transparent one-pixel-high horizontal slots. The fold uses a straight diagonal. The 20-by-20 source has transparent surroundings and transparent slots.",
+  "limitations": "The original fold edge has pixel-level half-alpha stepping; the SVG uses a smooth diagonal."
+}

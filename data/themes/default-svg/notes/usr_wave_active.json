@@ -1,0 +1,10 @@
+{
+  "source": "usr_wave_active.png",
+  "svg": "usr_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 image with a translucent black rounded square and a square-cornered white plus. The plus spans x=3–11 and y=3–11 with 2-unit arms; background alpha is 166/255, with softer corner pixels.",
+  "limitations": "The rounded background corners are approximated by a one-unit radius; their antialiasing may differ slightly from the source."
+}

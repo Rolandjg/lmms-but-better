@@ -1,0 +1,10 @@
+{
+  "source": "note_half.png",
+  "svg": "note_half.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white square-cornered half note with a 2-unit-wide stem from (10,1) to (12,15), an 8 by 6 unit rectangular notehead, and a 4 by 2 unit open center. Native canvas is 16 by 16.",
+  "limitations": "No visible native-size pixel differences were found; the source and SVG both have transparent backgrounds and notehead centers."
+}

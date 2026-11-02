@@ -1,0 +1,16 @@
+{
+  "source": "setup_audio.png",
+  "svg": "setup_audio.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A speaker body and straight-sided cone with three independently sized, flat-ended curved sound-wave strokes on a 48 by 48 canvas.",
+  "limitations": "The wave arcs remain simplified approximations of the source contours. The adjusted 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.03933400946585531,
+    "rmse": 0.09553911638251104,
+    "alpha_mae": 0.03933400946585531,
+    "changed_fraction": 0.1221264367816092
+  }
+}

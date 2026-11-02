@@ -104,8 +104,10 @@ GuiApplication::GuiApplication()
 		ConfigManager::inst()->createWorkingDir();
 	}
 	// Init style and palette
-	QDir::addSearchPath("artwork", ConfigManager::inst()->themeDir());
-	QDir::addSearchPath("artwork", ConfigManager::inst()->defaultThemeDir());
+	for (const auto& path : ConfigManager::inst()->themeSearchPaths())
+	{
+		QDir::addSearchPath("artwork", path);
+	}
 	QDir::addSearchPath("artwork", ":/artwork");
 
 	auto lmmsstyle = new LmmsStyle();

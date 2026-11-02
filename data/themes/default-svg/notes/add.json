@@ -1,0 +1,16 @@
+{
+  "source": "add.png",
+  "svg": "add.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white square-ended cross spanning x=2\u201320 and y=2\u201320, with 4-unit-wide arms on a transparent 22 by 22 canvas.",
+  "limitations": "The original has a faint partial-alpha edge along one arm; the vector uses crisp orthogonal edges. The native and 8x SVG renders were inspected.",
+  "native_metrics": {
+    "mae": 0.0015931372549019612,
+    "rmse": 0.007934516694234634,
+    "alpha_mae": 0.0015931372549019612,
+    "changed_fraction": 0.0
+  }
+}

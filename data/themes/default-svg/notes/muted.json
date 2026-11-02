@@ -1,0 +1,22 @@
+{
+  "source": "muted.png",
+  "svg": "muted.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White speaker silhouette and square-ended crossed diagonal strokes on a transparent 14 by 14 canvas.",
+  "limitations": "The smooth cross diagonals approximate source antialiasing. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.08623366013071895,
+    "rmse": 0.2036067045045053,
+    "alpha_mae": 0.08623366013071897,
+    "changed_fraction": 0.22916666666666666,
+    "full_canvas_mae": 0.042396958783513405,
+    "black_mae": 0.08623366013071895,
+    "white_mae": 1.0408340855860843e-17,
+    "max_error": 0.8666666666666667,
+    "support_pixels": 96,
+    "opaque_background_added": false
+  }
+}

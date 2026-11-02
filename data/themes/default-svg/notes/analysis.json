@@ -1,0 +1,22 @@
+{
+  "source": "analysis.png",
+  "svg": "analysis.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White rounded panel with transparent display, eight spectrum bars and four circular cutouts; 48 by 48 transparent canvas.",
+  "limitations": "Smooth corners and circular cutouts approximate the source antialiasing. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.011682049869127978,
+    "rmse": 0.055509661611536525,
+    "alpha_mae": 0.011682049869127978,
+    "changed_fraction": 0.03278688524590164,
+    "full_canvas_mae": 0.004330065359477124,
+    "black_mae": 0.011682049869127978,
+    "white_mae": 2.6000539218387743e-18,
+    "max_error": 0.6392156862745098,
+    "support_pixels": 854,
+    "opaque_background_added": false
+  }
+}

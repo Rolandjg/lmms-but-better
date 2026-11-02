@@ -1,0 +1,10 @@
+{
+  "source": "moog_saw_wave_inactive.png",
+  "svg": "moog_saw_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 x 14 canvas with a translucent black, slightly rounded background and a translucent white, square-ended saw waveform drawn with straight segments. The waveform spans approximately x=2 to 12 and y=2 to 11 with a 1.4-unit stroke.",
+  "limitations": "The smooth diagonals and sharp stroke edges approximate the antialiased, softly rendered original. Native and 8x SVG renders were visually inspected."
+}

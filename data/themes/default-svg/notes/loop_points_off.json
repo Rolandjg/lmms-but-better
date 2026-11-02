@@ -1,0 +1,10 @@
+{
+  "source": "loop_points_off.png",
+  "svg": "loop_points_off.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "20 by 20 canvas; translucent white rounded rectangular loop spanning x=2–18 and y=5–15, approximately 2 units thick, with a gap in the lower edge and a left-facing triangular marker spanning x=10–14 and y=10–18.",
+  "limitations": "Antialiasing and corner curvature may differ slightly from the original at native size."
+}

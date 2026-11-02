@@ -1,0 +1,16 @@
+{
+  "source": "tuning_tab.png",
+  "svg": "tuning_tab.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white tuning fork silhouette with two square-ended tines, smoothly joined shoulders and stem, and a broad base on transparency. The native canvas is 14 by 14 pixels; the visible source spans x=3\u201310 and y=1\u201313, with two-pixel tines and stem.",
+  "limitations": "Curved transitions are smooth approximations of the small antialiased source. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.0399881164587047,
+    "rmse": 0.137011072786661,
+    "alpha_mae": 0.0399881164587047,
+    "changed_fraction": 0.09090909090909091
+  }
+}

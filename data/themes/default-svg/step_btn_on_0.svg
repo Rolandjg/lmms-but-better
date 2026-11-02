@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <linearGradient id="rim" x2="0" y2="1">
+      <stop stop-color="#b6b9bb"/><stop offset=".48" stop-color="#8b8f94"/>
+      <stop offset=".49" stop-color="#697075"/><stop offset=".72" stop-color="#5f656b"/>
+      <stop offset="1" stop-color="#507478"/>
+    </linearGradient>
+    <linearGradient id="well" x2="0" y2="1">
+      <stop stop-color="#050506"/><stop offset=".76" stop-color="#050506"/>
+      <stop offset="1" stop-color="#0b2f2e"/>
+    </linearGradient>
+    <linearGradient id="face" x2="0" y2="1">
+      <stop stop-color="#2f3236"/><stop offset=".72" stop-color="#1e2226"/>
+      <stop offset=".81" stop-color="#222d30"/><stop offset=".88" stop-color="#2c484a"/>
+      <stop offset=".94" stop-color="#376263"/><stop offset="1" stop-color="#2b7e7b"/>
+    </linearGradient>
+  </defs>
+  <rect width="24" height="24" fill="#000"/>
+  <path fill="url(#rim)" fill-rule="evenodd" d="M1 1H23V23H1Z M2 2V22H22V2Z"/>
+  <rect x="2" y="2" width="20" height="20" fill="url(#well)"/>
+  <path d="M4 3H20L21 4V21H3V4Z" fill="#191d21"/>
+  <path d="M5 4H19L20 5V21H4V5Z" fill="url(#face)"/>
+</svg>

@@ -1,0 +1,16 @@
+{
+  "source": "cursor_select_right.png",
+  "svg": "cursor_select_right.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white and black square-cornered bracket over the source\u2019s opaque #555 background on a 32 by 32 canvas.",
+  "limitations": "None apparent at native size. The native and 8x SVG renders were inspected.",
+  "native_metrics": {
+    "mae": 0.0,
+    "rmse": 0.0,
+    "alpha_mae": 0.0,
+    "changed_fraction": 0.0
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "source": "min_length.png",
+  "svg": "min_length.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white downward triangular marker above a rectangular length indicator.",
+  "limitations": "Smooth vector edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.028045157456922164,
+    "rmse": 0.0803044316518048,
+    "alpha_mae": 0.02804515745692216,
+    "changed_fraction": 0.09090909090909091,
+    "full_canvas_mae": 0.00696078431372549,
+    "black_mae": 0.028045157456922164,
+    "white_mae": 4.485749594445077e-18,
+    "max_error": 0.43529411764705883,
+    "support_pixels": 99,
+    "opaque_background_added": false
+  }
+}

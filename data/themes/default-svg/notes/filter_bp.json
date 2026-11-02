@@ -1,0 +1,10 @@
+{
+  "source": "filter_bp.png",
+  "svg": "filter_bp.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white filled band-pass silhouette: a 20 by 5 pixel rectangular base with a symmetric smooth central rise and a short flat crest. The native canvas is 22 by 16 pixels; the solid base spans x=1 to 21 and y=10 to 15, with the crest near y=4.5.",
+  "limitations": "The source's antialiased, stepped shoulders are approximated with smooth curves, so individual edge pixels differ. The SVG was rendered at native size and 8x; the 8x rendering was visually inspected."
+}

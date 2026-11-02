@@ -1,0 +1,16 @@
+{
+  "source": "text_bold.png",
+  "svg": "text_bold.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White bold B with a square vertical stem, two curved lobes and two transparent counters. The 22 by 22 source has visible alpha bounds approximately x=6\u201316 and y=4\u201318; the stem is 3 pixels wide.",
+  "limitations": "Smooth curves approximate the small antialiased original and may differ slightly at native size. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.02990594611828471,
+    "rmse": 0.08542690455906103,
+    "alpha_mae": 0.029905946118284715,
+    "changed_fraction": 0.08943089430894309
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "lfo_graph.png",
+  "svg": "lfo_graph.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "95 by 47 translucent black panel with a vertical opacity gradient, a horizontal divider at y=23.5, subtle top and bottom borders, and explicit square-stroke LFO lettering in the upper right. Inspected native-size and 8x renders.",
+  "limitations": "The tiny lettering and corner antialiasing are approximated with deliberate vector geometry; individual source pixel intensities are not reproduced."
+}

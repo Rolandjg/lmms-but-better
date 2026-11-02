@@ -1,0 +1,22 @@
+{
+  "source": "project_export.png",
+  "svg": "project_export.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Square-edged folded document and a straight-edged right-pointing export arrow.",
+  "limitations": "Smooth vector edges approximate source antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.023168214654282763,
+    "rmse": 0.1481869355053573,
+    "alpha_mae": 0.023168214654282763,
+    "changed_fraction": 0.021929824561403508,
+    "full_canvas_mae": 0.013323529411764706,
+    "black_mae": 0.023168214654282763,
+    "white_mae": 2.921639538487254e-18,
+    "max_error": 1.0,
+    "support_pixels": 228,
+    "opaque_background_added": false
+  }
+}

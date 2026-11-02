@@ -1,0 +1,10 @@
+{
+  "source": "scale.png",
+  "svg": "scale.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Three unfilled white rectangular outlines step diagonally upward to the right. Each has an 8 by 5 pixel outer extent and a 1 pixel square-cornered stroke on a transparent 24 by 24 canvas.",
+  "limitations": "None observed at native or enlarged size."
+}

@@ -1,0 +1,16 @@
+{
+  "source": "sample_file.png",
+  "svg": "sample_file.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A folded white document with a transparent music-note cutout and rounded note head on a 32 by 32 canvas.",
+  "limitations": "The note head\u2019s antialiased contour remains approximate. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.011473911598537723,
+    "rmse": 0.06986562856682461,
+    "alpha_mae": 0.011473911598537721,
+    "changed_fraction": 0.025423728813559324
+  }
+}

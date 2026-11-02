@@ -1,0 +1,10 @@
+{
+  "source": "lfo_x100_active.png",
+  "svg": "lfo_x100_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "29 by 14 display with a rounded black bezel, dark vertical gradient and top highlight. The green x is a single deliberate diagonal shape; the 100 glyphs are straight vector paths. Glyphs occupy y=3–11 and use #0bd556.",
+  "limitations": "The screen gradient, antialiasing and diagonal x approximate the original pixel-level shading. Native and 8x renders were generated, and the 8x render was visually inspected."
+}

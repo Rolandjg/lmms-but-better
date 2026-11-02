@@ -1,0 +1,10 @@
+{
+  "source": "exit.png",
+  "svg": "exit.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white, square-ended X constructed as one symmetric polygon with straight 45-degree edges. The native canvas is 22 by 22 pixels; the visible source spans coordinates 1 through 20 on each axis. Inspected the rendered SVG at 8x.",
+  "limitations": "Raster antialiasing at native size may differ slightly between renderers."
+}

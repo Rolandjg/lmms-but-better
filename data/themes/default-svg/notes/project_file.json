@@ -1,0 +1,16 @@
+{
+  "source": "project_file.png",
+  "svg": "project_file.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A folded white document with a transparent angular headphone arch and rounded earpieces on a 32 by 32 canvas.",
+  "limitations": "The smooth headphone ends and diagonal edges approximate source antialiasing. The 8x render was visually inspected.",
+  "native_metrics": {
+    "mae": 0.047304512166312304,
+    "rmse": 0.15866271793337527,
+    "alpha_mae": 0.047304512166312304,
+    "changed_fraction": 0.11325301204819277
+  }
+}

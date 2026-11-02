@@ -1,0 +1,22 @@
+{
+  "source": "whatsthis.png",
+  "svg": "whatsthis.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white circle centered at (10, 10) with radius 10, cut out with a square dot and a rectilinear lowercase information glyph. The source is 20 by 20 pixels and has transparent background and glyph cutouts.",
+  "limitations": "The smooth circular edge approximates the source antialiasing; the glyph is represented with crisp geometric edges. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.011279178338001869,
+    "rmse": 0.025780860909214484,
+    "alpha_mae": 0.011279178338001869,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.00958823529411765,
+    "black_mae": 0.011279178338001869,
+    "white_mae": 7.401486830834377e-18,
+    "max_error": 0.09803921568627451,
+    "support_pixels": 315,
+    "opaque_background_added": false
+  }
+}

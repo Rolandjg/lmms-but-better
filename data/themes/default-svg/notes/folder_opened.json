@@ -1,0 +1,10 @@
+{
+  "source": "folder_opened.png",
+  "svg": "folder_opened.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two white filled paths: a stepped folder back and an open front with straight sloping sides. The 16 by 16 source has its back at x=1–15, y=2–6 and its front at y=7–15, with a one-pixel transparent gap.",
+  "limitations": "The front's diagonal edge uses smooth vector antialiasing, which may differ slightly from the source raster. The 8x rendering was visually inspected."
+}

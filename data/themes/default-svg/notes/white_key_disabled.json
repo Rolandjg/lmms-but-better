@@ -1,0 +1,10 @@
+{
+  "source": "white_key_disabled.png",
+  "svg": "white_key_disabled.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 10 by 57 opaque light-gray rectangle with a 1-unit-wide dark-gray vertical strip along its left edge. The source uses RGB (193, 193, 193) and (75, 76, 77), with alpha 255 throughout.",
+  "limitations": "None observed; the source consists entirely of two flat vertical color regions."
+}

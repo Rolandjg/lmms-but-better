@@ -1,0 +1,16 @@
+{
+  "source": "soundfont_file.png",
+  "svg": "soundfont_file.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 16 by 16 transparent icon with a white page from x=3 to 13 and y=1 to 15, a separated triangular folded corner, and transparent hand-drawn S and f cutouts. The fold and letter stems are approximately one unit wide.",
+  "limitations": "The small antialiased letter cutouts are interpreted as smooth vector forms; their curves and pixel coverage differ slightly from the source. Native and 8x renders were visually inspected.",
+  "native_metrics": {
+    "mae": 0.030275839149219008,
+    "rmse": 0.09815546447951275,
+    "alpha_mae": 0.030275839149219008,
+    "changed_fraction": 0.09322033898305085
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": "text_center.png",
+  "svg": "text_center.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Four centered, square-cornered white horizontal rectangles on transparency in a 22 by 22 viewBox. Their widths are 16, 6, 8, and 16 pixels, each 2 pixels high, with top edges at y=4, 8, 12, and 16.",
+  "limitations": "None observed; the enlarged SVG rendering was visually inspected."
+}

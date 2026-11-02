@@ -1,0 +1,10 @@
+{
+  "source": "note_eight.png",
+  "svg": "note_eight.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A single white, square-cornered path combines the 8 by 5 note head, 2-pixel stem and rectangular flag on a transparent 16 by 16 canvas. The opaque source occupies x=2 through 13 and y=1 through 14.",
+  "limitations": "None observed; the source consists of opaque, axis-aligned white pixels. Native and 8x SVG renders were inspected."
+}

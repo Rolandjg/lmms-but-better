@@ -1,0 +1,10 @@
+{
+  "source": "saw_wave_inactive.png",
+  "svg": "saw_wave_inactive.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A 14 by 14 translucent black field with subtly rounded corners carries a single pale sawtooth stroke, rising diagonally from approximately (3.2, 10.25) to (11.6, 3.85) and dropping vertically to y=10.9. The stroke is 1.2 units wide with square-ended butt caps and a miter join. The source field has alpha 166/255 across most pixels and alpha 127–128 at the corners.",
+  "limitations": "The smooth vector stroke approximates the antialiased source pixels; its edge coverage and corner rounding may differ slightly at native size. Native and 8x renders were visually inspected."
+}

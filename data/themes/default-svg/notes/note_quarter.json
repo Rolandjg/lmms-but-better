@@ -1,0 +1,10 @@
+{
+  "source": "note_quarter.png",
+  "svg": "note_quarter.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white square-cornered note silhouette on a transparent background. The 2-pixel-wide stem runs from (10,1) to (12,15), and the 8-by-5-pixel note head spans (4,10) to (12,15), on a 16-by-16 canvas.",
+  "limitations": "The source uses axis-aligned solid shapes; no material visual limitations observed after inspecting native and enlarged renders on light and dark backgrounds."
+}

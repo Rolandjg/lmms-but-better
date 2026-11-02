@@ -1,0 +1,22 @@
+{
+  "source": "function_generator.png",
+  "svg": "function_generator.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Continuous cubic white waveform with a roughly 2.05-unit square-ended stroke.",
+  "limitations": "Smooth vector geometry approximates the source contours and antialiasing. Native and 8x renders inspected.",
+  "native_metrics": {
+    "mae": 0.10602240896358543,
+    "rmse": 0.17880804886553722,
+    "alpha_mae": 0.10602240896358543,
+    "changed_fraction": 0.25,
+    "full_canvas_mae": 0.031245098039215692,
+    "black_mae": 0.10602240896358543,
+    "white_mae": 2.4781763942525817e-17,
+    "max_error": 0.7019607843137254,
+    "support_pixels": 112,
+    "opaque_background_added": false
+  }
+}

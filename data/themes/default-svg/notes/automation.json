@@ -1,0 +1,10 @@
+{
+  "source": "automation.png",
+  "svg": "automation.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White filled quadrilateral with a smooth rising diagonal and straight vertical and bottom edges.",
+  "limitations": "The diagonal is approximated from the small raster; antialiasing may differ slightly from the original."
+}

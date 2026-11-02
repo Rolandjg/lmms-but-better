@@ -1,0 +1,22 @@
+{
+  "source": "edit_select.png",
+  "svg": "edit_select.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A dashed white rectangular selection border on a transparent 20 by 20 canvas.",
+  "limitations": "The dash endpoints approximate the original pattern. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.0,
+    "rmse": 0.0,
+    "alpha_mae": 0.0,
+    "changed_fraction": 0.0,
+    "full_canvas_mae": 0.0,
+    "black_mae": 0.0,
+    "white_mae": 0.0,
+    "max_error": 0.0,
+    "support_pixels": 96,
+    "opaque_background_added": false
+  }
+}

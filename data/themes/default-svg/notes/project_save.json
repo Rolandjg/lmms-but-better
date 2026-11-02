@@ -1,0 +1,10 @@
+{
+  "source": "project_save.png",
+  "svg": "project_save.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "White 18 by 18 floppy disk silhouette with a straight clipped upper-right corner, transparent rectangular label opening, and a recessed upper shutter with a small transparent slot. Native canvas is 20 by 20 pixels and the alpha extent is (1, 1) to (19, 19).",
+  "limitations": "The diagonal corner is simplified to a smooth straight edge; small antialiased edge differences remain at native size. The native and 8x SVG renders were inspected."
+}

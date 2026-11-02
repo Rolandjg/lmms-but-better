@@ -1,0 +1,10 @@
+{
+  "source": "track_op_grip.png",
+  "svg": "track_op_grip.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A transparent 6 by 25 canvas with ten square 2 by 2 black marks at 40% opacity, alternating between the left and right edges in a five-pixel vertical rhythm.",
+  "limitations": "None observed; the native and 8x renderings were generated and the enlarged rendering inspected."
+}

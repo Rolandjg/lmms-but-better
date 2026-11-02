@@ -1,0 +1,10 @@
+{
+  "source": "setup_midi.png",
+  "svg": "setup_midi.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "48 by 48 canvas; white MIDI keyboard housing with rounded upper corners, three rectangular and three circular transparent controls, and seven white keys separated by transparent gaps. The visible housing spans approximately x=2–46 and y=9–40; key dividers are one unit wide.",
+  "limitations": "The antialiased upper corners and circular controls are reconstructed as smooth vector curves and may differ slightly from the original raster coverage."
+}

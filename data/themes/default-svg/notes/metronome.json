@@ -1,0 +1,22 @@
+{
+  "source": "metronome.png",
+  "svg": "metronome.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white trapezoidal metronome frame with a vertical pendulum bar and a diagonal pendulum stroke on a transparent 20 by 20 canvas.",
+  "limitations": "The smooth diagonal stroke and frame junction approximate the source. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.08961510530137982,
+    "rmse": 0.21001771843572783,
+    "alpha_mae": 0.08961510530137981,
+    "changed_fraction": 0.18518518518518517,
+    "full_canvas_mae": 0.054558823529411764,
+    "black_mae": 0.08961510530137982,
+    "white_mae": 1.599086660982736e-17,
+    "max_error": 1.0,
+    "support_pixels": 243,
+    "opaque_background_added": false
+  }
+}

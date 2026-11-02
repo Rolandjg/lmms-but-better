@@ -1,0 +1,22 @@
+{
+  "source": "loop_point.png",
+  "svg": "loop_point.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Two mirrored solid green triangles with vertical outer edges and straight diagonals pointing inward. Native canvas is 13 by 13 pixels; colored pixels occupy columns 1 through 5 and 7 through 11, and rows 1 through 11.",
+  "limitations": "Diagonal edges use smooth vector antialiasing and may differ slightly from the source pixel coverage. The native and 8x SVG renders were visually inspected. Position and scale were tuned against the original; the updated 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.019711393053953627,
+    "rmse": 0.029665964572729502,
+    "alpha_mae": 0.023753501400560234,
+    "changed_fraction": 0.02857142857142857,
+    "full_canvas_mae": 0.008164482330039963,
+    "black_mae": 0.009574339539737473,
+    "white_mae": 0.014224565643250763,
+    "max_error": 0.13436370626682048,
+    "support_pixels": 70,
+    "opaque_background_added": false
+  }
+}

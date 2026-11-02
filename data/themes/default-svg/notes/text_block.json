@@ -1,0 +1,10 @@
+{
+  "source": "text_block.png",
+  "svg": "text_block.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Four white square-cornered 16 by 2 rectangles, starting at x=3 and y=4, 8, 12 and 16 on a transparent 22 by 22 canvas. The source alpha is binary.",
+  "limitations": "None apparent at native size; enlarged rendering visually inspected."
+}

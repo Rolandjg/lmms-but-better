@@ -1,0 +1,10 @@
+{
+  "source": "square_wave_active.png",
+  "svg": "square_wave_active.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "14 by 14 canvas with a slightly rounded translucent black background and a white, one-unit square-capped stepped waveform. The waveform occupies x=2–10 and y=3–10 in native pixels.",
+  "limitations": "The corner transparency is approximated by a small rounded rectangle; the native and 8x SVG renders were visually inspected."
+}

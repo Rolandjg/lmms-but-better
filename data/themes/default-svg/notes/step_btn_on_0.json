@@ -1,0 +1,10 @@
+{
+  "source": "step_btn_on_0.png",
+  "svg": "step_btn_on_0.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Opaque 24 by 24 black canvas with a one-pixel square gradient rim at coordinates 1–23, a dark inset, and a vertically shaded rectangular face with teal illumination at the bottom. The source alpha is fully opaque.",
+  "limitations": "The subtle pixel-level color variation and corner shading are approximated with smooth gradients and simple inset shapes."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "glue.png",
+  "svg": "glue.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A diagonal glue bottle with a narrow tapered nozzle, rendered as smooth white vector shapes. Native canvas is 22 by 21.",
+  "limitations": "Smooth geometric contours approximate small antialiased source details. The 8x rendering was inspected.",
+  "native_metrics": {
+    "mae": 0.1339480657127716,
+    "rmse": 0.2543378046235542,
+    "alpha_mae": 0.1339480657127716,
+    "changed_fraction": 0.2918918918918919,
+    "full_canvas_mae": 0.053696630167218415,
+    "black_mae": 0.1339480657127716,
+    "white_mae": 1.6803375507840208e-17,
+    "max_error": 0.9882352941176471,
+    "support_pixels": 185,
+    "opaque_background_added": false
+  }
+}

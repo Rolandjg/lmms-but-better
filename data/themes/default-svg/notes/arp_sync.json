@@ -1,0 +1,10 @@
+{
+  "source": "arp_sync.png",
+  "svg": "arp_sync.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "Twelve white horizontal 3-by-1-unit dashes arranged in a staggered rhythm pattern on a transparent 16-by-16 canvas.",
+  "limitations": "The source consists of hard-edged rectangular marks; the redraw preserves those simple shapes. The 8x rendering was visually inspected."
+}

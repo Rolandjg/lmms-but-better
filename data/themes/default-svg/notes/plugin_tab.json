@@ -1,0 +1,10 @@
+{
+  "source": "plugin_tab.png",
+  "svg": "plugin_tab.svg",
+  "method": "Hand-authored SVG geometry",
+  "hand_authored": true,
+  "agent_model": "gpt-6.1-terra",
+  "reasoning_effort": "low",
+  "geometry": "A white plug silhouette built as one straight-sided path on a transparent 14 by 14 canvas. The handle spans x=1–4 at y=6–8; diagonal shoulders extend to x=8 at y=2 and y=12, and two prongs reach the right edge. The source alpha ranges from 0 to 255; its diagonal edge pixels are partially transparent.",
+  "limitations": "The original's raster antialiasing may differ slightly from the SVG renderer. Native and 8x renders were visually inspected."
+}
