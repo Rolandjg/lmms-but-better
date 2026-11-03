@@ -229,7 +229,7 @@ public:
 				}
 			}
 			std::stable_sort(rpnPoints.begin(), rpnPoints.end(), [](const auto& a, const auto& b)
-				{ return a.frame != b.frame ? a.frame < b.frame : (a.index == 2) > (b.index == 2); });
+				{ return a.frame != b.frame ? (a.frame < b.frame) : (a.index == 2) > (b.index == 2); });
 			for (const auto& point : rpnPoints)
 			{
 				auto& selection = rpnSelection[point.channel];
