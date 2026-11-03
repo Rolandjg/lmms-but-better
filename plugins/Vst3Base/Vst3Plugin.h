@@ -162,6 +162,9 @@ private:
 	void refreshModelsFromController(bool pushToProcessor);
 	void refreshMidiMapping();
 	void queueMidiCc(int channel, int cc, double value, f_cnt_t offset);
+	struct MidiChannelState;
+	//! Queue the channel's bend as tuning of one note (m_midiMutex held)
+	void queueTuning(Steinberg::int32 noteId, const MidiChannelState& channel, f_cnt_t offset);
 	void onModelChanged(Param* param);
 	void syncControllerFromModels();
 	void fail(const QString& reason);
@@ -225,6 +228,29 @@ private:
 		f_cnt_t offset;
 	};
 	std::vector<PendingCc> m_pendingCc;
+
+	// Channel pitch bend as per-note tuning, for plugins whose MIDI mapping
+	// does not tell channels apart, and RPN delivery. Guarded by m_midiMutex.
+	struct MidiChannelState
+	{
+		int bend = 8192;
+		int bendRange = 2; //!< semitones, from RPN 0
+		int rpn = 0x3FFF; //!< -1 while an NRPN is selected
+		int pluginRpn = -1; //!< the RPN the plugin has selected, -1 when unknown
+		Steinberg::int32 rpnFrame = -1; //!< frame of the last RPN data entry in this block
+		struct Note { Steinberg::int16 key; Steinberg::int32 id; };
+		std::vector<Note> notes;
+
+		//! Notes wait for the channel's RPN data entry, such as the bend range set up just before them
+		Steinberg::int32 noteFrame(f_cnt_t offset) const
+		{
+			return std::max(static_cast<Steinberg::int32>(offset), rpnFrame);
+		}
+	};
+	std::array<MidiChannelState, 16> m_midiChannels;
+	std::array<bool, 16> m_bendAsTuning{};
+	Steinberg::int32 m_nextNoteId = 0;
+	bool m_hasTuningExpression = false;
 
 	// processing state
 	std::mutex m_processMutex;

@@ -8,6 +8,7 @@
 #include <QMenu>
 #include <QProcess>
 #include <QLibrary>
+#include <functional>
 #include <limits>
 #include <thread>
 #include <stdexcept>
@@ -210,6 +211,101 @@ class Vst3HostTest : public QObject
 	using ResetStats = void (*)();
 	Stat stat = nullptr;
 	ResetStats resetStats = nullptr;
+	//! Glide notes in MPE mode through an installed synth, checked by measuring its pitch
+	void checkInstalledMpeGlide(const QString& path, const std::function<void(Vst3Plugin*)>& setup)
+	{
+#ifndef LMMS_TEST_VST3_WRAPPERS
+		QSKIP("Build Vst3Instrument to test installed synths");
+#endif
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		InstrumentTrack track{Engine::getSong()};
+		auto* instrument = track.loadInstrument("vst3instrument");
+		QVERIFY(instrument);
+		instrument->loadFile(path);
+		auto* plugin = instrument->findChild<Vst3Plugin*>();
+		QVERIFY(plugin);
+		setup(plugin);
+		if (QTest::currentTestFailed()) { return; }
+		track.pitchRangeModel()->setValue(12);
+		track.mpeChannelsModel()->setValue(2);
+		track.mpeModel()->setValue(true);
+		const auto frames = Engine::audioEngine()->framesPerPeriod();
+		std::vector<SampleFrame> output(frames);
+		auto run = [&](int periods) { for (int i = 0; i < periods; ++i) { instrument->play(output.data()); } };
+		auto frequency = [&]
+		{
+			// Discard parameter smoothing and attack, then estimate the period by
+			// autocorrelation. Wavetables can cross zero several times per cycle.
+			run(40);
+			std::vector<float> samples;
+			while (samples.size() < 8192)
+			{
+				instrument->play(output.data());
+				for (const auto& sample : output) { samples.push_back(sample.left()); }
+			}
+			const double rate = Engine::audioEngine()->outputSampleRate();
+			std::vector<double> errors(int(rate / 150) + 2);
+			for (int lag = 1; lag < int(errors.size()); ++lag)
+			{
+				double difference = 0, energy = 0;
+				for (int i = 0; i < 4096; ++i)
+				{
+					const double a = samples[i], b = samples[i + lag];
+					difference += (a - b) * (a - b);
+					energy += a * a + b * b;
+				}
+				errors[lag] = energy > 1.e-9 ? difference / energy : 1.;
+			}
+			for (int lag = int(rate / 1000); lag + 1 < int(errors.size()); ++lag)
+			{
+				if (errors[lag] < .05 && errors[lag] < errors[lag - 1] && errors[lag] < errors[lag + 1])
+				{
+					return rate / lag;
+				}
+			}
+			return 0.;
+		};
+		using Handle = std::unique_ptr<NotePlayHandle, decltype(&NotePlayHandleManager::release)>;
+		auto start = [&](const Note& note)
+		{
+			Handle handle{NotePlayHandleManager::acquire(&track, 0, frames * 1000, note), &NotePlayHandleManager::release};
+			handle->play(nullptr);
+			return handle;
+		};
+		const double G3 = 196, A3 = 220;
+		auto near = [](double frequency, double expected) { return std::abs(frequency / expected - 1) < .015; };
+
+		// A3 gliding two semitones down to G3
+		Note glide{TimePos{192}, TimePos{0}, 57};
+		glide.createDetuning();
+		glide.detuning()->automationClip()->putValue(0, 0, false);
+		glide.detuning()->automationClip()->putValue(100, -2, false);
+		auto glideHandle = start(glide);
+		glideHandle->processTimePos(100, 0, false);
+		const double bent = frequency();
+
+		// A plain G4 on another channel must not move the glide: G3 + G4 repeat at G3.
+		auto plainHandle = start(Note{TimePos{192}, TimePos{0}, 67});
+		QVERIFY(plainHandle->midiChannel() != glideHandle->midiChannel());
+		const double together = frequency();
+
+		// A plain A3 reusing the glide's channel starts unbent.
+		glideHandle->noteOff(0);
+		plainHandle->noteOff(0);
+		run(400);
+		track.mpeChannelsModel()->setValue(1);
+		auto reuseHandle = start(Note{TimePos{192}, TimePos{0}, 57});
+		const double reused = frequency();
+		reuseHandle->noteOff(0);
+		run(400);
+
+		qInfo() << "MPE glide frequencies: bent" << bent << "with plain note" << together << "reused channel" << reused;
+		QVERIFY(near(bent, G3));
+		QVERIFY(near(together, G3));
+		QVERIFY(near(reused, A3));
+	}
+
 private slots:
 	void initTestCase()
 	{
@@ -768,6 +864,348 @@ private slots:
 		QCOMPARE(output[15].left(), expected(curvePitch + 1));
 		QCOMPARE(output[16].left(), 0.f);
 		QCOMPARE(output[24].left(), expected(1));
+	}
+
+	void mpeGlidesAreIndependent()
+	{
+#ifndef LMMS_TEST_VST3_WRAPPERS
+		QSKIP("Build Vst3Instrument to test MPE glides");
+#endif
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		InstrumentTrack track{Engine::getSong()};
+		auto* instrument = track.loadInstrument("vst3instrument");
+		QVERIFY(instrument);
+		instrument->loadFile(VST3_TEST_MODULE);
+		track.pitchRangeModel()->setValue(12);
+		track.mpeChannelsModel()->setValue(2);
+		track.mpeModel()->setValue(true);
+		const auto frames = Engine::audioEngine()->framesPerPeriod();
+		std::vector<SampleFrame> output(frames);
+		// Each sounding note of the fixture adds .125 plus its own channel's bend.
+		auto bend = [](float semitones) { return (MidiNotePitch::bend(semitones, 12) - 8192.) / 16383.; };
+		using Handle = std::unique_ptr<NotePlayHandle, decltype(&NotePlayHandleManager::release)>;
+		auto start = [&](const Note& note)
+		{
+			Handle handle{NotePlayHandleManager::acquire(&track, 0, frames * 1000, note), &NotePlayHandleManager::release};
+			handle->play(nullptr);
+			return handle;
+		};
+
+		Note glide{TimePos{192}, TimePos{0}, 60};
+		glide.createDetuning();
+		glide.detuning()->automationClip()->putValue(0, 0, false);
+		glide.detuning()->automationClip()->putValue(100, -2, false);
+		auto glideHandle = start(glide);
+		auto plainHandle = start(Note{TimePos{192}, TimePos{0}, 64});
+		QVERIFY(glideHandle->midiChannel() != plainHandle->midiChannel());
+		QVERIFY(glideHandle->midiChannel() > 0 && plainHandle->midiChannel() > 0);
+		instrument->play(output.data());
+		// The first notes wait a frame for the MPE configuration.
+		QCOMPARE(output.back().left(), .25f);
+
+		// The glide bends only its own note.
+		glideHandle->processTimePos(100, 0, false);
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), float(.25 + bend(-2)));
+
+		// A glide ending off pitch leaves its channel bent for the release tail.
+		// The next note on that channel must not inherit the bend.
+		const int glideChannel = glideHandle->midiChannel();
+		glideHandle->noteOff(0);
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), .125f);
+		auto nextHandle = start(Note{TimePos{192}, TimePos{0}, 67});
+		QCOMPARE(nextHandle->midiChannel(), glideChannel);
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), .25f);
+
+		// Track pitch reaches every note through its own channel.
+		track.pitchModel()->setValue(100);
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), float(.25 + 2 * bend(1)));
+
+		// MPE configuration: master channel announces the zone, members get the bend range.
+		using Controller = int (*)(int, int);
+		auto controller = reinterpret_cast<Controller>(m_fixture.resolve("LMMS_TestVst3Controller"));
+		QVERIFY(controller);
+		QCOMPARE(controller(0, 0), 0);
+		QCOMPARE(controller(0, 1), int(MidiMpeConfigurationRPN));
+		QCOMPARE(controller(0, 2), 2);
+		for (int channel = 1; channel <= 2; ++channel)
+		{
+			QCOMPARE(controller(channel, 1), int(MidiPitchBendSensitivityRPN));
+			QCOMPARE(controller(channel, 2), 12);
+		}
+
+		// Turning MPE off announces an empty zone and recenters the member channels.
+		auto rpn = reinterpret_cast<Controller>(m_fixture.resolve("LMMS_TestVst3Rpn"));
+		QVERIFY(rpn);
+		nextHandle->noteOff(0);
+		plainHandle->noteOff(0);
+		track.mpeModel()->setValue(false);
+		instrument->play(output.data());
+		QCOMPARE(rpn(0, MidiMpeConfigurationRPN), 0);
+		auto offHandle = start(Note{TimePos{192}, TimePos{0}, 64});
+		QCOMPARE(offHandle->midiChannel(), 0);
+	}
+
+	void mpeBendsBecomeNoteTuning()
+	{
+#ifndef LMMS_TEST_VST3_WRAPPERS
+		QSKIP("Build Vst3Instrument to test MPE glides");
+#endif
+		// The fixture now maps pitch bend of every channel to one parameter and
+		// supports per-note tuning, like Serum 2.
+		qputenv("LMMS_TEST_VST3_SHARED_BEND", "1");
+		const auto unset = qScopeGuard([] { qunsetenv("LMMS_TEST_VST3_SHARED_BEND"); });
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		InstrumentTrack track{Engine::getSong()};
+		auto* instrument = track.loadInstrument("vst3instrument");
+		QVERIFY(instrument);
+		instrument->loadFile(VST3_TEST_MODULE);
+		track.pitchRangeModel()->setValue(12);
+		track.mpeChannelsModel()->setValue(2);
+		const auto frames = Engine::audioEngine()->framesPerPeriod();
+		std::vector<SampleFrame> output(frames);
+		instrument->play(output.data());
+		resetStats();
+		track.mpeModel()->setValue(true);
+		// VST3 tuning covers ±120 semitones around .5
+		auto tuning = [](float semitones)
+		{
+			const int bend = MidiNotePitch::bend(semitones, 12) - 8192;
+			return bend / (bend < 0 ? 8192. : 8191.) * 12 / 240.;
+		};
+		using Handle = std::unique_ptr<NotePlayHandle, decltype(&NotePlayHandleManager::release)>;
+		auto start = [&](const Note& note)
+		{
+			Handle handle{NotePlayHandleManager::acquire(&track, 0, frames * 1000, note), &NotePlayHandleManager::release};
+			handle->play(nullptr);
+			return handle;
+		};
+
+		Note glide{TimePos{192}, TimePos{0}, 60};
+		glide.createDetuning();
+		glide.detuning()->automationClip()->putValue(0, 0, false);
+		glide.detuning()->automationClip()->putValue(100, -2, false);
+		auto glideHandle = start(glide);
+		glideHandle->processTimePos(100, 0, false);
+		instrument->play(output.data());
+		// The first note waits a frame for the bend ranges.
+		QCOMPARE(output.back().left(), float(.125 + tuning(-2)));
+
+		// A plain note on another channel neither bends nor resets the glide.
+		auto plainHandle = start(Note{TimePos{192}, TimePos{0}, 64});
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), float(.25 + tuning(-2)));
+
+		// The next note on the glide's channel starts unbent.
+		glideHandle->noteOff(0);
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), .125f);
+		track.mpeChannelsModel()->setValue(1);
+		auto nextHandle = start(Note{TimePos{192}, TimePos{0}, 67});
+		QCOMPARE(nextHandle->midiChannel(), glideHandle->midiChannel());
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), .25f);
+
+		// Track pitch reaches both notes as tuning.
+		track.pitchModel()->setValue(100);
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), float(.25 + 2 * tuning(1)));
+
+		// The plugin gets no MPE configuration, which would switch it to its own MPE handling,
+		// and no RPN selection that would leave its data entry pointing at the configuration.
+		using Controller = int (*)(int, int);
+		auto controller = reinterpret_cast<Controller>(m_fixture.resolve("LMMS_TestVst3Controller"));
+		QVERIFY(controller);
+		QCOMPARE(controller(0, 1), 0);
+		QCOMPARE(controller(0, 2), 0);
+		QCOMPARE(controller(1, 2), 12);
+	}
+
+	void mpeToggleWithHeldNotes()
+	{
+#ifndef LMMS_TEST_VST3_WRAPPERS
+		QSKIP("Build Vst3Instrument to test MPE glides");
+#endif
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		InstrumentTrack track{Engine::getSong()};
+		auto* instrument = track.loadInstrument("vst3instrument");
+		QVERIFY(instrument);
+		instrument->loadFile(VST3_TEST_MODULE);
+		track.pitchRangeModel()->setValue(12);
+		const auto frames = Engine::audioEngine()->framesPerPeriod();
+		std::vector<SampleFrame> output(frames);
+		using Handle = std::unique_ptr<NotePlayHandle, decltype(&NotePlayHandleManager::release)>;
+		auto start = [&](const Note& note)
+		{
+			Handle handle{NotePlayHandleManager::acquire(&track, 0, frames * 1000, note), &NotePlayHandleManager::release};
+			handle->play(nullptr);
+			return handle;
+		};
+		using PitchBend = int (*)(int);
+		auto pitchBend = reinterpret_cast<PitchBend>(m_fixture.resolve("LMMS_TestVst3PitchBend"));
+		QVERIFY(pitchBend);
+
+		// Without MPE the track pitch bends the output channel. MPE notes carry
+		// it in their own bends, so enabling MPE recenters the master channel.
+		resetStats();
+		track.pitchModel()->setValue(100);
+		instrument->play(output.data());
+		QCOMPARE(pitchBend(0), MidiNotePitch::bend(1, 12));
+		track.mpeModel()->setValue(true);
+		instrument->play(output.data());
+		QCOMPARE(pitchBend(0), 8192);
+		track.pitchModel()->setValue(0);
+
+		// A note started in MPE mode keeps its channel, bend and zone after MPE is
+		// turned off, and ends on its member channel.
+		using Controller = int (*)(int, int);
+		auto rpn = reinterpret_cast<Controller>(m_fixture.resolve("LMMS_TestVst3Rpn"));
+		QVERIFY(rpn);
+		Note glide{TimePos{192}, TimePos{0}, 60};
+		glide.createDetuning();
+		glide.detuning()->automationClip()->putValue(0, 0, false);
+		glide.detuning()->automationClip()->putValue(100, -2, false);
+		auto held = start(glide);
+		held->processTimePos(100, 0, false);
+		const int channel = held->midiChannel();
+		QVERIFY(channel > 0);
+		instrument->play(output.data());
+		const float bent = output[0].left();
+		QVERIFY(bent < .125f);
+		resetStats();
+		track.mpeModel()->setValue(false);
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), bent);
+		QCOMPARE(pitchBend(channel), MidiNotePitch::bend(-2, 12));
+		QCOMPARE(pitchBend(0), -1);
+		QCOMPARE(rpn(0, MidiMpeConfigurationRPN), -1);
+
+		// Its end closes the zone and recenters its channel.
+		held->noteOff(0);
+		instrument->play(output.data());
+		QCOMPARE(output[0].left(), 0.f);
+		QCOMPARE(rpn(0, MidiMpeConfigurationRPN), 0);
+		QCOMPARE(rpn(0, MidiPitchBendSensitivityRPN), 12);
+		QCOMPARE(pitchBend(channel), 8192);
+	}
+
+	void bendRangePrecedesFirstNote()
+	{
+#ifndef LMMS_TEST_VST3_WRAPPERS
+		QSKIP("Build Vst3Instrument to test glides");
+#endif
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		using Controller = int (*)(int, int);
+		using Frame = int (*)(int);
+		auto controller = reinterpret_cast<Controller>(m_fixture.resolve("LMMS_TestVst3Controller"));
+		auto controllerFrame = reinterpret_cast<Controller>(m_fixture.resolve("LMMS_TestVst3ControllerFrame"));
+		auto noteOnFrame = reinterpret_cast<Frame>(m_fixture.resolve("LMMS_TestVst3NoteOnFrame"));
+		auto rpn = reinterpret_cast<Controller>(m_fixture.resolve("LMMS_TestVst3Rpn"));
+		QVERIFY(controller && controllerFrame && noteOnFrame && rpn);
+
+		// Parameter changes of one frame arrive in no defined order, so the RPN
+		// selection, its data entry and the note each need a later frame, also for
+		// notes at the start of a period.
+		for (const f_cnt_t offset : {0, 1, 5})
+		{
+			InstrumentTrack track{Engine::getSong()};
+			auto* instrument = track.loadInstrument("vst3instrument");
+			QVERIFY(instrument);
+			instrument->loadFile(VST3_TEST_MODULE);
+			const auto frames = Engine::audioEngine()->framesPerPeriod();
+			std::vector<SampleFrame> output(frames);
+			instrument->play(output.data());
+			resetStats();
+
+			std::unique_ptr<NotePlayHandle, decltype(&NotePlayHandleManager::release)> handle{
+				NotePlayHandleManager::acquire(&track, offset, frames * 1000, Note{TimePos{192}, TimePos{0}, 60}),
+				&NotePlayHandleManager::release};
+			handle->play(nullptr);
+			instrument->play(output.data());
+
+			const int channel = track.midiPort()->realOutputChannel();
+			QCOMPARE(controller(channel, 2), track.midiPitchRange());
+			QCOMPARE(rpn(channel, MidiPitchBendSensitivityRPN), track.midiPitchRange());
+			const int data = controllerFrame(channel, 2);
+			QVERIFY(controllerFrame(channel, 0) >= 0 && controllerFrame(channel, 0) < data);
+			QVERIFY(controllerFrame(channel, 1) >= 0 && controllerFrame(channel, 1) < data);
+			QVERIFY(noteOnFrame(channel) >= data);
+			QVERIFY(noteOnFrame(channel) <= int(offset) + 1);
+		}
+	}
+
+	void freshTrackSendsBendRange()
+	{
+#ifndef LMMS_TEST_VST3_WRAPPERS
+		QSKIP("Build Vst3Instrument to test glides");
+#endif
+		// Channel bends of the shared-bend fixture become per-note tuning, which
+		// the host scales by the bend range it learned from RPN 0.
+		qputenv("LMMS_TEST_VST3_SHARED_BEND", "1");
+		const auto unset = qScopeGuard([] { qunsetenv("LMMS_TEST_VST3_SHARED_BEND"); });
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		InstrumentTrack track{Engine::getSong()};
+		auto* instrument = track.loadInstrument("vst3instrument");
+		QVERIFY(instrument);
+		instrument->loadFile(VST3_TEST_MODULE);
+		track.midiPort()->setOutputChannel(2);
+		const auto frames = Engine::audioEngine()->framesPerPeriod();
+		std::vector<SampleFrame> output(frames);
+		instrument->play(output.data());
+
+		Note glide{TimePos{192}, TimePos{0}, 60};
+		glide.createDetuning();
+		glide.detuning()->automationClip()->putValue(0, 0, false);
+		glide.detuning()->automationClip()->putValue(100, -1, false);
+		std::unique_ptr<NotePlayHandle, decltype(&NotePlayHandleManager::release)> handle{
+			NotePlayHandleManager::acquire(&track, 0, frames * 1000, glide), &NotePlayHandleManager::release};
+		handle->play(nullptr);
+		handle->processTimePos(100, 0, false);
+		instrument->play(output.data());
+		// The track's default bend range is 1 semitone, not the MIDI default of 2,
+		// and the first note tells the host before it bends. The note waits a
+		// frame for that.
+		QCOMPARE(track.midiPitchRange(), 1);
+		QCOMPARE(output.back().left(), float(.125 - 1. / 240.));
+	}
+
+	void installedVitalMpeGlide()
+	{
+		const QString path = qEnvironmentVariable("LMMS_TEST_VITAL");
+		if (path.isEmpty()) { QSKIP("Set LMMS_TEST_VITAL to a Vital VST3 bundle"); }
+		// Vital bends every MIDI channel separately and ignores RPN 0, so its own
+		// bend range must match the track's.
+		checkInstalledMpeGlide(path, [](Vst3Plugin* plugin)
+		{
+			bool foundRange = false;
+			for (std::size_t i = 0; i < plugin->paramCount(); ++i)
+			{
+				auto* param = plugin->param(i);
+				if (param->title == "Pitch Bend Range")
+				{
+					param->model->setValue(12.f / 48.f);
+					foundRange = true;
+				}
+			}
+			QVERIFY(foundRange);
+		});
+	}
+
+	void installedSerumMpeGlide()
+	{
+		// Serum 2 maps pitch bend of all channels to one parameter. MPE bends
+		// reach it as VST3 per-note tuning, so its bend range does not matter.
+		const QString path = qEnvironmentVariable("LMMS_TEST_SERUM");
+		if (path.isEmpty()) { QSKIP("Set LMMS_TEST_SERUM to a Serum 2 VST3 bundle"); }
+		checkInstalledMpeGlide(path, [](Vst3Plugin*) {});
 	}
 
 	void glideEditor()

@@ -32,6 +32,7 @@
 #include "Engine.h"
 #include "embed.h"
 #include "GroupBox.h"
+#include "InstrumentTrack.h"
 #include "LcdSpinBox.h"
 #include "MidiClient.h"
 
@@ -142,6 +143,30 @@ InstrumentMidiIOView::InstrumentMidiIOView( QWidget* parent ) :
 		midiOutputLayout->insertWidget( 0, m_wpBtn );
 	}
 
+	m_mpeGroupBox = new GroupBox(tr("MPE (PER-NOTE PITCH BENDS)"));
+	m_mpeGroupBox->setToolTip(tr("Send every note on its own MIDI channel (MPE lower zone, channels 2-16), "
+		"so glide curves bend only their own note. The instrument must bend each channel separately "
+		"and use the same pitch bend range as this track."));
+	layout->addWidget(m_mpeGroupBox);
+
+	auto mpeLayout = new QHBoxLayout(m_mpeGroupBox);
+	mpeLayout->setContentsMargins(8, 18, 8, 8);
+	mpeLayout->setSpacing(4);
+
+	m_mpeChannelsSpinBox = new LcdSpinBox(2, m_mpeGroupBox);
+	/*: This string must be be short, its width must be less than
+	 *  width of LCD spin-box of two digits */
+	m_mpeChannelsSpinBox->setLabel(tr("CHANS"));
+	m_mpeChannelsSpinBox->setToolTip(tr("Number of member channels notes are spread over"));
+	m_mpeChannelsSpinBox->setEnabled(false);
+	mpeLayout->addWidget(m_mpeChannelsSpinBox);
+	mpeLayout->addStretch();
+
+	connect(m_mpeGroupBox->ledButton(), SIGNAL(toggled(bool)), m_mpeChannelsSpinBox, SLOT(setEnabled(bool)));
+	// MPE notes choose their own channels.
+	connect(m_mpeGroupBox->ledButton(), &QAbstractButton::toggled,
+		m_outputChannelSpinBox, [this](bool mpe) { m_outputChannelSpinBox->setEnabled(!mpe); });
+
 	auto baseVelocityGroupBox = new GroupBox(tr("VELOCITY MAPPING"));
 	baseVelocityGroupBox->setLedButtonShown(false);
 	layout->addWidget( baseVelocityGroupBox );
@@ -177,6 +202,18 @@ void InstrumentMidiIOView::modelChanged()
 	m_outputProgramSpinBox->setModel( &mp->m_outputProgramModel );
 
 	m_baseVelocitySpinBox->setModel( &mp->m_baseVelocityModel );
+
+	auto track = dynamic_cast<InstrumentTrack*>(mp->parentModel());
+	m_mpeGroupBox->setVisible(track != nullptr);
+	if (track)
+	{
+		m_mpeGroupBox->setModel(track->mpeModel());
+		m_mpeChannelsSpinBox->setModel(track->mpeChannelsModel());
+	}
+	// The LED only reports changes, and a port without an MPE group has none
+	const bool mpe = track && track->isMpeEnabled();
+	m_mpeChannelsSpinBox->setEnabled(mpe);
+	m_outputChannelSpinBox->setEnabled(!mpe);
 
 	if( m_rpBtn )
 	{

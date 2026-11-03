@@ -99,6 +99,10 @@ enum MidiStandardControllers
 	MidiControllerSostenuto = 66,
 	MidiControllerSoftPedal = 67,
 	MidiControllerLegatoFootswitch = 68,
+	MidiControllerDataIncrement = 96,
+	MidiControllerDataDecrement = 97,
+	MidiControllerNonRegisteredParameterNumberLSB = 98,
+	MidiControllerNonRegisteredParameterNumberMSB = 99,
 	MidiControllerRegisteredParameterNumberLSB = 100,
 	MidiControllerRegisteredParameterNumberMSB = 101,
 	// Channel Mode Messages are controllers too...
@@ -121,6 +125,7 @@ enum MidiControllerRegisteredParameterNumbers
 	MidiTuningProgramChangeRPN = 0x0003,
 	MidiTuningBankSelectRPN = 0x0004,
 	MidiModulationDepthRangeRPN = 0x0005,
+	MidiMpeConfigurationRPN = 0x0006,
 	MidiNullFunctionNumberRPN = 0x7F7F
 };
 

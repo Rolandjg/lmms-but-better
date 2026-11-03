@@ -1,11 +1,15 @@
 /* Minimal, deterministic VST3 fixture: gain, note input and silence flags.
  * Copyright (c) 2026 LMMS developers. Licensed under GPL-2.0-or-later.
  */
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
 #include <limits>
+#include <map>
 #include <thread>
+#include <vector>
 #include "pluginterfaces/gui/iplugview.h"
 #ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
@@ -16,6 +20,7 @@
 #include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
+#include "pluginterfaces/vst/ivstnoteexpression.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
 #ifdef _WIN32
@@ -31,6 +36,18 @@ namespace
 int stats[8]{};
 // active-on, active-off, processing-off, parameter queries, mapping queries,
 // editor destruction, editor removal, timer callbacks
+// Last value of CC 101, 100 and 6 per channel, for RPN checks
+int controllers[16][3]{};
+// Frame of that value and of the last note-on per channel, to check their order
+int controllerFrames[16][3]{};
+int noteOnFrames[16]{};
+// Last data entry per channel and RPN 0..7, -1 when none arrived since the last reset
+int rpnValues[16][8]{};
+int rpnSelection[16]{0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF,
+	0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF, 0x3FFF};
+// Last pitch bend per channel (0..16383), -1 when none arrived since the last reset
+int bends[16]{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+constexpr ParamID PitchBendBase = 100, ControllerBase = 200;
 const FUID classId{0x15B2E311, 0xDFBC4BE2, 0x951D0921, 0x106501AB};
 bool equal(const char* a, const FUID& b) { return std::memcmp(a, b, 16) == 0; }
 
@@ -101,13 +118,21 @@ public:
 	}
 };
 
-class TestPlugin final : public IComponent, public IAudioProcessor, public IEditController, public IMidiMapping
+// LMMS_TEST_VST3_SHARED_BEND imitates Serum 2: one pitch bend parameter for all
+// channels, and per-note pitch through the VST3 tuning note expression.
+bool sharedBend() { return std::getenv("LMMS_TEST_VST3_SHARED_BEND"); }
+
+class TestPlugin final : public IComponent, public IAudioProcessor, public IEditController, public IMidiMapping,
+	public INoteExpressionController
 {
 	uint32 refs = 1;
 	std::thread::id uiThread;
 	double gain = .5;
-	bool note = false;
-	double pitchBend = 8192. / 16383.;
+	static constexpr double Center = 8192. / 16383.;
+	int notes[16]{};
+	double pitchBend[16]{Center, Center, Center, Center, Center, Center, Center, Center,
+		Center, Center, Center, Center, Center, Center, Center, Center};
+	std::map<int32, double> tunings; // note id -> normalized tuning of sounding notes
 public:
 	tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
 	{
@@ -116,6 +141,10 @@ public:
 		else if (equal(iid, IAudioProcessor::iid)) { *obj = static_cast<IAudioProcessor*>(this); }
 		else if (equal(iid, IEditController::iid)) { *obj = static_cast<IEditController*>(this); }
 		else if (equal(iid, IMidiMapping::iid)) { *obj = static_cast<IMidiMapping*>(this); }
+		else if (equal(iid, INoteExpressionController::iid) && sharedBend())
+		{
+			*obj = static_cast<INoteExpressionController*>(this);
+		}
 		if (!*obj) { return kNoInterface; }
 		addRef();
 		return kResultOk;
@@ -176,11 +205,37 @@ public:
 		}
 		if (data.inputParameterChanges)
 		{
+			// RPN controllers replay in frame order. Within a frame data entries go
+			// first, an order the host must not rely on either way.
+			struct RpnPoint { int32 frame; int index; int channel; int value; };
+			std::vector<RpnPoint> rpnPoints;
 			for (int i = 0; i < data.inputParameterChanges->getParameterCount(); ++i)
 			{
 				auto queue = data.inputParameterChanges->getParameterData(i);
 				int32 offset;
-				if (queue->getParameterId() == 7) { queue->getPoint(queue->getPointCount() - 1, offset, gain); }
+				double value;
+				const auto id = queue->getParameterId();
+				if (id == 7) { queue->getPoint(queue->getPointCount() - 1, offset, gain); }
+				else if (id >= ControllerBase && id < ControllerBase + 48)
+				{
+					const int channel = (id - ControllerBase) / 3, index = (id - ControllerBase) % 3;
+					for (int p = 0; p < queue->getPointCount(); ++p)
+					{
+						if (queue->getPoint(p, offset, value) != kResultOk) { continue; }
+						controllers[channel][index] = int(std::lround(value * 127));
+						controllerFrames[channel][index] = offset;
+						rpnPoints.push_back({offset, index, channel, controllers[channel][index]});
+					}
+				}
+			}
+			std::stable_sort(rpnPoints.begin(), rpnPoints.end(), [](const auto& a, const auto& b)
+				{ return a.frame != b.frame ? a.frame < b.frame : (a.index == 2) > (b.index == 2); });
+			for (const auto& point : rpnPoints)
+			{
+				auto& selection = rpnSelection[point.channel];
+				if (point.index == 0) { selection = (selection & 0x7F) | point.value << 7; }
+				else if (point.index == 1) { selection = (selection & ~0x7F) | point.value; }
+				else if (selection < 8) { rpnValues[point.channel][selection] = point.value; }
 			}
 		}
 		if (gain == 0)
@@ -201,40 +256,93 @@ public:
 				for (int i = 0; i < data.inputParameterChanges->getParameterCount(); ++i)
 				{
 					auto queue = data.inputParameterChanges->getParameterData(i);
-					if (queue->getParameterId() != 8) { continue; }
+					const auto id = queue->getParameterId();
+					const int channel = id == 8 ? 0 : int(id) - int(PitchBendBase);
+					if (channel < 0 || channel >= 16 || (channel == 0 && id != 8)) { continue; }
 					for (int p = 0; p < queue->getPointCount(); ++p)
 					{
 						int32 offset;
 						double value;
 						queue->getPoint(p, offset, value);
-						if (offset == f) { pitchBend = value; }
+						if (offset == f)
+						{
+							pitchBend[channel] = value;
+							bends[channel] = int(std::lround(value * 16383));
+						}
 					}
 				}
 			}
 			while (next < eventCount && event.sampleOffset <= f)
 			{
-				note = event.type == Event::kNoteOnEvent;
+				if (event.type == Event::kNoteOnEvent)
+				{
+					++notes[event.noteOn.channel & 15];
+					noteOnFrames[event.noteOn.channel & 15] = event.sampleOffset;
+					if (event.noteOn.noteId >= 0) { tunings[event.noteOn.noteId] = .5; }
+				}
+				else if (event.type == Event::kNoteOffEvent)
+				{
+					auto& count = notes[event.noteOff.channel & 15];
+					count = std::max(0, count - 1);
+					tunings.erase(event.noteOff.noteId);
+				}
+				else if (event.type == Event::kNoteExpressionValueEvent
+					&& event.noteExpressionValue.typeId == kTuningTypeID)
+				{
+					const auto note = tunings.find(event.noteExpressionValue.noteId);
+					if (note != tunings.end()) { note->second = event.noteExpressionValue.value; }
+				}
 				if (++next < eventCount) { data.inputEvents->getEvent(next, event); }
 			}
+			// Each sounding note adds .25 * gain plus its own channel's bend.
+			int sounding = 0;
+			double bend = 0;
+			for (int channel = 0; channel < 16; ++channel)
+			{
+				sounding += notes[channel];
+				bend += notes[channel] * (pitchBend[sharedBend() ? 0 : channel] - Center);
+			}
+			for (const auto& [id, tuning] : tunings) { bend += tuning - .5; }
 			for (int ch = 0; ch < 2; ++ch)
 			{
 				data.outputs[0].channelBuffers32[ch][f] =
-					(data.inputs[0].channelBuffers32[ch][f] + (note ? .25f : 0.f)) * gain
-					+ (note ? pitchBend - 8192. / 16383. : 0.);
+					(data.inputs[0].channelBuffers32[ch][f] + .25f * sounding) * gain + bend;
 			}
 		}
 		return kResultOk;
 	}
 	int32 PLUGIN_API getParameterCount() override { return std::getenv("LMMS_TEST_VST3_HUGE_PARAMS") ? 1000000000 : 1; }
-	tresult PLUGIN_API getMidiControllerAssignment(int32, int16, CtrlNumber controller, ParamID& id) override
+	tresult PLUGIN_API getMidiControllerAssignment(int32, int16 channel, CtrlNumber controller, ParamID& id) override
 	{
 		++stats[4];
 		if (std::this_thread::get_id() != uiThread || std::getenv("LMMS_TEST_VST3_MAPPING_FORBIDDEN"))
 		{ throw std::runtime_error("mapping queried during MIDI delivery"); }
+		if (channel < 0 || channel >= 16) { return kResultFalse; }
+		const CtrlNumber rpnControllers[] = {101, 100, 6};
+		for (int i = 0; i < 3; ++i)
+		{
+			if (controller == rpnControllers[i]) { id = ControllerBase + channel * 3 + i; return kResultOk; }
+		}
 		if (controller != kPitchBend) { return kResultFalse; }
+		if (channel > 0 && !sharedBend()) { id = PitchBendBase + channel; return kResultOk; }
 		id = std::getenv("LMMS_TEST_VST3_MAPPING_CHANGED") ? 7 : 8;
 		return kResultOk;
 	}
+	int32 PLUGIN_API getNoteExpressionCount(int32, int16 channel) override { return channel == 0 ? 1 : 0; }
+	tresult PLUGIN_API getNoteExpressionInfo(int32, int16 channel, int32 index, NoteExpressionTypeInfo& info) override
+	{
+		if (channel != 0 || index != 0) { return kInvalidArgument; }
+		info = {};
+		info.typeId = kTuningTypeID;
+		info.valueDesc.defaultValue = .5;
+		info.valueDesc.maximum = 1;
+		info.flags = NoteExpressionTypeInfo::kIsBipolar;
+		return kResultOk;
+	}
+	tresult PLUGIN_API getNoteExpressionStringByValue(int32, int16, NoteExpressionTypeID, NoteExpressionValue, String128)
+		override { return kNotImplemented; }
+	tresult PLUGIN_API getNoteExpressionValueByString(int32, int16, NoteExpressionTypeID, const TChar*, NoteExpressionValue&)
+		override { return kNotImplemented; }
 	tresult PLUGIN_API getParameterInfo(int32 index, ParameterInfo& info) override
 	{
 		++stats[3];
@@ -326,4 +434,26 @@ extern "C" TEST_EXPORT bool bundleExit() { return ModuleExit(); }
 extern "C" TEST_EXPORT int LMMS_TestVst3Stat(int index)
 { return stats[index]; }
 extern "C" TEST_EXPORT void LMMS_TestVst3ResetStats()
-{ for (auto& value : stats) { value = 0; } }
+{
+	for (auto& value : stats) { value = 0; }
+	for (auto& channel : controllers) { for (auto& value : channel) { value = 0; } }
+	for (auto& channel : controllerFrames) { for (auto& frame : channel) { frame = -1; } }
+	for (auto& frame : noteOnFrames) { frame = -1; }
+	for (auto& channel : rpnValues) { for (auto& value : channel) { value = -1; } }
+	for (auto& bend : bends) { bend = -1; }
+}
+//! Last value of CC 101, 100 or 6 (@p index 0, 1, 2) received on @p channel
+extern "C" TEST_EXPORT int LMMS_TestVst3Controller(int channel, int index)
+{ return controllers[channel][index]; }
+//! Frame of that controller value, or -1
+extern "C" TEST_EXPORT int LMMS_TestVst3ControllerFrame(int channel, int index)
+{ return controllerFrames[channel][index]; }
+//! Last data entry for @p rpn (0..7) on @p channel, or -1
+extern "C" TEST_EXPORT int LMMS_TestVst3Rpn(int channel, int rpn)
+{ return rpnValues[channel][rpn]; }
+//! Frame of the last note-on on @p channel, or -1
+extern "C" TEST_EXPORT int LMMS_TestVst3NoteOnFrame(int channel)
+{ return noteOnFrames[channel]; }
+//! Last pitch bend received on @p channel, or -1
+extern "C" TEST_EXPORT int LMMS_TestVst3PitchBend(int channel)
+{ return bends[channel]; }

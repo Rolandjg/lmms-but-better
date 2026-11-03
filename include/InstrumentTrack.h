@@ -27,6 +27,9 @@
 #define LMMS_INSTRUMENT_TRACK_H
 
 
+#include <array>
+#include <atomic>
+
 #include "AudioBusHandle.h"
 #include "InstrumentFunctions.h"
 #include "InstrumentSoundShaping.h"
@@ -35,6 +38,7 @@
 #include "MidiNotePitch.h"
 #include "MidiEventProcessor.h"
 #include "MidiPort.h"
+#include "MpeChannelAllocator.h"
 #include "NotePlayHandle.h"
 #include "Piano.h"
 #include "Plugin.h"
@@ -75,6 +79,11 @@ public:
 
 	void processInEvent( const MidiEvent& event, const TimePos& time = TimePos(), f_cnt_t offset = 0 ) override;
 	void processOutEvent( const MidiEvent& event, const TimePos& time = TimePos(), f_cnt_t offset = 0 ) override;
+	//! Sends @p event to the instrument on @p channel and routes it as an MPE event (on its own channel)
+	//! or not, regardless of the current settings. Notes use it so their note-off goes where their note-on went.
+	void processOutEvent(const MidiEvent& event, const TimePos& time, f_cnt_t offset, int channel, bool mpe);
+	//! The channel the instrument gets an event of @p eventChannel on under the current settings
+	int outputChannelFor(int eventChannel, bool mpe) const;
 	// silence all running notes played by this track
 	void silenceAllNotes( bool removeIPH = false );
 
@@ -233,6 +242,11 @@ public:
 		return &m_pitchRangeModel;
 	}
 
+	//! In MPE mode each MIDI note gets its own member channel and pitch bend
+	BoolModel* mpeModel() { return &m_mpeModel; }
+	IntModel* mpeChannelsModel() { return &m_mpeChannelsModel; }
+	bool isMpeEnabled() const { return m_mpeModel.value(); }
+
 	IntModel * mixerChannelModel()
 	{
 		return &m_mixerChannelModel;
@@ -281,6 +295,7 @@ protected slots:
 	void updatePitch();
 	void updatePitchRange();
 	void updateMixerChannel();
+	void updateMpe();
 
 
 private:
@@ -289,8 +304,19 @@ private:
 	void updateNotePitch(const NotePlayHandle* note, f_cnt_t offset);
 	void endNotePitch(const NotePlayHandle* note, f_cnt_t offset);
 	void sendNotePitch(int channel, f_cnt_t offset);
+	void sendPendingMidiSetup(f_cnt_t offset);
+	int allocateMpeChannel(const NotePlayHandle* note);
+	void sendRpn(int channel, int rpn, int value, f_cnt_t offset, bool mpe);
+	// The following need m_notePitchMutex
+	void sendPitchRange(f_cnt_t offset);
+	void sendMpeConfiguration(f_cnt_t offset);
+	void endMpeZone(f_cnt_t offset);
 
 	MidiNotePitch m_notePitch;
+	MpeChannelAllocator m_mpeChannels;
+	int m_heldMpeNotes = 0; //!< notes started in MPE mode that have not ended
+	int m_mpeZoneSize = 0; //!< member channels of the MPE zone last sent, 0 when there is none
+	std::atomic<bool> m_midiSetupPending{true};
 	QMutex m_notePitchMutex;
 
 	MidiPort m_midiPort;
@@ -298,7 +324,7 @@ private:
 	NotePlayHandle* m_notes[NumKeys];
 	NotePlayHandleList m_sustainedNotes;
 
-	int m_runningMidiNotes[NumKeys];
+	std::array<std::array<int, NumKeys>, MidiChannelCount> m_runningMidiNotes{};
 	QMutex m_midiNotesMutex;
 
 	bool m_sustainPedalPressed;
@@ -323,6 +349,8 @@ private:
 
 	FloatModel m_pitchModel;
 	IntModel m_pitchRangeModel;
+	BoolModel m_mpeModel;
+	IntModel m_mpeChannelsModel;
 	IntModel m_mixerChannelModel;
 	BoolModel m_useMasterPitchModel;
 

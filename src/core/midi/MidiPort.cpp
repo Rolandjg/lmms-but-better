@@ -158,9 +158,17 @@ void MidiPort::processInEvent( const MidiEvent& event, const TimePos& time )
 
 void MidiPort::processOutEvent( const MidiEvent& event, const TimePos& time )
 {
+	processOutEvent(event, time, m_mpeMode);
+}
+
+
+
+
+void MidiPort::processOutEvent(const MidiEvent& event, const TimePos& time, bool mpe)
+{
 	// When output is enabled, route midi events if the selected channel matches
 	// the event channel or if there's no selected channel (value 0, represented by "--")
-	if( isOutputEnabled() && ( outputChannel() == 0 || realOutputChannel() == event.channel() ) )
+	if( isOutputEnabled() && ( mpe || outputChannel() == 0 || realOutputChannel() == event.channel() ) )
 	{
 		MidiEvent outEvent = event;
 
@@ -425,7 +433,7 @@ void MidiPort::updateWritablePorts()
 
 void MidiPort::updateOutputProgram()
 {
-	processOutEvent( MidiEvent( MidiProgramChange, realOutputChannel(), outputProgram()-1 ) );
+	processOutEvent( MidiEvent( MidiProgramChange, masterOutputChannel(), outputProgram()-1 ) );
 }
 
 
