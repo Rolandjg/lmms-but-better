@@ -274,7 +274,7 @@ class Vst3HostTest : public QObject
 			return handle;
 		};
 		const double G3 = 196, A3 = 220;
-		auto near = [](double frequency, double expected) { return std::abs(frequency / expected - 1) < .015; };
+		auto isNear = [](double frequency, double expected) { return std::abs(frequency / expected - 1) < .015; };
 
 		// A3 gliding two semitones down to G3
 		Note glide{TimePos{192}, TimePos{0}, 57};
@@ -301,9 +301,9 @@ class Vst3HostTest : public QObject
 		run(400);
 
 		qInfo() << "MPE glide frequencies: bent" << bent << "with plain note" << together << "reused channel" << reused;
-		QVERIFY(near(bent, G3));
-		QVERIFY(near(together, G3));
-		QVERIFY(near(reused, A3));
+		QVERIFY(isNear(bent, G3));
+		QVERIFY(isNear(together, G3));
+		QVERIFY(isNear(reused, A3));
 	}
 
 private slots:
