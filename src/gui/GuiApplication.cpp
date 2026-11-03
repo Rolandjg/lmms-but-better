@@ -127,7 +127,7 @@ GuiApplication::GuiApplication()
 
 	// Show splash screen
 	QSplashScreen splashScreen( embed::getIconPixmap( "splash" ) );
-	splashScreen.setFixedSize(splashScreen.pixmap().size());
+	splashScreen.setFixedSize(embed::logicalSize(splashScreen.pixmap()));
 	splashScreen.show();
 
 	QHBoxLayout layout;

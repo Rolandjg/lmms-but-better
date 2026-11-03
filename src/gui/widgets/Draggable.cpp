@@ -24,6 +24,7 @@
 
 #include "Draggable.h"
 #include "SimpleTextFloat.h"
+#include "embed.h"
 #include "interpolation.h"
 
 #include <QPixmap>
@@ -50,7 +51,7 @@ Draggable::Draggable(DirectionOfManipulation directionOfManipulation,
 
 QSize Draggable::sizeHint() const
 {
-	return m_pixmap.size();
+	return embed::logicalSize(m_pixmap);
 }
 
 void Draggable::setPixmap(const QPixmap& pixmap)
@@ -118,11 +119,11 @@ void Draggable::handleMovement()
 	float newCoord = std::lerp(m_pointA, m_pointB, (model()->value() - model()->minValue()) / (model()->maxValue() - model()->minValue()));
 	if (directionOfManipulation() == DirectionOfManipulation::Vertical)
 	{
-		move(x(), newCoord - m_pixmap.height() / 2.f);
+		move(x(), newCoord - embed::logicalSize(m_pixmap).height() / 2.f);
 	}
 	else if (directionOfManipulation() == DirectionOfManipulation::Horizontal)
 	{
-		move(newCoord - m_pixmap.width() / 2.f, y());
+		move(newCoord - embed::logicalSize(m_pixmap).width() / 2.f, y());
 	}
 }
 

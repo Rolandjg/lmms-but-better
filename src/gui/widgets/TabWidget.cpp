@@ -271,7 +271,7 @@ void TabWidget::paintEvent(QPaintEvent* pe)
 
 			// Draw artwork
 			p.setOpacity(active ? 1.0 : 0.45);
-			p.drawPixmap(tab_x_offset + (currentWidgetDesc.nwidth - artwork.width()) / 2, 1, artwork);
+			p.drawPixmap(tab_x_offset + (currentWidgetDesc.nwidth - embed::logicalSize(artwork).width()) / 2, 1, artwork);
 			p.setOpacity(1.0);
 		}
 		else

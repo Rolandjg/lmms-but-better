@@ -35,6 +35,7 @@
 #include "ControlAccessibility.h"
 #include "FontHelper.h"
 #include "DeprecationHelper.h"
+#include "embed.h"
 
 namespace lmms::gui
 {
@@ -225,7 +226,7 @@ void ComboBox::paintEvent( QPaintEvent * _pe )
 	p.setRenderHint(QPainter::Antialiasing, false);
 
 	auto arrow = m_pressed ? m_arrowSelected : m_arrow;
-	p.drawPixmap(width() - CB_ARROW_BTN_WIDTH + 3, (height() - arrow.height()) / 2 + 1, arrow);
+	p.drawPixmap(width() - CB_ARROW_BTN_WIDTH + 3, (height() - embed::logicalSize(arrow).height()) / 2 + 1, arrow);
 
 	if( model() && model()->size() > 0 )
 	{
@@ -235,12 +236,12 @@ void ComboBox::paintEvent( QPaintEvent * _pe )
 		int tx = 6;
 		if( !pm.isNull() )
 		{
-			if( pm.height() > 16 )
+			if (embed::logicalSize(pm).height() > 16)
 			{
-				pm = pm.scaledToHeight( 16, Qt::SmoothTransformation );
+				pm = pm.scaledToHeight(16 * pm.devicePixelRatio(), Qt::SmoothTransformation);
 			}
-			p.drawPixmap( tx, ( height() - pm.height() ) / 2, pm );
-			tx += pm.width() + 4;
+			p.drawPixmap( tx, (height() - embed::logicalSize(pm).height()) / 2, pm );
+			tx += embed::logicalSize(pm).width() + 4;
 		}
 		const int y = ( height()+p.fontMetrics().height() ) /2;
 		p.setPen(m_textColor);

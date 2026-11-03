@@ -90,7 +90,7 @@ void LcdFloatSpinBox::layoutSetup(const QString &style)
 	auto dotSpace = new QWidget(this);
 	dotSpace->setObjectName("lcdDot");
 	const QPixmap dotPixmap(embed::getIconPixmap(QString("lcd_" + style + "_dot").toUtf8().constData()));
-	dotSpace->setFixedSize(dotPixmap.width(), dotPixmap.height() / 2);
+	dotSpace->setFixedSize(embed::logicalSize(dotPixmap).width(), embed::logicalSize(dotPixmap).height() / 2);
 	lcdLayout->addWidget(dotSpace);
 
 	lcdLayout->addWidget(&m_fractionDisplay);

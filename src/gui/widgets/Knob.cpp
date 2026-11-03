@@ -118,12 +118,8 @@ void Knob::onKnobNumUpdated()
 	if (isModern())
 	{
 		// Modern knobs reuse the theme's standard knob artwork so they match native plugins
-		QPixmap pixmap = embed::getIconPixmap("knob02");
-		if (m_knobNum == KnobType::ModernLarge)
-		{
-			pixmap = pixmap.scaled(42, 42, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-		}
-		m_knobPixmap = std::make_unique<QPixmap>(pixmap);
+		const int diameter = m_knobNum == KnobType::ModernLarge ? 42 : -1;
+		m_knobPixmap = std::make_unique<QPixmap>(embed::getIconPixmap("knob02", diameter, diameter));
 		if (!isEnabled()) { convertPixmapToGrayScale(*m_knobPixmap); }
 		m_cache = QImage();
 		updateFixedSize();
@@ -160,7 +156,7 @@ void Knob::onKnobNumUpdated()
 		{
 			convertPixmapToGrayScale(*m_knobPixmap.get());
 		}
-		setFixedSize( m_knobPixmap->width(), m_knobPixmap->height() );
+		setFixedSize(embed::logicalSize(*m_knobPixmap));
 	}
 }
 
@@ -193,7 +189,7 @@ void Knob::setFixedFontSizeLabelRendering()
 
 int Knob::modernDiameter() const
 {
-	return m_knobPixmap ? m_knobPixmap->width() : 27;
+	return m_knobPixmap ? embed::logicalSize(*m_knobPixmap).width() : 27;
 }
 
 void Knob::updateFixedSize()
@@ -215,10 +211,10 @@ void Knob::updateFixedSize()
 		{
 			// In legacy mode only the width of the label is taken into account while the height is not
 			const int labelWidth = QFontMetrics(adjustedToPixelSize(font(), SMALL_FONT_SIZE)).horizontalAdvance(m_label);
-			const int width = std::max(m_knobPixmap->width(), labelWidth);
+			const int width = std::max(embed::logicalSize(*m_knobPixmap).width(), labelWidth);
 
 			// Legacy mode assumes that the label will fit into 10 pixels plus some of the pixmap area
-			setFixedSize(width, m_knobPixmap->height() + 10);
+			setFixedSize(width, embed::logicalSize(*m_knobPixmap).height() + 10);
 		}
 	}
 	else
@@ -231,7 +227,7 @@ void Knob::updateFixedSize()
 			return;
 		}
 
-		QSize pixmapSize = m_knobPixmap ? m_knobPixmap->size() : QSize(0, 0);
+		QSize pixmapSize = m_knobPixmap ? embed::logicalSize(*m_knobPixmap) : QSize(0, 0);
 
 		auto fm = QFontMetrics(font());
 
@@ -422,13 +418,16 @@ void Knob::drawKnob( QPainter * _p )
 	QColor currentArcColor = enabled ? m_arcActiveColor : m_arcInactiveColor;
 	QColor currentLineColor = enabled ? m_lineActiveColor : m_lineInactiveColor;
 
-	if( updateAngle() == false && !m_cache.isNull() && m_cache.size() == size() )
+	// Render the cache at the screen's resolution so HiDPI artwork stays sharp
+	const qreal dpr = devicePixelRatioF();
+	if( updateAngle() == false && !m_cache.isNull() && m_cache.size() == size() * dpr )
 	{
 		_p->drawImage( 0, 0, m_cache );
 		return;
 	}
 
-	m_cache = QImage( size(), QImage::Format_ARGB32 );
+	m_cache = QImage( size() * dpr, QImage::Format_ARGB32 );
+	m_cache.setDevicePixelRatio(dpr);
 	m_cache.fill( qRgba( 0, 0, 0, 0 ) );
 
 	QPainter p( &m_cache );
@@ -474,11 +473,11 @@ void Knob::drawKnob( QPainter * _p )
 
 
 	// Old-skool knobs
-	const float radius = m_knobPixmap->width() / 2.0f - 1;
-	mid = QPoint( width() / 2, m_knobPixmap->height() / 2 );
+	const float radius = embed::logicalSize(*m_knobPixmap).width() / 2.0f - 1;
+	mid = QPoint( width() / 2, embed::logicalSize(*m_knobPixmap).height() / 2 );
 
 	p.drawPixmap( static_cast<int>(
-				width() / 2 - m_knobPixmap->width() / 2 ), 0,
+				width() / 2 - embed::logicalSize(*m_knobPixmap).width() / 2 ), 0,
 				*m_knobPixmap );
 
 	p.setRenderHint( QPainter::Antialiasing );
@@ -486,7 +485,7 @@ void Knob::drawKnob( QPainter * _p )
 	const int centerAngle = angleFromValue( model()->inverseScaledValue( model()->centerValue() ), model()->minValue(), model()->maxValue(), m_totalAngle );
 
 	const int arcLineWidth = 2;
-	const int arcRectSize = m_knobPixmap->width() - arcLineWidth;
+	const int arcRectSize = embed::logicalSize(*m_knobPixmap).width() - arcLineWidth;
 
 	p.setPen(QPen(currentArcColor, 2));
 	p.drawArc( mid.x() - arcRectSize/2, 1, arcRectSize, arcRectSize, 315*16, 16*m_totalAngle );

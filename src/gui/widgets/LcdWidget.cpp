@@ -334,17 +334,20 @@ void LcdWidget::initUi(const QString& name , const QString& style)
 	//m_lcdPixmap = embed::getIconPixmap("lcd_19green"); // TODO!!
 
 	m_lcdPixmap = embed::getIconPixmap(QString("lcd_" + style).toUtf8().constData());
-	m_cellWidth = m_lcdPixmap.size().width() / LcdWidget::charsPerPixmap;
-	m_cellHeight = m_lcdPixmap.size().height() / 2;
+	m_cellWidth = embed::logicalSize(m_lcdPixmap).width() / LcdWidget::charsPerPixmap;
+	m_cellHeight = embed::logicalSize(m_lcdPixmap).height() / 2;
 
 	// The segments are drawn as vectors; the theme pixmap only supplies the colors. Its digit "8"
 	// is fully lit, so its brightest pixel is the lit color (upper row enabled, lower row disabled).
+	// Sampling works in physical pixels, which differ from the cell size on HiDPI screens
 	const QImage strip = m_lcdPixmap.toImage();
+	const int stripCellWidth = strip.width() / LcdWidget::charsPerPixmap;
+	const int stripCellHeight = strip.height() / 2;
 	const auto brightest = [&](int top) {
 		QColor best(Qt::black);
-		for (int y = top; y < top + m_cellHeight; ++y)
+		for (int y = top; y < top + stripCellHeight; ++y)
 		{
-			for (int x = 8 * m_cellWidth; x < 9 * m_cellWidth; ++x)
+			for (int x = 8 * stripCellWidth; x < 9 * stripCellWidth; ++x)
 			{
 				const QColor c = strip.pixelColor(x, y);
 				if (c.value() > best.value()) { best = c; }
@@ -353,7 +356,7 @@ void LcdWidget::initUi(const QString& name , const QString& style)
 		return best;
 	};
 	m_litColor = brightest(0);
-	m_disabledLitColor = brightest(m_cellHeight);
+	m_disabledLitColor = brightest(stripCellHeight);
 
 	m_marginWidth =  m_cellWidth / 2;
 

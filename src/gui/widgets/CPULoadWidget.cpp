@@ -46,9 +46,10 @@ CPULoadWidget::CPULoadWidget( QWidget * _parent ) :
 	m_changed( true ),
 	m_updateTimer()
 {
-	setFixedSize( m_background.width(), m_background.height() );
+	setFixedSize(embed::logicalSize(m_background));
 
-	m_temp = QPixmap( width(), height() );
+	m_temp = QPixmap(m_background.size());
+	m_temp.setDevicePixelRatio(m_background.devicePixelRatio());
 	
 
 	connect( &m_updateTimer, SIGNAL(timeout()),
@@ -74,11 +75,13 @@ void CPULoadWidget::paintEvent( QPaintEvent *  )
 
 		// Normally the CPU load indicator moves smoothly, with 1 pixel resolution. However, some themes may want to
 		// draw discrete elements (like LEDs), so the stepSize property can be used to specify a larger step size.
-		int w = (m_leds.width() * std::min(m_currentLoad, 100) / (stepSize() * 100)) * stepSize();
+		int w = (embed::logicalSize(m_leds).width() * std::min(m_currentLoad, 100) / (stepSize() * 100)) * stepSize();
 		if( w > 0 )
 		{
-			p.drawPixmap( 23, 3, m_leds, 0, 0, w,
-							m_leds.height() );
+			// The source rectangle is in physical pixels
+			const qreal dpr = m_leds.devicePixelRatio();
+			p.drawPixmap(QRectF(23, 3, w, embed::logicalSize(m_leds).height()), m_leds,
+				QRectF(0, 0, w * dpr, m_leds.height()));
 		}
 	}
 	QPainter p( this );
