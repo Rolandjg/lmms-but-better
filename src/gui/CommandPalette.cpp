@@ -532,13 +532,13 @@ void CommandPalette::collectCommands()
 	if (song)
 	{
 		addCommand({"transport/play", tr("Play / pause song"), tr("Transport"), "Space",
-			embed::getIconPixmap("play"), [] {
+			embed::getIcon("play"), [] {
 				if (auto se = getGUI()->songEditor()) { se->playAction()->trigger(); }
 			}});
 		addCommand({"transport/stop", tr("Stop playback"), tr("Transport"), QString(),
-			embed::getIconPixmap("stop"), [] { Engine::getSong()->stop(); }});
+			embed::getIcon("stop"), [] { Engine::getSong()->stop(); }});
 		addCommand({"transport/metronome", tr("Toggle metronome"), tr("Transport"), QString(),
-			embed::getIconPixmap("metronome"), [] {
+			embed::getIcon("metronome"), [] {
 				// Go through the toolbar button so its checked state stays in sync
 				auto button = getGUI()->mainWindow()->findChild<QAbstractButton*>("metronomeToggle");
 				if (button) { button->click(); }
@@ -555,11 +555,11 @@ void CommandPalette::collectCommands()
 
 	if (getGUI())
 	{
-		collectEditorActions(getGUI()->songEditor(), tr("Song Editor"), embed::getIconPixmap("songeditor"));
-		collectEditorActions(getGUI()->pianoRoll(), tr("Piano Roll"), embed::getIconPixmap("piano"));
-		collectEditorActions(getGUI()->patternEditor(), tr("Pattern Editor"), embed::getIconPixmap("pattern_track"));
+		collectEditorActions(getGUI()->songEditor(), tr("Song Editor"), embed::getIcon("songeditor"));
+		collectEditorActions(getGUI()->pianoRoll(), tr("Piano Roll"), embed::getIcon("piano"));
+		collectEditorActions(getGUI()->patternEditor(), tr("Pattern Editor"), embed::getIcon("pattern_track"));
 		collectEditorActions(getGUI()->automationEditor(), tr("Automation Editor"),
-			embed::getIconPixmap("automation"));
+			embed::getIcon("automation"));
 	}
 
 	collectTracks();
@@ -680,7 +680,7 @@ void CommandPalette::collectInstruments()
 	auto descriptors = getPluginFactory()->descriptors(Plugin::Type::Instrument);
 	for (const auto desc : descriptors)
 	{
-		const QIcon logo = desc->logo ? QIcon(desc->logo->pixmap()) : QIcon();
+		const QIcon logo = desc->logo ? desc->logo->icon() : QIcon();
 		Plugin::Descriptor::SubPluginFeatures::KeyList keys;
 		if (desc->subPluginFeatures) { desc->subPluginFeatures->listSubPluginKeys(desc, keys); }
 		else { keys.push_back(Plugin::Descriptor::SubPluginFeatures::Key(desc, desc->name)); }
@@ -720,7 +720,7 @@ void CommandPalette::collectEffects()
 
 	for (const auto desc : getPluginFactory()->descriptors(Plugin::Type::Effect))
 	{
-		const QIcon logo = desc->logo ? QIcon(desc->logo->pixmap()) : QIcon();
+		const QIcon logo = desc->logo ? desc->logo->icon() : QIcon();
 		Plugin::Descriptor::SubPluginFeatures::KeyList keys;
 		if (desc->subPluginFeatures) { desc->subPluginFeatures->listSubPluginKeys(desc, keys); }
 		else { keys.push_back(Plugin::Descriptor::SubPluginFeatures::Key(desc, desc->name)); }
@@ -760,7 +760,7 @@ void CommandPalette::collectTracks()
 		addCommand({"track/" + QString::number(reinterpret_cast<quintptr>(track)),
 			tr("Go to track: %1").arg(track->name()),
 			isInstrument ? tr("Instrument track") : tr("Track"), QString(),
-			isInstrument ? embed::getIconPixmap("instrument_track") : QIcon(),
+			isInstrument ? embed::getIcon("instrument_track") : QIcon(),
 			[view] {
 				if (!view) { return; }
 				auto songEditor = getGUI()->songEditor();
@@ -783,7 +783,7 @@ void CommandPalette::collectMixerChannels()
 		const auto channel = mixer->mixerChannel(i);
 		const QString name = i == 0 ? tr("Master") : channel->m_name;
 		addCommand({"mixer/" + QString::number(i), tr("Go to mixer channel %1: %2").arg(i).arg(name),
-			tr("Mixer"), QString(), embed::getIconPixmap("mixer"),
+			tr("Mixer"), QString(), embed::getIcon("mixer"),
 			[i] {
 				auto mixerView = getGUI()->mixerView();
 				if (i >= Engine::mixer()->numChannels()) { return; }
@@ -814,7 +814,7 @@ void CommandPalette::refilter()
 		if (bpm >= model.minValue() && bpm <= model.maxValue())
 		{
 			m_dynamicCommands.push_back({QString(), tr("Set tempo to %1 BPM").arg(bpm), tr("Song"), QString(),
-				embed::getIconPixmap("metronome"), [bpm] { Engine::getSong()->tempoModel().setValue(bpm); }});
+				embed::getIcon("metronome"), [bpm] { Engine::getSong()->tempoModel().setValue(bpm); }});
 		}
 	}
 

@@ -973,7 +973,7 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	m_snapSizeLabel( new QLabel( m_toolBar ) )
 {
 	setWindowTitle( tr( "Song-Editor" ) );
-	setWindowIcon( embed::getIconPixmap( "songeditor" ) );
+	setWindowIcon( embed::getIcon( "songeditor" ) );
 
 	setCentralWidget(m_editor);
 	setAcceptDrops(true);
@@ -999,13 +999,13 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	// Track actions
 	DropToolBar *trackActionsToolBar = addDropToolBarToTop(tr("Track actions"));
 
-	m_addPatternTrackAction = new QAction(embed::getIconPixmap("add_pattern_track"),
+	m_addPatternTrackAction = new QAction(embed::getIcon("add_pattern_track"),
 									 tr("Add pattern-track"), this);
 
-	m_addSampleTrackAction = new QAction(embed::getIconPixmap("add_sample_track"),
+	m_addSampleTrackAction = new QAction(embed::getIcon("add_sample_track"),
 										 tr("Add sample-track"), this);
 
-	m_addAutomationTrackAction = new QAction(embed::getIconPixmap("add_automation"),
+	m_addAutomationTrackAction = new QAction(embed::getIcon("add_automation"),
 											 tr("Add automation-track"), this);
 
 	connect(m_addPatternTrackAction, SIGNAL(triggered()), m_editor->m_song, SLOT(addPatternTrack()));
@@ -1021,10 +1021,10 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	DropToolBar *editActionsToolBar = addDropToolBarToTop(tr("Edit actions"));
 
 	m_editModeGroup = new ActionGroup(this);
-	m_drawModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_draw"), tr("Draw mode (Shift+D)"));
-	m_knifeModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_knife"),
+	m_drawModeAction = m_editModeGroup->addAction(embed::getIcon("edit_draw"), tr("Draw mode (Shift+D)"));
+	m_knifeModeAction = m_editModeGroup->addAction(embed::getIcon("edit_knife"),
 		tr("Knife mode: split clips (Shift+K)"));
-	m_selectModeAction = m_editModeGroup->addAction(embed::getIconPixmap("edit_select"),
+	m_selectModeAction = m_editModeGroup->addAction(embed::getIcon("edit_select"),
 		tr("Edit mode: select and move (Shift+S)"));
 	m_drawModeAction->setChecked(true);
 	// The same keys as the tools in the Piano Roll and the Automation Editor
@@ -1060,7 +1060,7 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	timeLineToolBar->addAction(addMarkerAction);
 
 	// The loop points button is shared with the other editors, so its shortcut lives here
-	auto toggleLoopAction = new QAction(embed::getIconPixmap("loop_points_on"), tr("Toggle loop points"), this);
+	auto toggleLoopAction = new QAction(embed::getIcon("loop_points_on"), tr("Toggle loop points"), this);
 	addShortcut(toggleLoopAction, {keySequence(Qt::SHIFT, Qt::Key_L)});
 	connect(toggleLoopAction, &QAction::triggered, timeLine, [timeLine] {
 		timeLine->timeline()->setLoopEnabled(!timeLine->timeline()->loopEnabled());
@@ -1074,8 +1074,8 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 #else
 	const QString insertBarKey = "Insert";
 #endif
-	m_insertBarAction = new QAction(embed::getIconPixmap("insert_bar"), tr("Insert bar (Shift+%1)").arg(insertBarKey), this);
-	m_removeBarAction = new QAction(embed::getIconPixmap("remove_bar"), tr("Remove bar (Shift+Delete)"), this);
+	m_insertBarAction = new QAction(embed::getIcon("insert_bar"), tr("Insert bar (Shift+%1)").arg(insertBarKey), this);
+	m_removeBarAction = new QAction(embed::getIcon("remove_bar"), tr("Remove bar (Shift+Delete)"), this);
 	insertActionsToolBar->addAction( m_insertBarAction );
 	insertActionsToolBar->addAction( m_removeBarAction );
 	connect(m_insertBarAction, SIGNAL(triggered()), song, SLOT(insertBar()));
@@ -1119,7 +1119,7 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 	m_snappingComboBox->setToolTip(tr("Clip snapping size"));
 	connect(m_editor->snappingModel(), SIGNAL(dataChanged()), this, SLOT(updateSnapLabel()));
 
-	m_setProportionalSnapAction = new QAction(embed::getIconPixmap("proportional_snap"),
+	m_setProportionalSnapAction = new QAction(embed::getIcon("proportional_snap"),
 											 tr("Toggle proportional snap on/off (Shift+P)"), this);
 	m_setProportionalSnapAction->setCheckable(true);
 	m_setProportionalSnapAction->setChecked(false);

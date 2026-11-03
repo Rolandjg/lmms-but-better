@@ -16,7 +16,7 @@ namespace lmms::gui
 TemplatesMenu::TemplatesMenu(QWidget *parent) :
 	QMenu(tr("New from template"), parent)
 {
-	setIcon(embed::getIconPixmap("project_new"));
+	setIcon(embed::getIcon("project_new"));
 
 	connect( this, SIGNAL(aboutToShow()), SLOT(fillTemplatesMenu()));
 	connect( this, SIGNAL(triggered(QAction*)),
@@ -59,7 +59,7 @@ void TemplatesMenu::addTemplatesFromDir( const QDir& dir ) {
 		addSeparator();
 	}
 
-	auto projectFileIcon = embed::getIconPixmap( "project_file" );
+	auto projectFileIcon = embed::getIcon("project_file");
 
 	for(const QFileInfo& templateFile : templates)
 	{

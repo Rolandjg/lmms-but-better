@@ -65,7 +65,7 @@ PeakControllerEffectControlDialog::PeakControllerEffectControlDialog(
 				PeakControllerEffectControls * _controls ) :
 	EffectControlDialog( _controls )
 {
-	setWindowIcon( embed::getIconPixmap( "controller" ) );
+	setWindowIcon( embed::getIcon( "controller" ) );
 	modern::applyWindowStyle(this);
 
 	auto root = new QVBoxLayout(this);

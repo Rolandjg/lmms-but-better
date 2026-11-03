@@ -271,7 +271,7 @@ Vst3InsView::Vst3InsView(Vst3Instrument* instrument, QWidget* parent) :
 
 	m_openFileButton = new QPushButton(tr("Load VST3 plugin…"), this);
 	m_openFileButton->setObjectName("vst3LoadPlugin");
-	m_openFileButton->setIcon(embed::getIconPixmap("project_open"));
+	m_openFileButton->setIcon(embed::getIcon("project_open"));
 	m_openFileButton->setMinimumHeight(28);
 	m_openFileButton->setToolTip(tr("Select a .vst3 plugin bundle or its native module"));
 	connect(m_openFileButton, &QPushButton::clicked,
@@ -280,7 +280,7 @@ Vst3InsView::Vst3InsView(Vst3Instrument* instrument, QWidget* parent) :
 
 	m_toggleUiButton = new QPushButton(tr("Show GUI"), this);
 	m_toggleUiButton->setObjectName("vst3ShowEditor");
-	m_toggleUiButton->setIcon(embed::getIconPixmap("zoom"));
+	m_toggleUiButton->setIcon(embed::getIcon("zoom"));
 	m_toggleUiButton->setMinimumHeight(28);
 	m_toggleUiButton->setCheckable(true);
 	connect(m_toggleUiButton, &QPushButton::toggled,

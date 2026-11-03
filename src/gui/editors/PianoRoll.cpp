@@ -5914,10 +5914,10 @@ PianoRollWindow::PianoRollWindow() :
 
 	// init edit-buttons at the top
 	auto editModeGroup = new ActionGroup(this);
-	QAction* drawAction = editModeGroup->addAction( embed::getIconPixmap( "edit_draw" ), tr( "Draw mode (Shift+D)" ) );
-	QAction* eraseAction = editModeGroup->addAction( embed::getIconPixmap( "edit_erase" ), tr("Erase mode (Shift+E)" ) );
-	QAction* selectAction = editModeGroup->addAction( embed::getIconPixmap( "edit_select" ), tr( "Select mode (Shift+S)" ) );
-	QAction* pitchBendAction = editModeGroup->addAction( embed::getIconPixmap( "automation" ), tr("Pitch Bend mode (Shift+T)" ) );
+	QAction* drawAction = editModeGroup->addAction( embed::getIcon( "edit_draw" ), tr( "Draw mode (Shift+D)" ) );
+	QAction* eraseAction = editModeGroup->addAction( embed::getIcon( "edit_erase" ), tr("Erase mode (Shift+E)" ) );
+	QAction* selectAction = editModeGroup->addAction( embed::getIcon( "edit_select" ), tr( "Select mode (Shift+S)" ) );
+	QAction* pitchBendAction = editModeGroup->addAction( embed::getIcon( "automation" ), tr("Pitch Bend mode (Shift+T)" ) );
 
 	drawAction->setChecked( true );
 
@@ -5932,7 +5932,7 @@ PianoRollWindow::PianoRollWindow() :
 	auto quantizeButton = new QToolButton(notesActionsToolBar);
 	auto quantizeButtonMenu = new QMenu(quantizeButton);
 
-	auto quantizeAction = new QAction(embed::getIconPixmap("quantize"), tr("Quantize"), this);
+	auto quantizeAction = new QAction(embed::getIcon("quantize"), tr("Quantize"), this);
 	auto quantizePosAction = new QAction(tr("Quantize positions"), this);
 	auto quantizeLengthAction = new QAction(tr("Quantize lengths"), this);
 
@@ -5971,13 +5971,13 @@ PianoRollWindow::PianoRollWindow() :
 
 	// -- File ToolButton
 	m_fileToolsButton = new QToolButton(m_toolBar);
-	m_fileToolsButton->setIcon(embed::getIconPixmap("file"));
+	m_fileToolsButton->setIcon(embed::getIcon("file"));
 	m_fileToolsButton->setPopupMode(QToolButton::InstantPopup);
 
 	// Import / export
-	auto importAction = new QAction(embed::getIconPixmap("project_import"), tr("Import clip"), m_fileToolsButton);
+	auto importAction = new QAction(embed::getIcon("project_import"), tr("Import clip"), m_fileToolsButton);
 
-	auto exportAction = new QAction(embed::getIconPixmap("project_export"), tr("Export clip"), m_fileToolsButton);
+	auto exportAction = new QAction(embed::getIcon("project_export"), tr("Export clip"), m_fileToolsButton);
 
 	m_fileToolsButton->addAction(importAction);
 	m_fileToolsButton->addAction(exportAction);
@@ -5990,14 +5990,14 @@ PianoRollWindow::PianoRollWindow() :
 	// Copy + paste actions
 	DropToolBar *copyPasteActionsToolBar =  addDropToolBarToTop( tr( "Copy paste controls" ) );
 
-	auto cutAction = new QAction(embed::getIconPixmap("edit_cut"), tr("Cut (%1+X)").arg(UI_CTRL_KEY), this);
+	auto cutAction = new QAction(embed::getIcon("edit_cut"), tr("Cut (%1+X)").arg(UI_CTRL_KEY), this);
 
-	auto copyAction = new QAction(embed::getIconPixmap("edit_copy"), tr("Copy (%1+C)").arg(UI_CTRL_KEY), this);
+	auto copyAction = new QAction(embed::getIcon("edit_copy"), tr("Copy (%1+C)").arg(UI_CTRL_KEY), this);
 
-	auto pasteAction = new QAction(embed::getIconPixmap("edit_paste"), tr("Paste (%1+V)").arg(UI_CTRL_KEY), this);
+	auto pasteAction = new QAction(embed::getIcon("edit_paste"), tr("Paste (%1+V)").arg(UI_CTRL_KEY), this);
 
 	auto duplicateAction
-		= new QAction(embed::getIconPixmap("step_btn_duplicate"), tr("Duplicate (%1+D)").arg(UI_CTRL_KEY), this);
+		= new QAction(embed::getIcon("step_btn_duplicate"), tr("Duplicate (%1+D)").arg(UI_CTRL_KEY), this);
 
 	cutAction->setShortcut(keySequence(Qt::CTRL, Qt::Key_X));
 	copyAction->setShortcut(keySequence(Qt::CTRL, Qt::Key_C));
@@ -6020,40 +6020,40 @@ PianoRollWindow::PianoRollWindow() :
 
 	// -- Note modifier tools
 	auto noteToolsButton = new QToolButton(m_toolBar);
-	noteToolsButton->setIcon(embed::getIconPixmap("tool"));
+	noteToolsButton->setIcon(embed::getIcon("tool"));
 	noteToolsButton->setPopupMode(QToolButton::InstantPopup);
 
-	auto glueAction = new QAction(embed::getIconPixmap("glue"), tr("Glue"), noteToolsButton);
+	auto glueAction = new QAction(embed::getIcon("glue"), tr("Glue"), noteToolsButton);
 	connect(glueAction, SIGNAL(triggered()), m_editor, SLOT(glueNotes()));
 	glueAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_G));
 
-	auto knifeAction = new QAction(embed::getIconPixmap("edit_knife"), tr("Knife"), noteToolsButton);
+	auto knifeAction = new QAction(embed::getIcon("edit_knife"), tr("Knife"), noteToolsButton);
 	connect(knifeAction, &QAction::triggered, m_editor, &PianoRoll::setKnifeAction);
 	knifeAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_K));
 
-	auto strumAction = new QAction(embed::getIconPixmap("arp_free"), tr("Strum"), noteToolsButton);
+	auto strumAction = new QAction(embed::getIcon("arp_free"), tr("Strum"), noteToolsButton);
 	connect(strumAction, &QAction::triggered, m_editor, &PianoRoll::setStrumAction);
 	strumAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_J));
 
-	auto fillAction = new QAction(embed::getIconPixmap("fill"), tr("Fill"), noteToolsButton);
+	auto fillAction = new QAction(embed::getIcon("fill"), tr("Fill"), noteToolsButton);
 	connect(fillAction, &QAction::triggered, [this](){ m_editor->fitNoteLengths(true); });
 	fillAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_F));
 
-	auto cutOverlapsAction = new QAction(embed::getIconPixmap("cut_overlaps"), tr("Cut overlaps"), noteToolsButton);
+	auto cutOverlapsAction = new QAction(embed::getIcon("cut_overlaps"), tr("Cut overlaps"), noteToolsButton);
 	connect(cutOverlapsAction, &QAction::triggered, [this](){ m_editor->fitNoteLengths(false); });
 	cutOverlapsAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_C));
 
-	auto minLengthAction = new QAction(embed::getIconPixmap("min_length"), tr("Min length as last"), noteToolsButton);
+	auto minLengthAction = new QAction(embed::getIcon("min_length"), tr("Min length as last"), noteToolsButton);
 	connect(minLengthAction, &QAction::triggered, [this](){ m_editor->constrainNoteLengths(false); });
 
-	auto maxLengthAction = new QAction(embed::getIconPixmap("max_length"), tr("Max length as last"), noteToolsButton);
+	auto maxLengthAction = new QAction(embed::getIcon("max_length"), tr("Max length as last"), noteToolsButton);
 	connect(maxLengthAction, &QAction::triggered, [this](){ m_editor->constrainNoteLengths(true); });
 
-	auto reverseAction = new QAction(embed::getIconPixmap("flip_x"), tr("Reverse Notes"), noteToolsButton);
+	auto reverseAction = new QAction(embed::getIcon("flip_x"), tr("Reverse Notes"), noteToolsButton);
 	connect(reverseAction, &QAction::triggered, [this](){ m_editor->reverseNotes(); });
 	reverseAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_R));
 
-	auto humanizeAction = new QAction(embed::getIconPixmap("humanize"), tr("Humanize…"), noteToolsButton);
+	auto humanizeAction = new QAction(embed::getIcon("humanize"), tr("Humanize…"), noteToolsButton);
 	connect(humanizeAction, &QAction::triggered, [this]() { m_editor->humanizeNotes(); });
 	humanizeAction->setShortcut(keySequence(Qt::SHIFT, Qt::Key_H));
 
@@ -6143,7 +6143,7 @@ PianoRollWindow::PianoRollWindow() :
 
 	// -- Clear ghost MIDI clip button
 	m_clearGhostButton = new QPushButton( m_toolBar );
-	m_clearGhostButton->setIcon( embed::getIconPixmap( "clear_ghost_note" ) );
+	m_clearGhostButton->setIcon( embed::getIcon( "clear_ghost_note" ) );
 	m_clearGhostButton->setToolTip( tr( "Clear ghost notes" ) );
 	m_clearGhostButton->setEnabled( false );
 	connect( m_clearGhostButton, SIGNAL(clicked()), m_editor, SLOT(clearGhostClip()));
@@ -6220,7 +6220,7 @@ PianoRollWindow::PianoRollWindow() :
 	// setup our actual window
 	setFocusPolicy( Qt::StrongFocus );
 	setFocus();
-	setWindowIcon( embed::getIconPixmap( "piano" ) );
+	setWindowIcon( embed::getIcon( "piano" ) );
 	setCurrentMidiClip( nullptr );
 
 	// Connections
@@ -6637,11 +6637,11 @@ void PianoRollWindow::updateStepRecordingIcon()
 {
 	if(m_editor->isStepRecording())
 	{
-		m_toggleStepRecordingAction->setIcon(embed::getIconPixmap("record_step_on"));
+		m_toggleStepRecordingAction->setIcon(embed::getIcon("record_step_on"));
 	}
 	else
 	{
-		m_toggleStepRecordingAction->setIcon(embed::getIconPixmap("record_step_off"));
+		m_toggleStepRecordingAction->setIcon(embed::getIcon("record_step_off"));
 	}
 }
 

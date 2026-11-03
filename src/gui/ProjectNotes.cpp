@@ -73,7 +73,7 @@ ProjectNotes::ProjectNotes()
 
 	setCentralWidget( m_edit );
 	setWindowTitle( tr( "Project Notes" ) );
-	setWindowIcon( embed::getIconPixmap( "project_notes" ) );
+	setWindowIcon( embed::getIcon( "project_notes" ) );
 
 	getGUI()->mainWindow()->addWindowedWidget( this );
 	parentWidget()->setAttribute( Qt::WA_DeleteOnClose, false );
@@ -110,30 +110,30 @@ void ProjectNotes::setupActions()
 {
 	QToolBar * tb = addToolBar( tr( "Edit Actions" ) );
 
-	auto a = new QAction(embed::getIconPixmap("edit_undo"), tr("&Undo"), this);
+	auto a = new QAction(embed::getIcon("edit_undo"), tr("&Undo"), this);
 	a->setShortcut( tr( "%1+Z" ).arg(UI_CTRL_KEY) );
 	connect( a, SIGNAL(triggered()), m_edit, SLOT(undo()));
 	tb->addAction( a );
 
-	a = new QAction( embed::getIconPixmap( "edit_redo" ), tr( "&Redo" ),
+	a = new QAction( embed::getIcon( "edit_redo" ), tr( "&Redo" ),
 									this );
 	a->setShortcut( tr( "%1+Y" ).arg(UI_CTRL_KEY) );
 	connect( a, SIGNAL(triggered()), m_edit, SLOT(redo()));
 	tb->addAction( a );
 
-	a = new QAction( embed::getIconPixmap( "edit_copy" ), tr( "&Copy" ),
+	a = new QAction( embed::getIcon( "edit_copy" ), tr( "&Copy" ),
 									this );
 	a->setShortcut( tr( "%1+C" ).arg(UI_CTRL_KEY) );
 	connect( a, SIGNAL(triggered()), m_edit, SLOT(copy()));
 	tb->addAction( a );
 
-	a = new QAction( embed::getIconPixmap( "edit_cut" ), tr( "Cu&t" ),
+	a = new QAction( embed::getIcon( "edit_cut" ), tr( "Cu&t" ),
 									this );
 	a->setShortcut( tr( "%1+X" ).arg(UI_CTRL_KEY) );
 	connect( a, SIGNAL(triggered()), m_edit, SLOT(cut()));
 	tb->addAction( a );
 
-	a = new QAction( embed::getIconPixmap( "edit_paste" ), tr( "&Paste" ),
+	a = new QAction( embed::getIcon( "edit_paste" ), tr( "&Paste" ),
 									this );
 	a->setShortcut( tr( "%1+V" ).arg(UI_CTRL_KEY) );
 	connect( a, SIGNAL(triggered()), m_edit, SLOT(paste()));
@@ -165,21 +165,21 @@ void ProjectNotes::setupActions()
 	m_comboSize->lineEdit()->setText( QString::number(
 					QApplication::font().pointSize() ) );
 
-	m_actionTextBold = new QAction( embed::getIconPixmap( "text_bold" ),
+	m_actionTextBold = new QAction( embed::getIcon( "text_bold" ),
 							tr( "&Bold" ), this );
 	m_actionTextBold->setShortcut( tr( "%1+B" ).arg(UI_CTRL_KEY) );
 	m_actionTextBold->setCheckable( true );
 	connect( m_actionTextBold, SIGNAL(triggered()), this,
 							SLOT(textBold()));
 
-	m_actionTextItalic = new QAction( embed::getIconPixmap( "text_italic" ),
+	m_actionTextItalic = new QAction( embed::getIcon( "text_italic" ),
 							tr( "&Italic" ), this );
 	m_actionTextItalic->setShortcut( tr( "%1+I" ).arg(UI_CTRL_KEY) );
 	m_actionTextItalic->setCheckable( true );
 	connect( m_actionTextItalic, SIGNAL(triggered()), this,
 							SLOT(textItalic()));
 
-	m_actionTextUnderline = new QAction( embed::getIconPixmap(
+	m_actionTextUnderline = new QAction( embed::getIcon(
 								"text_under" ),
 						tr( "&Underline" ), this );
 	m_actionTextUnderline->setShortcut( tr( "%1+U" ).arg(UI_CTRL_KEY) );
@@ -191,13 +191,13 @@ void ProjectNotes::setupActions()
 	connect( grp, SIGNAL(triggered(QAction*)), this,
 					SLOT(textAlign(QAction*)));
 
-	m_actionAlignLeft = new QAction( embed::getIconPixmap( "text_left" ),
+	m_actionAlignLeft = new QAction( embed::getIcon( "text_left" ),
 						tr( "&Left" ), m_edit );
 	m_actionAlignLeft->setShortcut( tr( "%1+L" ).arg(UI_CTRL_KEY) );
 	m_actionAlignLeft->setCheckable( true );
 	grp->addAction( m_actionAlignLeft );
 
-	m_actionAlignCenter = new QAction( embed::getIconPixmap(
+	m_actionAlignCenter = new QAction( embed::getIcon(
 								"text_center" ),
 						tr( "C&enter" ), m_edit );
 	m_actionAlignCenter->setShortcutContext( Qt::WidgetShortcut );
@@ -205,14 +205,14 @@ void ProjectNotes::setupActions()
 	m_actionAlignCenter->setCheckable( true );
 	grp->addAction( m_actionAlignCenter );
 
-	m_actionAlignRight = new QAction( embed::getIconPixmap( "text_right" ),
+	m_actionAlignRight = new QAction( embed::getIcon( "text_right" ),
 						tr( "&Right" ), m_edit );
 	m_actionAlignRight->setShortcutContext( Qt::WidgetShortcut );
 	m_actionAlignRight->setShortcut( tr( "%1+R" ).arg(UI_CTRL_KEY) );
 	m_actionAlignRight->setCheckable( true );
 	grp->addAction( m_actionAlignRight );
 
-	m_actionAlignJustify = new QAction( embed::getIconPixmap(
+	m_actionAlignJustify = new QAction( embed::getIcon(
 								"text_block" ),
 						tr( "&Justify" ), m_edit );
 	m_actionAlignJustify->setShortcut( tr( "%1+J" ).arg(UI_CTRL_KEY) );

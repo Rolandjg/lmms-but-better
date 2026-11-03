@@ -29,7 +29,7 @@ namespace lmms::gui
 {
 
 
-ToolButton::ToolButton( const QPixmap & _pixmap, const QString & _tooltip,
+ToolButton::ToolButton(const QIcon& icon, const QString& tooltip,
 			QObject * _receiver, const char * _slot,
 			QWidget * _parent ) :
 	QToolButton( _parent )
@@ -40,8 +40,8 @@ ToolButton::ToolButton( const QPixmap & _pixmap, const QString & _tooltip,
 	{
 		connect( this, SIGNAL(clicked()), _receiver, _slot );
 	}
-	setToolTip(_tooltip);
-	setIcon( _pixmap );
+	setToolTip(tooltip);
+	setIcon(icon);
 }
 
 

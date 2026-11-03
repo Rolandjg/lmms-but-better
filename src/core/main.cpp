@@ -635,6 +635,8 @@ int main( int argc, char * * argv )
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
 	// High-DPI scaling is always enabled in Qt >= 6.0
 	QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+	// Let QIcon request device-resolution pixmaps (needed for sharp SVG icons on HiDPI screens)
+	QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 #endif
 
 	QCoreApplication * app = coreOnly ?
@@ -1153,7 +1155,7 @@ int main( int argc, char * * argv )
 							) );
 
 			mb.setIcon( QMessageBox::Warning );
-			mb.setWindowIcon( embed::getIconPixmap( "icon_small" ) );
+			mb.setWindowIcon( embed::getIcon( "icon_small" ) );
 			mb.setWindowFlags( Qt::WindowCloseButtonHint );
 
 			// setting all buttons to the same roles allows us
@@ -1166,8 +1168,8 @@ int main( int argc, char * * argv )
 			exit->setVisible(false);
 
 			// set icons
-			recover->setIcon( embed::getIconPixmap( "recover" ) );
-			discard->setIcon( embed::getIconPixmap( "discard" ) );
+			recover->setIcon( embed::getIcon( "recover" ) );
+			discard->setIcon( embed::getIcon( "discard" ) );
 
 			mb.setDefaultButton( recover );
 			mb.setEscapeButton( exit );

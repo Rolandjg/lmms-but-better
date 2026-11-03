@@ -62,15 +62,15 @@ PatternClipView::PatternClipView(Clip* _clip, TrackView* _tv) :
 
 void PatternClipView::constructContextMenu(QMenu* _cm)
 {
-	auto a = new QAction(embed::getIconPixmap("pattern_track"), tr("Open in Pattern Editor"), _cm);
+	auto a = new QAction(embed::getIcon("pattern_track"), tr("Open in Pattern Editor"), _cm);
 	_cm->insertAction( _cm->actions()[0], a );
 	connect( a, SIGNAL(triggered(bool)),
 			this, SLOT(openInPatternEditor()));
 	_cm->insertSeparator( _cm->actions()[1] );
 	_cm->addSeparator();
-	_cm->addAction( embed::getIconPixmap( "reload" ), tr( "Reset name" ),
+	_cm->addAction( embed::getIcon( "reload" ), tr( "Reset name" ),
 						this, SLOT(resetName()));
-	_cm->addAction( embed::getIconPixmap( "edit_rename" ),
+	_cm->addAction( embed::getIcon( "edit_rename" ),
 						tr( "Change name" ),
 						this, SLOT(changeName()));
 }

@@ -295,15 +295,15 @@ MainWindow::~MainWindow()
 void MainWindow::finalize()
 {
 	resetWindowTitle();
-	setWindowIcon( embed::getIconPixmap( "icon_small" ) );
+	setWindowIcon( embed::getIcon( "icon_small" ) );
 
 	auto addAction = [this](QMenu* menu, std::string_view icon, const QString& text,
 		const QKeySequence& shortcut, auto(MainWindow::* slot)()) -> QAction*
 	{
 #if (QT_VERSION >= QT_VERSION_CHECK(6, 3, 0))
-		return menu->addAction(embed::getIconPixmap(icon), text, shortcut, this, slot);
+		return menu->addAction(embed::getIcon(icon), text, shortcut, this, slot);
 #else
-		return menu->addAction(embed::getIconPixmap(icon), text, this, slot, shortcut);
+		return menu->addAction(embed::getIcon(icon), text, this, slot, shortcut);
 #endif
 	};
 
@@ -322,7 +322,7 @@ void MainWindow::finalize()
 
 	project_menu->addMenu(new RecentProjectsMenu(this));
 
-	project_menu->addAction(embed::getIconPixmap("recover"), tr("Open A&utosave..."),
+	project_menu->addAction(embed::getIcon("recover"), tr("Open A&utosave..."),
 		this, &MainWindow::openAutoSave);
 
 	addAction(project_menu, "project_save", tr("&Save"),
@@ -334,12 +334,12 @@ void MainWindow::finalize()
 	addAction(project_menu, "project_save", tr("Save as New &Version"),
 		keySequence(Qt::CTRL, Qt::ALT, Qt::Key_S), &MainWindow::saveProjectAsNewVersion);
 
-	project_menu->addAction(embed::getIconPixmap("project_save"), tr("Save as default template"),
+	project_menu->addAction(embed::getIcon("project_save"), tr("Save as default template"),
 		this, &MainWindow::saveProjectAsDefaultTemplate);
 
 	project_menu->addSeparator();
 
-	project_menu->addAction(embed::getIconPixmap("project_import"), tr("Import..."),
+	project_menu->addAction(embed::getIcon("project_import"), tr("Import..."),
 		this, &MainWindow::onImportProject);
 
 	addAction(project_menu, "project_export", tr("E&xport..."),
@@ -361,7 +361,7 @@ void MainWindow::finalize()
 
 	project_menu->addSeparator();
 
-	project_menu->addAction(embed::getIconPixmap("exit"), tr("&Quit"),
+	project_menu->addAction(embed::getIcon("exit"), tr("&Quit"),
 		qApp, SLOT(closeAllWindows()))->setShortcut(keySequence(Qt::CTRL, Qt::Key_Q));
 
 	auto edit_menu = new QMenu(this);
@@ -378,24 +378,24 @@ void MainWindow::finalize()
 
 	edit_menu->addSeparator();
 	m_commandPalette = new CommandPalette(this);
-	auto commandPaletteAction = edit_menu->addAction(embed::getIconPixmap("tool"), tr("Command palette..."),
+	auto commandPaletteAction = edit_menu->addAction(embed::getIcon("tool"), tr("Command palette..."),
 		this, &MainWindow::showCommandPalette);
 	commandPaletteAction->setShortcuts({keySequence(Qt::CTRL, Qt::Key_K), keySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_P)});
 	commandPaletteAction->setShortcutContext(Qt::ApplicationShortcut);
 	m_midiCapture = new MidiCapture(this);
-	auto captureAction = edit_menu->addAction(embed::getIconPixmap("midi_capture"), tr("Capture MIDI"),
+	auto captureAction = edit_menu->addAction(embed::getIcon("midi_capture"), tr("Capture MIDI"),
 		this, &MainWindow::captureMidi);
 	captureAction->setShortcut(keySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_R));
 	captureAction->setShortcutContext(Qt::ApplicationShortcut);
 	edit_menu->addSeparator();
-	m_scriptConsoleAction = new QAction(embed::getIconPixmap("script"), tr("Script Console"), this);
+	m_scriptConsoleAction = new QAction(embed::getIcon("script"), tr("Script Console"), this);
 	m_scriptConsoleAction->setShortcut(keySequence(Qt::CTRL, Qt::Key_8));
 	m_scriptConsoleAction->setShortcutContext(Qt::ApplicationShortcut);
 	connect(m_scriptConsoleAction, &QAction::triggered, this, &MainWindow::toggleScriptConsole);
 	QWidget::addAction(m_scriptConsoleAction);
-	edit_menu->addAction(embed::getIconPixmap("microtuner"), tr("Scales and keymaps"),
+	edit_menu->addAction(embed::getIcon("microtuner"), tr("Scales and keymaps"),
 		this, SLOT(toggleMicrotunerWin()));
-	edit_menu->addAction(embed::getIconPixmap("setup_general"), tr("Settings"),
+	edit_menu->addAction(embed::getIcon("setup_general"), tr("Settings"),
 		this, SLOT(showSettingsDialog()));
 
 	connect(edit_menu, SIGNAL(aboutToShow()), this, SLOT(updateUndoRedoButtons()));
@@ -412,7 +412,7 @@ void MainWindow::finalize()
 	m_toolsMenu = new QMenu( this );
 	for( const Plugin::Descriptor* desc : getPluginFactory()->descriptors(Plugin::Type::Tool) )
 	{
-		m_toolsMenu->addAction( desc->logo->pixmap(), desc->displayName );
+		m_toolsMenu->addAction(desc->logo->icon(), desc->displayName);
 		m_tools.push_back( ToolPlugin::instantiate( desc->name, /*this*/nullptr )
 						   ->createView(this) );
 	}
@@ -430,46 +430,46 @@ void MainWindow::finalize()
 	// May use offline help
 	if( true )
 	{
-		help_menu->addAction( embed::getIconPixmap( "help" ),
+		help_menu->addAction( embed::getIcon( "help" ),
 						tr( "Online Help" ),
 						this, SLOT(browseHelp()));
 	}
 	else
 	{
-		help_menu->addAction( embed::getIconPixmap( "help" ),
+		help_menu->addAction( embed::getIcon( "help" ),
 							tr( "Help" ),
 							this, SLOT(help()));
 	}
 
 	help_menu->addSeparator();
-	help_menu->addAction( embed::getIconPixmap( "icon_small" ), tr( "About" ),
+	help_menu->addAction( embed::getIcon( "icon_small" ), tr( "About" ),
 				  this, SLOT(aboutLMMS()));
 
 	// create tool-buttons
 	auto project_new = new ToolButton(
-		embed::getIconPixmap("project_new"), tr("Create new project"), this, SLOT(createNewProject()), m_toolBar);
+		embed::getIcon("project_new"), tr("Create new project"), this, SLOT(createNewProject()), m_toolBar);
 
-	auto project_new_from_template = new ToolButton(embed::getIconPixmap("project_new_from_template"),
+	auto project_new_from_template = new ToolButton(embed::getIcon("project_new_from_template"),
 		tr("Create new project from template"), this, SLOT(emptySlot()), m_toolBar);
 	project_new_from_template->setMenu( templates_menu );
 	project_new_from_template->setPopupMode( ToolButton::InstantPopup );
 
 	auto project_open = new ToolButton(
-		embed::getIconPixmap("project_open"), tr("Open existing project"), this, SLOT(openProject()), m_toolBar);
+		embed::getIcon("project_open"), tr("Open existing project"), this, SLOT(openProject()), m_toolBar);
 
-	auto project_open_recent = new ToolButton(embed::getIconPixmap("project_open_recent"),
+	auto project_open_recent = new ToolButton(embed::getIcon("project_open_recent"),
 		tr("Recently opened projects"), this, SLOT(emptySlot()), m_toolBar);
 	project_open_recent->setMenu( new RecentProjectsMenu(this) );
 	project_open_recent->setPopupMode( ToolButton::InstantPopup );
 
 	auto project_save = new ToolButton(
-		embed::getIconPixmap("project_save"), tr("Save current project"), this, SLOT(saveProject()), m_toolBar);
+		embed::getIcon("project_save"), tr("Save current project"), this, SLOT(saveProject()), m_toolBar);
 
 	auto project_export = new ToolButton(
-		embed::getIconPixmap("project_export"), tr("Export current project"), this, SLOT(onExportProject()), m_toolBar);
+		embed::getIcon("project_export"), tr("Export current project"), this, SLOT(onExportProject()), m_toolBar);
 
 	m_metronomeToggle = new ToolButton(
-				embed::getIconPixmap( "metronome" ),
+				embed::getIcon( "metronome" ),
 				tr( "Metronome" ),
 				this, SLOT(onToggleMetronome()),
 							m_toolBar );
@@ -479,7 +479,7 @@ void MainWindow::finalize()
 
 	// Not a record button: it recovers what was already played. It stays clickable and its tooltip says
 	// what it would recover (or why there's nothing yet).
-	auto captureButton = new ToolButton(embed::getIconPixmap("midi_capture"), QString{},
+	auto captureButton = new ToolButton(embed::getIcon("midi_capture"), QString{},
 		this, SLOT(captureMidi()), m_toolBar);
 	captureButton->setObjectName("midiCaptureButton");
 	const auto updateCaptureTip = [this, captureButton] {
@@ -503,31 +503,31 @@ void MainWindow::finalize()
 
 
 	// window-toolbar
-	auto song_editor_window = new ToolButton(embed::getIconPixmap("songeditor"), tr("Song Editor") + " (" + ctrlShortcutText(Qt::Key_1) + ")", this,
+	auto song_editor_window = new ToolButton(embed::getIcon("songeditor"), tr("Song Editor") + " (" + ctrlShortcutText(Qt::Key_1) + ")", this,
 		SLOT(toggleSongEditorWin()), m_toolBar);
 	song_editor_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_1));
 
-	auto pattern_editor_window = new ToolButton(embed::getIconPixmap("pattern_track_btn"),
+	auto pattern_editor_window = new ToolButton(embed::getIcon("pattern_track_btn"),
 		tr("Pattern Editor") + " (" + ctrlShortcutText(Qt::Key_2) + ")", this, SLOT(togglePatternEditorWin()), m_toolBar);
 	pattern_editor_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_2));
 
 	auto piano_roll_window = new ToolButton(
-		embed::getIconPixmap("piano"), tr("Piano Roll") + " (" + ctrlShortcutText(Qt::Key_3) + ")", this, SLOT(togglePianoRollWin()), m_toolBar);
+		embed::getIcon("piano"), tr("Piano Roll") + " (" + ctrlShortcutText(Qt::Key_3) + ")", this, SLOT(togglePianoRollWin()), m_toolBar);
 	piano_roll_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_3));
 
-	auto automation_editor_window = new ToolButton(embed::getIconPixmap("automation"),
+	auto automation_editor_window = new ToolButton(embed::getIcon("automation"),
 		tr("Automation Editor") + " (" + ctrlShortcutText(Qt::Key_4) + ")", this, SLOT(toggleAutomationEditorWin()), m_toolBar);
 	automation_editor_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_4));
 
 	auto mixer_window = new ToolButton(
-		embed::getIconPixmap("mixer"), tr("Mixer") + " (" + ctrlShortcutText(Qt::Key_5) + ")", this, SLOT(toggleMixerWin()), m_toolBar);
+		embed::getIcon("mixer"), tr("Mixer") + " (" + ctrlShortcutText(Qt::Key_5) + ")", this, SLOT(toggleMixerWin()), m_toolBar);
 	mixer_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_5));
 
-	auto controllers_window = new ToolButton(embed::getIconPixmap("controller"),
+	auto controllers_window = new ToolButton(embed::getIcon("controller"),
 		tr("Show/hide controller rack") + " (" + ctrlShortcutText(Qt::Key_6) + ")", this, SLOT(toggleControllerRack()), m_toolBar);
 	controllers_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_6));
 
-	auto project_notes_window = new ToolButton(embed::getIconPixmap("project_notes"),
+	auto project_notes_window = new ToolButton(embed::getIcon("project_notes"),
 		tr("Show/hide project notes") + " (" + ctrlShortcutText(Qt::Key_7) + ")", this, SLOT(toggleProjectNotesWin()), m_toolBar);
 	project_notes_window->setShortcut(keySequence(Qt::CTRL, Qt::Key_7));
 
@@ -539,7 +539,7 @@ void MainWindow::finalize()
 	m_toolBarLayout->addWidget( controllers_window, 1, 6 );
 	m_toolBarLayout->addWidget( project_notes_window, 1, 7 );
 
-	auto tileWindowsButton = new ToolButton(embed::getIconPixmap("tile_windows"),
+	auto tileWindowsButton = new ToolButton(embed::getIcon("tile_windows"),
 		tr("Tile windows: arrange the windows side by side instead of letting them float"), nullptr, nullptr, m_toolBar);
 	tileWindowsButton->setCheckable(true);
 	tileWindowsButton->setChecked(m_tiling->isEnabled());
@@ -1187,32 +1187,32 @@ void MainWindow::updateViewMenu()
 	// TODO: get current visibility for these and indicate in menu?
 	// Not that it's straight visible <-> invisible, more like
 	// not on top -> top <-> invisible
-	m_viewMenu->addAction(embed::getIconPixmap( "songeditor" ),
+	m_viewMenu->addAction(embed::getIcon( "songeditor" ),
 			      tr( "Song Editor" ) + "\t" + ctrlShortcutText(Qt::Key_1),
 			      this, SLOT(toggleSongEditorWin())
 		);
-	m_viewMenu->addAction(embed::getIconPixmap("pattern_track"),
+	m_viewMenu->addAction(embed::getIcon("pattern_track"),
 					tr("Pattern Editor") + "\t" + ctrlShortcutText(Qt::Key_2),
 					this, SLOT(togglePatternEditorWin())
 		);
-	m_viewMenu->addAction(embed::getIconPixmap( "piano" ),
+	m_viewMenu->addAction(embed::getIcon( "piano" ),
 			      tr( "Piano Roll" ) + "\t" + ctrlShortcutText(Qt::Key_3),
 			      this, SLOT(togglePianoRollWin())
 		);
-	m_viewMenu->addAction(embed::getIconPixmap( "automation" ),
+	m_viewMenu->addAction(embed::getIcon( "automation" ),
 			      tr( "Automation Editor" ) + "\t" + ctrlShortcutText(Qt::Key_4),
 			      this,
 			      SLOT(toggleAutomationEditorWin())
 		);
-	m_viewMenu->addAction(embed::getIconPixmap( "mixer" ),
+	m_viewMenu->addAction(embed::getIcon( "mixer" ),
 			      tr( "Mixer" ) + "\t" + ctrlShortcutText(Qt::Key_5),
 			      this, SLOT(toggleMixerWin())
 		);
-	m_viewMenu->addAction(embed::getIconPixmap( "controller" ),
+	m_viewMenu->addAction(embed::getIcon( "controller" ),
 			      tr( "Controller Rack" ) + "\t" + ctrlShortcutText(Qt::Key_6),
 			      this, SLOT(toggleControllerRack())
 		);
-	m_viewMenu->addAction(embed::getIconPixmap( "project_notes" ),
+	m_viewMenu->addAction(embed::getIcon( "project_notes" ),
 			      tr( "Project Notes" ) + "\t" + ctrlShortcutText(Qt::Key_7),
 			      this, SLOT(toggleProjectNotesWin())
 		);
@@ -1220,19 +1220,19 @@ void MainWindow::updateViewMenu()
 
 	m_viewMenu->addSeparator();
 	
-	m_viewMenu->addAction(embed::getIconPixmap( "fullscreen" ),
+	m_viewMenu->addAction(embed::getIcon( "fullscreen" ),
 				tr( "Fullscreen" ) + "\tF11",
 				this, SLOT(toggleFullscreen())
 		);
 
 	m_viewMenu->addSeparator();
 
-	auto detachAllAction = m_viewMenu->addAction(embed::getIconPixmap("detach"),
+	auto detachAllAction = m_viewMenu->addAction(embed::getIcon("detach"),
 		tr("Detach all subwindows"),
 		this, [this](){ setAllSubWindowsDetached(true); },
 		QKeySequence{Qt::CTRL | Qt::SHIFT | Qt::Key_D}
 	);
-	auto attachAllAction = m_viewMenu->addAction(embed::getIconPixmap("detach"),
+	auto attachAllAction = m_viewMenu->addAction(embed::getIcon("detach"),
 		tr("Attach all subwindows"),
 		this, [this](){ setAllSubWindowsDetached(false); },
 		QKeySequence{Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_D}
@@ -1241,7 +1241,7 @@ void MainWindow::updateViewMenu()
 	detachAllAction->setShortcutContext(Qt::ApplicationShortcut);
 	attachAllAction->setShortcutContext(Qt::ApplicationShortcut);
 
-	auto tileAction = m_viewMenu->addAction(embed::getIconPixmap("tile_windows"), tr("Tile windows"));
+	auto tileAction = m_viewMenu->addAction(embed::getIcon("tile_windows"), tr("Tile windows"));
 	tileAction->setCheckable(true);
 	tileAction->setChecked(m_tiling->isEnabled());
 	connect(tileAction, &QAction::toggled, m_tiling, &TilingWindowManager::setEnabled);

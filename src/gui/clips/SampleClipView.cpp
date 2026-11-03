@@ -123,7 +123,7 @@ void SampleClipView::constructContextMenu(QMenu* cm)
 						m_clip, SLOT(toggleRecord()));*/
 
 	cm->addAction(
-		embed::getIconPixmap("flip_x"),
+		embed::getIcon("flip_x"),
 		tr("Reverse sample"),
 		this,
 		SLOT(reverseSample())
@@ -151,7 +151,7 @@ void SampleClipView::constructContextMenu(QMenu* cm)
 	cm->addSeparator();
 
 	cm->addAction(
-		embed::getIconPixmap("automation_ghost_note"),
+		embed::getIcon("automation_ghost_note"),
 		tr("Set as ghost in automation editor"),
 		this,
 		SLOT(setAutomationGhost())

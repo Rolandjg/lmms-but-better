@@ -17,7 +17,7 @@ namespace lmms::gui
 RecentProjectsMenu::RecentProjectsMenu(QWidget *parent) :
 	QMenu(tr( "&Recently Opened Projects" ), parent)
 {
-	setIcon(embed::getIconPixmap( "project_open_recent" ));
+	setIcon(embed::getIcon( "project_open_recent" ));
 
 	connect( this, SIGNAL(aboutToShow()),
 			 this, SLOT(fillMenu()));
@@ -33,7 +33,7 @@ void RecentProjectsMenu::fillMenu()
 	clear();
 	QStringList rup = ConfigManager::inst()->recentlyOpenedProjects();
 
-	auto projectFileIcon = embed::getIconPixmap( "project_file" );
+	auto projectFileIcon = embed::getIcon("project_file");
 
 	//	The file history goes 50 deep but we only show the 15
 	//	most recent ones that we can open and omit .mpt files.

@@ -223,9 +223,9 @@ private:
 	bool addItems( const QString & path );
 
 
-	QPixmap m_folderPixmap = embed::getIconPixmap("folder");
-	QPixmap m_folderOpenedPixmap = embed::getIconPixmap("folder_opened");
-	QPixmap m_folderLockedPixmap = embed::getIconPixmap("folder_locked");
+	QIcon m_folderPixmap = embed::getIcon("folder");
+	QIcon m_folderOpenedPixmap = embed::getIcon("folder_opened");
+	QIcon m_folderLockedPixmap = embed::getIcon("folder_locked");
 
 	//! Directories that lead here
 	//! Initially, this is just set to the current path of a directory

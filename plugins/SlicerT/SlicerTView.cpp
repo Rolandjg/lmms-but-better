@@ -116,7 +116,7 @@ SlicerTView::SlicerTView(SlicerT* instrument, QWidget* parent)
 
 	m_midiExportButton = new QPushButton(this);
 	m_midiExportButton->setFixedSize(s_iconButtonSize, s_iconButtonSize);
-	m_midiExportButton->setIcon(PLUGIN_NAME::getIconPixmap("copy_midi"));
+	m_midiExportButton->setIcon(PLUGIN_NAME::getIcon("copy_midi"));
 	m_midiExportButton->setToolTip(tr("Copy midi pattern to clipboard"));
 	connect(m_midiExportButton, &PixmapButton::clicked, this, &SlicerTView::exportMidi);
 

@@ -192,7 +192,7 @@ InstrumentTrackWindow::InstrumentTrackWindow( InstrumentTrackView * _itv ) :
 	m_mixerChannelNumber->setToolTip(tr("Mixer channel (%1+left-click to create and assign a new one)").arg(UI_ALT_KEY));
 	addControl(m_mixerChannelNumber, new QLabel(tr("CHAN"), this), 7);
 
-	auto saveSettingsBtn = new QPushButton(embed::getIconPixmap("project_save"), QString());
+	auto saveSettingsBtn = new QPushButton(embed::getIcon("project_save"), QString());
 	saveSettingsBtn->setObjectName("instrumentPresetSave");
 	saveSettingsBtn->setFixedSize(26, 26);
 	saveSettingsBtn->setIconSize(QSize(16, 16));

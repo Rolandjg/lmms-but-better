@@ -225,8 +225,8 @@ void VstEffectControls::updateMenu()
         		presetAction->setText(QString("%1. %2").arg(QString::number(i+1), list1.at(i)));
         		presetAction->setData(i);
 			if (i == lastPosInMenu) {
-        			presetAction->setIcon(embed::getIconPixmap( "sample_file", 16, 16 ));
-			} else  presetAction->setIcon(embed::getIconPixmap( "edit_copy", 16, 16 ));
+        			presetAction->setIcon(embed::getIcon("sample_file"));
+			} else  presetAction->setIcon(embed::getIcon("edit_copy"));
 			to_menu->addAction( presetAction );
      		}
 
@@ -325,7 +325,7 @@ ManageVSTEffectView::ManageVSTEffectView( VstEffect * _eff, VstEffectControls * 
 	m_vi->m_subWindow->setFixedSize( 960, 300);
 	m_vi->m_subWindow->setWidget(m_vi->m_scrollArea);
 	m_vi->m_subWindow->setWindowTitle( _eff->m_plugin->name() + tr( " - VST parameter control" ) );
-	m_vi->m_subWindow->setWindowIcon( PLUGIN_NAME::getIconPixmap( "logo" ) );
+	m_vi->m_subWindow->setWindowIcon( PLUGIN_NAME::getIcon("logo") );
 	m_vi->m_subWindow->setAttribute(Qt::WA_DeleteOnClose, false);
 
 

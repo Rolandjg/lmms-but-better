@@ -105,14 +105,14 @@ FileBrowser::FileBrowser(Type type, const QString& directories, const QString& f
 	m_filterEdit = new QLineEdit(searchWidget);
 	m_filterEdit->setPlaceholderText(tr("Search"));
 	m_filterEdit->setClearButtonEnabled(true);
-	m_filterEdit->addAction(embed::getIconPixmap("zoom"), QLineEdit::LeadingPosition);
+	m_filterEdit->addAction(embed::getIcon("zoom"), QLineEdit::LeadingPosition);
 
 	connect(m_filterEdit, &QLineEdit::textEdited, this, &FileBrowser::onSearch);
 	connect(&m_searchJob, &FileSearchJob::started, this, &FileBrowser::onSearchStarted, Qt::QueuedConnection);
 	connect(&m_searchJob, &FileSearchJob::finished, this, &FileBrowser::onSearchFinished, Qt::QueuedConnection);
 	connect(&m_searchJob, &FileSearchJob::foundMatch, this, &FileBrowser::onSearchMatch, Qt::QueuedConnection);
 
-	auto reload_btn = new QPushButton(embed::getIconPixmap("reload"), QString(), searchWidget);
+	auto reload_btn = new QPushButton(embed::getIcon("reload"), QString(), searchWidget);
 	reload_btn->setToolTip( tr( "Refresh list" ) );
 	connect( reload_btn, SIGNAL(clicked()), this, SLOT(reloadTree()));
 
@@ -642,7 +642,7 @@ void FileBrowserTreeWidget::contextMenuEvent(QContextMenuEvent* e)
 	case TypeFileItem: {
 		auto file = dynamic_cast<FileItem*>(item);
 
-		contextMenu.addAction(QIcon(embed::getIconPixmap("folder")), tr("Show in %1").arg(fileManager),
+		contextMenu.addAction(embed::getIcon("folder"), tr("Show in %1").arg(fileManager),
 			[file] { FileRevealer::reveal(file->fullName()); });
 
 		const auto path = QFileInfo{file->fullName()}.absoluteFilePath();
@@ -650,12 +650,12 @@ void FileBrowserTreeWidget::contextMenuEvent(QContextMenuEvent* e)
 		if (ConfigManager::inst()->isFavoriteItem(file->fullName()))
 		{
 			contextMenu.addAction(
-				QIcon(embed::getIconPixmap("star")), tr("Remove favorite file"), [path] { ConfigManager::inst()->removeFavoriteItem(path); });
+				embed::getIcon("star"), tr("Remove favorite file"), [path] { ConfigManager::inst()->removeFavoriteItem(path); });
 		}
 		else
 		{
 			contextMenu.addAction(
-				QIcon(embed::getIconPixmap("star")), tr("Add favorite file"), [path] { ConfigManager::inst()->addFavoriteItem(path); });
+				embed::getIcon("star"), tr("Add favorite file"), [path] { ConfigManager::inst()->addFavoriteItem(path); });
 		}
 
 		if (file->isTrack())
@@ -672,17 +672,17 @@ void FileBrowserTreeWidget::contextMenuEvent(QContextMenuEvent* e)
 		auto dir = dynamic_cast<Directory*>(item);
 		const auto path = QFileInfo{dir->fullName()}.absoluteFilePath();
 
-		contextMenu.addAction(QIcon(embed::getIconPixmap("folder")), tr("Open in %1").arg(fileManager), [=] {
+		contextMenu.addAction(embed::getIcon("folder"), tr("Open in %1").arg(fileManager), [=] {
 			FileRevealer::openDir(dir->fullName());
 		});
 
 		if (ConfigManager::inst()->isFavoriteItem(dir->fullName()))
 		{
-			contextMenu.addAction(QIcon(embed::getIconPixmap("star")), tr("Remove favorite folder"), [path] { ConfigManager::inst()->removeFavoriteItem(path); });
+			contextMenu.addAction(embed::getIcon("star"), tr("Remove favorite folder"), [path] { ConfigManager::inst()->removeFavoriteItem(path); });
 		}
 		else
 		{
-			contextMenu.addAction(QIcon(embed::getIconPixmap("star")), tr("Add favorite folder"), [path] { ConfigManager::inst()->addFavoriteItem(path); });
+			contextMenu.addAction(embed::getIcon("star"), tr("Add favorite folder"), [path] { ConfigManager::inst()->addFavoriteItem(path); });
 		}
 		break;
 	}
@@ -1130,7 +1130,7 @@ void Directory::update()
 					sep->setText( 0,
 						FileBrowserTreeWidget::tr(
 							"--- Factory files ---" ) );
-					sep->setIcon( 0, embed::getIconPixmap(
+					sep->setIcon( 0, embed::getIcon(
 								"factory_files" ) );
 					// add delimiter after last file before appending our files
 					insertChild( filesBeforeAdd + m_dirCount, sep );
@@ -1195,13 +1195,13 @@ FileItem::FileItem(const QString& name, const QString& path)
 
 void FileItem::initPixmaps()
 {
-	static auto s_projectFilePixmap = embed::getIconPixmap("project_file", 16, 16);
-	static auto s_presetFilePixmap = embed::getIconPixmap("preset_file", 16, 16);
-	static auto s_sampleFilePixmap = embed::getIconPixmap("sample_file", 16, 16);
-	static auto s_soundfontFilePixmap = embed::getIconPixmap("soundfont_file", 16, 16);
-	static auto s_vstPluginFilePixmap = embed::getIconPixmap("vst_plugin_file", 16, 16);
-	static auto s_midiFilePixmap = embed::getIconPixmap("midi_file", 16, 16);
-	static auto s_unknownFilePixmap = embed::getIconPixmap("unknown_file");
+	static auto s_projectFilePixmap = embed::getIcon("project_file");
+	static auto s_presetFilePixmap = embed::getIcon("preset_file");
+	static auto s_sampleFilePixmap = embed::getIcon("sample_file");
+	static auto s_soundfontFilePixmap = embed::getIcon("soundfont_file");
+	static auto s_vstPluginFilePixmap = embed::getIcon("vst_plugin_file");
+	static auto s_midiFilePixmap = embed::getIcon("midi_file");
+	static auto s_unknownFilePixmap = embed::getIcon("unknown_file");
 
 	switch( m_type )
 	{

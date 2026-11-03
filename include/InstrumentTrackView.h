@@ -99,7 +99,7 @@ private slots:
 	void corruptStateUpdate();
 
 private:
-	static QPixmap determinePixmap(InstrumentTrack* instrumentTrack);
+	static QIcon determineIcon(InstrumentTrack* instrumentTrack);
 
 private:
 	InstrumentTrackWindow * m_window;

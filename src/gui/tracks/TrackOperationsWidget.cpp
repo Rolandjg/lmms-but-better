@@ -295,10 +295,10 @@ void TrackOperationsWidget::updateMenu()
 			[this] { unfreezeTrack(m_trackView); });
 	}
 
-	toMenu->addAction( embed::getIconPixmap( "edit_copy", 16, 16 ),
+	toMenu->addAction( embed::getIcon("edit_copy"),
 						tr( "Clone this track" ),
 						this, SLOT(cloneTrack()));
-	toMenu->addAction( embed::getIconPixmap( "cancel", 16, 16 ),
+	toMenu->addAction( embed::getIcon("cancel"),
 						tr( "Remove this track" ),
 						this, SLOT(removeTrack()));
 
@@ -325,7 +325,7 @@ void TrackOperationsWidget::updateMenu()
 	toMenu->addSeparator();
 
 	QMenu* colorMenu = toMenu->addMenu(tr("Track color"));
-	colorMenu->setIcon(embed::getIconPixmap("colorize"));
+	colorMenu->setIcon(embed::getIcon("colorize"));
 	colorMenu->addAction(tr("Change"), this, SLOT(selectTrackColor()));
 	colorMenu->addAction(tr("Reset"), this, SLOT(resetTrackColor()));
 	colorMenu->addAction(tr("Pick random"), this, SLOT(randomizeTrackColor()));

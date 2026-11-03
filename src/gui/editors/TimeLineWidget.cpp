@@ -160,31 +160,31 @@ void TimeLineWidget::addToolButtons( QToolBar * _tool_bar )
 {
 	auto autoScroll = new NStateButton(_tool_bar);
 	autoScroll->setGeneralToolTip(tr("Auto scrolling"));
-	autoScroll->addState(embed::getIconPixmap("autoscroll_stepped_on"), tr("Stepped auto scrolling"));
-	autoScroll->addState(embed::getIconPixmap("autoscroll_continuous_on"), tr("Continuous auto scrolling"));
-	autoScroll->addState(embed::getIconPixmap("autoscroll_off"), tr("Auto scrolling disabled"));
+	autoScroll->addState(embed::getIcon("autoscroll_stepped_on"), tr("Stepped auto scrolling"));
+	autoScroll->addState(embed::getIcon("autoscroll_continuous_on"), tr("Continuous auto scrolling"));
+	autoScroll->addState(embed::getIcon("autoscroll_off"), tr("Auto scrolling disabled"));
 	autoScroll->changeState(static_cast<int>(m_autoScroll));
 	connect( autoScroll, SIGNAL(changedState(int)), this,
 					SLOT(toggleAutoScroll(int)));
 
 	auto loopPoints = new NStateButton(_tool_bar);
 	loopPoints->setGeneralToolTip( tr( "Loop points" ) );
-	loopPoints->addState( embed::getIconPixmap( "loop_points_off" ) );
-	loopPoints->addState( embed::getIconPixmap( "loop_points_on" ) );
+	loopPoints->addState( embed::getIcon( "loop_points_off" ) );
+	loopPoints->addState( embed::getIcon( "loop_points_on" ) );
 	connect(loopPoints, &NStateButton::changedState, m_timeline, &Timeline::setLoopEnabled);
 	connect(m_timeline, &Timeline::loopEnabledChanged, loopPoints, &NStateButton::changeState);
 	connect(m_timeline, &Timeline::loopEnabledChanged, this, static_cast<void (QWidget::*)()>(&QWidget::update));
 	loopPoints->changeState(static_cast<int>(m_timeline->loopEnabled()));
 
 	auto behaviourAtStop = new NStateButton(_tool_bar);
-	behaviourAtStop->addState( embed::getIconPixmap( "back_to_zero" ),
+	behaviourAtStop->addState( embed::getIcon( "back_to_zero" ),
 					tr( "After stopping go back to beginning" )
 									);
-	behaviourAtStop->addState( embed::getIconPixmap( "back_to_start" ),
+	behaviourAtStop->addState( embed::getIcon( "back_to_start" ),
 					tr( "After stopping go back to "
 						"position at which playing was "
 						"started" ) );
-	behaviourAtStop->addState( embed::getIconPixmap( "keep_stop_position" ),
+	behaviourAtStop->addState( embed::getIcon( "keep_stop_position" ),
 					tr( "After stopping keep position" ) );
 	connect(behaviourAtStop, &NStateButton::changedState, m_timeline,
 		[timeline = m_timeline](int value) {
@@ -601,7 +601,7 @@ void TimeLineWidget::contextMenuEvent(QContextMenuEvent* event)
 			});
 			menu.addAction(tr("Move playhead here"), [this, marker] { jumpTo(m_timeline->markers()[marker].pos); });
 			menu.addSeparator();
-			menu.addAction(embed::getIconPixmap("cancel"), tr("Remove marker"), [this, marker] {
+			menu.addAction(embed::getIcon("cancel"), tr("Remove marker"), [this, marker] {
 				m_timeline->addJournalCheckPoint();
 				m_timeline->removeMarker(marker);
 			});

@@ -28,6 +28,7 @@
 #include <string>
 #include <string_view>
 
+#include <QIcon>
 #include <QPixmap>
 #include <QString>
 
@@ -52,6 +53,15 @@ auto LMMS_EXPORT getIconPixmap(
 	int height = -1,
 	const char* const* xpm = nullptr
 ) -> QPixmap;
+
+//! @brief Return an icon for use in buttons, actions, menus, tabs etc.
+//!
+//! Unlike a QIcon constructed from getIconPixmap(), the returned icon renders the artwork at the exact device pixel
+//! size Qt asks for, so SVG artwork stays sharp on HiDPI screens. The artwork keeps its natural size and is only ever
+//! scaled down to fit, never up, matching how a QIcon made from a plain pixmap behaves on a standard-DPI screen.
+//! @param name Identifier for the artwork, as for getIconPixmap()
+//! @param xpm Must be XPM data if the source should be raw XPM data instead of a file
+auto LMMS_EXPORT getIcon(std::string_view name, const char* const* xpm = nullptr) -> QIcon;
 
 auto LMMS_EXPORT getText(std::string_view name) -> QString;
 
@@ -86,6 +96,11 @@ public:
 		return embed::getIconPixmap(m_name, width, height, m_xpm);
 	}
 
+	auto icon() const -> QIcon
+	{
+		return embed::getIcon(m_name, m_xpm);
+	}
+
 	auto pixmapName() const -> const std::string& { return m_name; }
 
 private:
@@ -111,6 +126,11 @@ inline auto getIconPixmap(std::string_view name,
 	int width = -1, int height = -1, const char* const* xpm = nullptr) -> QPixmap
 {
 	return PluginPixmapLoader{std::string{name}, xpm}.pixmap(width, height);
+}
+
+inline auto getIcon(std::string_view name, const char* const* xpm = nullptr) -> QIcon
+{
+	return PluginPixmapLoader{std::string{name}, xpm}.icon();
 }
 
 } // namespace PLUGIN_NAME

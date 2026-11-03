@@ -233,18 +233,18 @@ void MidiClipView::constructContextMenu( QMenu * _cm )
 	}
 
 
-	auto a = new QAction(embed::getIconPixmap("piano"), tr("Open in piano-roll"), _cm);
+	auto a = new QAction(embed::getIcon("piano"), tr("Open in piano-roll"), _cm);
 	_cm->insertAction( _cm->actions()[0], a );
 	connect( a, SIGNAL(triggered(bool)),
 					this, SLOT(openInPianoRoll()));
 
-	auto b = new QAction(embed::getIconPixmap("ghost_note"), tr("Set as ghost in piano-roll"), _cm);
+	auto b = new QAction(embed::getIcon("ghost_note"), tr("Set as ghost in piano-roll"), _cm);
 	if( m_clip->empty() ) { b->setEnabled( false ); }
 	_cm->insertAction( _cm->actions()[1], b );
 	connect( b, SIGNAL(triggered(bool)),
 					this, SLOT(setGhostInPianoRoll()));
 
-	auto c = new QAction(embed::getIconPixmap("automation_ghost_note"), tr("Set as ghost in automation editor"), _cm);
+	auto c = new QAction(embed::getIcon("automation_ghost_note"), tr("Set as ghost in automation editor"), _cm);
 	if (m_clip->empty()) { c->setEnabled(false); }
 	_cm->insertAction(_cm->actions()[2], c);
 	connect(c, &QAction::triggered, this, &MidiClipView::setGhostInAutomationEditor);
@@ -252,29 +252,29 @@ void MidiClipView::constructContextMenu( QMenu * _cm )
 	_cm->insertSeparator(_cm->actions()[3]);
 	_cm->addSeparator();
 
-	_cm->addAction( embed::getIconPixmap( "edit_erase" ),
+	_cm->addAction( embed::getIcon( "edit_erase" ),
 			tr( "Clear all notes" ), m_clip, SLOT(clear()));
 
 	if (canMergeSelection(getClickedClips()))
 	{
 		_cm->addAction(
-			embed::getIconPixmap("edit_merge"),
+			embed::getIcon("edit_merge"),
 			tr("Merge Selection"),
 			[this]() { mergeClips(getClickedClips()); }
 		);
 	}
 
-	_cm->addAction(embed::getIconPixmap("clear_notes_out_of_bounds"), tr("Clear notes out of bounds"), [this]() { bulkClearNotesOutOfBounds(getClickedClips()); });
+	_cm->addAction(embed::getIcon("clear_notes_out_of_bounds"), tr("Clear notes out of bounds"), [this]() { bulkClearNotesOutOfBounds(getClickedClips()); });
 
 	if (!isBeat)
 	{
-		_cm->addAction(embed::getIconPixmap("scale"), tr("Transpose"), this, &MidiClipView::transposeSelection);
+		_cm->addAction(embed::getIcon("scale"), tr("Transpose"), this, &MidiClipView::transposeSelection);
 	}
 	_cm->addSeparator();
 
-	_cm->addAction( embed::getIconPixmap( "reload" ), tr( "Reset name" ),
+	_cm->addAction( embed::getIcon( "reload" ), tr( "Reset name" ),
 						this, SLOT(resetName()));
-	_cm->addAction( embed::getIconPixmap( "edit_rename" ),
+	_cm->addAction( embed::getIcon( "edit_rename" ),
 						tr( "Change name" ),
 						this, SLOT(changeName()));
 
@@ -282,11 +282,11 @@ void MidiClipView::constructContextMenu( QMenu * _cm )
 	{
 		_cm->addSeparator();
 
-		_cm->addAction( embed::getIconPixmap( "step_btn_add" ),
+		_cm->addAction( embed::getIcon( "step_btn_add" ),
 			tr( "Add steps" ), m_clip, SLOT(addSteps()));
-		_cm->addAction( embed::getIconPixmap( "step_btn_remove" ),
+		_cm->addAction( embed::getIcon( "step_btn_remove" ),
 			tr( "Remove steps" ), m_clip, SLOT(removeSteps()));
-		_cm->addAction( embed::getIconPixmap( "step_btn_duplicate" ),
+		_cm->addAction( embed::getIcon( "step_btn_duplicate" ),
 			tr( "Clone Steps" ), m_clip, SLOT(cloneSteps()));
 	}
 }

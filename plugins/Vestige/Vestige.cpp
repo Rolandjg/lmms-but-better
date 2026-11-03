@@ -574,7 +574,7 @@ VestigeInstrumentView::VestigeInstrumentView( Instrument * _instrument,
 
 	m_toggleGUIButton = new QPushButton( tr( "Show/hide GUI" ), this );
 	m_toggleGUIButton->setGeometry( 20, 130, 200, 24 );
-	m_toggleGUIButton->setIcon( embed::getIconPixmap( "zoom" ) );
+	m_toggleGUIButton->setIcon( embed::getIcon("zoom") );
 	m_toggleGUIButton->setFont(adjustedToPixelSize(m_toggleGUIButton->font(), LARGE_FONT_SIZE));
 	connect( m_toggleGUIButton, SIGNAL( clicked() ), this,
 							SLOT( toggleGUI() ) );
@@ -583,7 +583,7 @@ VestigeInstrumentView::VestigeInstrumentView( Instrument * _instrument,
 											   "notes"),
 		this);
 	note_off_all_btn->setGeometry( 20, 160, 200, 24 );
-	note_off_all_btn->setIcon( embed::getIconPixmap( "stop" ) );
+	note_off_all_btn->setIcon( embed::getIcon("stop") );
 	note_off_all_btn->setFont(adjustedToPixelSize(note_off_all_btn->font(), LARGE_FONT_SIZE));
 	connect( note_off_all_btn, SIGNAL( clicked() ), this,
 							SLOT( noteOffAll() ) );
@@ -635,8 +635,8 @@ void VestigeInstrumentView::updateMenu( void )
         		presetActions[i]->setText(QString("%1. %2").arg(QString::number(i+1), list1.at(i)));
         		presetActions[i]->setData(i);
 			if (i == lastPosInMenu) {
-        			presetActions[i]->setIcon(embed::getIconPixmap( "sample_file", 16, 16 ));
-			} else  presetActions[i]->setIcon(embed::getIconPixmap( "edit_copy", 16, 16 ));
+        			presetActions[i]->setIcon(embed::getIcon("sample_file"));
+			} else  presetActions[i]->setIcon(embed::getIcon("edit_copy"));
 			to_menu->addAction( presetActions[i] );
      		}
 
@@ -917,7 +917,7 @@ ManageVestigeInstrumentView::ManageVestigeInstrumentView( Instrument * _instrume
 	m_vi->m_scrollArea->setMinimumHeight(300);
 	m_vi->m_subWindow->setWindowTitle( m_vi->instrumentTrack()->name()
 								+ tr( " - VST plugin control" ) );
-	m_vi->m_subWindow->setWindowIcon( PLUGIN_NAME::getIconPixmap( "logo" ) );
+	m_vi->m_subWindow->setWindowIcon( PLUGIN_NAME::getIcon("logo") );
 	m_vi->m_subWindow->setAttribute( Qt::WA_DeleteOnClose, false );
 
 

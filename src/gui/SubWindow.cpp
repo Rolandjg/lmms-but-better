@@ -67,7 +67,7 @@ SubWindow::SubWindow(QWidget* parent, Qt::WindowFlags windowFlags)
 
 	// close, maximize, restore, and detach buttons
 	auto createButton = [this](std::string_view iconName, const QString& tooltip) -> QPushButton* {
-		auto button = new QPushButton{embed::getIconPixmap(iconName), QString{}, this};
+		auto button = new QPushButton{embed::getIcon(iconName), QString{}, this};
 		button->resize(m_buttonSize);
 		button->setFocusPolicy(Qt::NoFocus);
 		button->setCursor(Qt::ArrowCursor);

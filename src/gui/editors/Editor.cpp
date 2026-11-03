@@ -41,9 +41,9 @@ void Editor::setPauseIcon(bool displayPauseIcon)
 {
 	// If we're playing, show a pause icon
 	if (displayPauseIcon)
-		m_playAction->setIcon(embed::getIconPixmap("pause"));
+		m_playAction->setIcon(embed::getIcon("pause"));
 	else
-		m_playAction->setIcon(embed::getIconPixmap("play"));
+		m_playAction->setIcon(embed::getIcon("play"));
 }
 
 DropToolBar * Editor::addDropToolBarToTop(QString const & windowTitle)
@@ -105,12 +105,12 @@ Editor::Editor(bool record, bool stepRecord) :
 	};
 
 	// Set up play and record actions
-	m_playAction = new QAction(embed::getIconPixmap("play"), tr("Play (Space)"), this);
-	m_stopAction = new QAction(embed::getIconPixmap("stop"), tr("Stop (Space)"), this);
+	m_playAction = new QAction(embed::getIcon("play"), tr("Play (Space)"), this);
+	m_stopAction = new QAction(embed::getIcon("stop"), tr("Stop (Space)"), this);
 
-	m_recordAction = new QAction(embed::getIconPixmap("record"), tr("Record"), this);
-	m_recordAccompanyAction = new QAction(embed::getIconPixmap("record_accompany"), tr("Record while playing"), this);
-	m_toggleStepRecordingAction = new QAction(embed::getIconPixmap("record_step_off"), tr("Toggle Step Recording"), this);
+	m_recordAction = new QAction(embed::getIcon("record"), tr("Record"), this);
+	m_recordAccompanyAction = new QAction(embed::getIcon("record_accompany"), tr("Record while playing"), this);
+	m_toggleStepRecordingAction = new QAction(embed::getIcon("record_step_off"), tr("Toggle Step Recording"), this);
 
 	// Set up connections
 	connect(m_playAction, SIGNAL(triggered()), this, SLOT(play()));

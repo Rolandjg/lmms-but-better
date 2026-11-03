@@ -161,7 +161,7 @@ ScriptConsole::ScriptConsole(QWidget* parent) :
 	m_runner(nullptr)
 {
 	setWindowTitle(tr("Script Console"));
-	setWindowIcon(embed::getIconPixmap("script"));
+	setWindowIcon(embed::getIcon("script"));
 	setObjectName("scriptConsole");
 
 	const QFont mono = monospaceFont();

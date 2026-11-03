@@ -211,7 +211,7 @@ void TrackLabelButton::paintEvent(QPaintEvent* pe)
 			if (pl->pixmapName() != m_iconName)
 			{
 				m_iconName = pl->pixmapName();
-				setIcon(pl->pixmap());
+				setIcon(pl->icon());
 			}
 		}
 	}

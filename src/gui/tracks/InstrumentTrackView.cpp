@@ -69,7 +69,7 @@ InstrumentTrackView::InstrumentTrackView( InstrumentTrack * _it, TrackContainerV
 
 	m_tlb = new TrackLabelButton( this, getTrackSettingsWidget() );
 	m_tlb->setCheckable( true );
-	m_tlb->setIcon(determinePixmap(_it));
+	m_tlb->setIcon(determineIcon(_it));
 	m_tlb->show();
 
 	connect( m_tlb, SIGNAL(toggled(bool)),
@@ -131,7 +131,7 @@ InstrumentTrackView::InstrumentTrackView( InstrumentTrack * _it, TrackContainerV
 	m_midiOutputAction->setText( tr( "Output" ) );
 
 	QAction *midiRackAction = m_midiMenu->addAction(tr("Open/Close MIDI CC Rack"));
-	midiRackAction->setIcon(embed::getIconPixmap("midi_cc_rack"));
+	midiRackAction->setIcon(embed::getIcon("midi_cc_rack"));
 	connect(midiRackAction, SIGNAL(triggered()),
 		this, SLOT(toggleMidiCCRack()));
 
@@ -393,7 +393,7 @@ QMenu * InstrumentTrackView::createMixerMenu(QString title, QString newMixerLabe
 	return mixerMenu;
 }
 
-QPixmap InstrumentTrackView::determinePixmap(InstrumentTrack* instrumentTrack)
+QIcon InstrumentTrackView::determineIcon(InstrumentTrack* instrumentTrack)
 {
 	if (instrumentTrack)
 	{
@@ -407,12 +407,12 @@ QPixmap InstrumentTrackView::determinePixmap(InstrumentTrack* instrumentTrack)
 
 			if (pl)
 			{
-				return pl->pixmap();
+				return pl->icon();
 			}
 		}
 	}
 
-	return embed::getIconPixmap("instrument_track");
+	return embed::getIcon("instrument_track");
 }
 
 void InstrumentTrackView::corruptStateUpdate()

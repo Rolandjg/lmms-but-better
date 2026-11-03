@@ -159,7 +159,7 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 	m_themeDir(QDir::toNativeSeparators(ConfigManager::inst()->themeDir())),
 	m_backgroundPicFile(QDir::toNativeSeparators(ConfigManager::inst()->backgroundPicFile()))
 {
-	setWindowIcon(embed::getIconPixmap("setup_general"));
+	setWindowIcon(embed::getIcon("setup_general"));
 	setWindowTitle(tr("Settings"));
 	setWindowFlag(Qt::WindowContextHelpButtonHint, false);
 	setModal(true);
@@ -422,7 +422,7 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 	connect(m_saveIntervalSlider, SIGNAL(valueChanged(int)),
 			this, SLOT(setAutoSaveInterval(int)));
 
-	auto autoSaveResetBtn = new QPushButton(embed::getIconPixmap("reload"), "", autoSaveBox);
+	auto autoSaveResetBtn = new QPushButton(embed::getIcon("reload"), "", autoSaveBox);
 	autoSaveResetBtn->setFixedSize(32, 32);
 	connect(autoSaveResetBtn, SIGNAL(clicked()),
 		this, SLOT(resetAutoSave()));
@@ -590,7 +590,7 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 	m_sampleRateSlider->setRange(0, SUPPORTED_SAMPLERATES.size() - 1);
 	m_sampleRateSlider->setTickPosition(QSlider::TicksBelow);
 
-	auto sampleRateResetButton = new QPushButton{embed::getIconPixmap("reload"), ""};
+	auto sampleRateResetButton = new QPushButton{embed::getIcon("reload"), ""};
 	sampleRateResetButton->setFixedSize(32, 32);
 
 	auto sampleRateSubLayout = new QHBoxLayout{};
@@ -640,7 +640,7 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 			this, SLOT(showRestartWarning()));
 	bufferSizeSubLayout->addWidget(m_bufferSizeSlider, 1);
 
-	auto bufferSize_reset_btn = new QPushButton(embed::getIconPixmap("reload"), "", bufferSizeBox);
+	auto bufferSize_reset_btn = new QPushButton(embed::getIcon("reload"), "", bufferSizeBox);
 	bufferSize_reset_btn->setFixedSize(32, 32);
 	connect(bufferSize_reset_btn, SIGNAL(clicked()),
 		this, SLOT(resetBufferSize()));
@@ -830,7 +830,8 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 
 		pathEntryLayout->addWidget(lineEdit, 1);
 
-		auto selectBtn = new QPushButton(embed::getIconPixmap(pixmap, 16, 16), "", pathEntryGroupBox);
+		auto selectBtn = new QPushButton(embed::getIcon(pixmap), "", pathEntryGroupBox);
+		selectBtn->setIconSize(QSize(16, 16));
 		selectBtn->setFixedSize(24, 24);
 		connect(selectBtn, SIGNAL(clicked()), this, openSlot);
 
@@ -896,19 +897,19 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 	// Major tabs ordering.
 	m_tabBar->addTab(general_w,
 			tr("General"), 0, false, true, false)->setIcon(
-					embed::getIconPixmap("setup_general"));
+					embed::getIcon("setup_general"));
 	m_tabBar->addTab(performance_w,
 			tr("Performance"), 1, false, true, false)->setIcon(
-					embed::getIconPixmap("setup_performance"));
+					embed::getIcon("setup_performance"));
 	m_tabBar->addTab(audio_w,
 			tr("Audio"), 2, false, true, false)->setIcon(
-					embed::getIconPixmap("setup_audio"));
+					embed::getIcon("setup_audio"));
 	m_tabBar->addTab(midi_w,
 			tr("MIDI"), 3, false, true, false)->setIcon(
-					embed::getIconPixmap("setup_midi"));
+					embed::getIcon("setup_midi"));
 	m_tabBar->addTab(paths_w,
 			tr("Paths"), 4, true, true, false)->setIcon(
-					embed::getIconPixmap("setup_directories"));
+					embed::getIcon("setup_directories"));
 
 	m_tabBar->setActiveTab(static_cast<int>(tab_to_open));
 
@@ -931,12 +932,12 @@ SetupDialog::SetupDialog(ConfigTab tab_to_open) :
 	restartWarningLbl->hide();
 
 	// OK button.
-	auto ok_btn = new QPushButton(embed::getIconPixmap("apply"), tr("OK"), extras_w);
+	auto ok_btn = new QPushButton(embed::getIcon("apply"), tr("OK"), extras_w);
 	connect(ok_btn, SIGNAL(clicked()),
 			this, SLOT(accept()));
 
 	// Cancel button.
-	auto cancel_btn = new QPushButton(embed::getIconPixmap("cancel"), tr("Cancel"), extras_w);
+	auto cancel_btn = new QPushButton(embed::getIcon("cancel"), tr("Cancel"), extras_w);
 	connect(cancel_btn, SIGNAL(clicked()),
 			this, SLOT(reject()));
 

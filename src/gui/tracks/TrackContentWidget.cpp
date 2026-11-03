@@ -618,7 +618,7 @@ void TrackContentWidget::contextMenuEvent( QContextMenuEvent * cme )
 	}
 
 	QMenu contextMenu( this );
-	QAction *pasteA = contextMenu.addAction( embed::getIconPixmap( "edit_paste" ),
+	QAction *pasteA = contextMenu.addAction( embed::getIcon( "edit_paste" ),
 					tr( "Paste" ), [this, cme](){ contextMenuAction( cme, ContextMenuAction::Paste ); } );
 	// If we can't paste in the current TCW for some reason, disable the action so the user knows
 	pasteA->setEnabled( canPasteSelection( getPosition( cme->x() ), getMimeData() ) ? true : false );

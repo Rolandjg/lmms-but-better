@@ -197,41 +197,41 @@ void AutomationClipView::setProgressionType(AutomationClip::ProgressionType type
 
 void AutomationClipView::constructContextMenu( QMenu * _cm )
 {
-	auto a = new QAction(embed::getIconPixmap("automation"), tr("Open in Automation editor"), _cm);
+	auto a = new QAction(embed::getIcon("automation"), tr("Open in Automation editor"), _cm);
 	_cm->insertAction( _cm->actions()[0], a );
 	connect(a, SIGNAL(triggered()), this, SLOT(openInAutomationEditor()));
 	_cm->insertSeparator( _cm->actions()[1] );
 
 	_cm->addSeparator();
 
-	_cm->addAction( embed::getIconPixmap( "edit_erase" ),
+	_cm->addAction( embed::getIcon( "edit_erase" ),
 			tr( "Clear" ), m_clip, SLOT(clear()));
 	_cm->addSeparator();
 
-	_cm->addAction( embed::getIconPixmap( "reload" ), tr( "Reset name" ),
+	_cm->addAction( embed::getIcon( "reload" ), tr( "Reset name" ),
 						this, SLOT(resetName()));
-	_cm->addAction( embed::getIconPixmap( "edit_rename" ),
+	_cm->addAction( embed::getIcon( "edit_rename" ),
 						tr( "Change name" ),
 						this, SLOT(changeName()));
-	_cm->addAction( embed::getIconPixmap( "record" ),
+	_cm->addAction( embed::getIcon( "record" ),
 						tr( "Set/clear record" ),
 						this, SLOT(toggleRecording()));
-	_cm->addAction( embed::getIconPixmap( "flip_y" ),
+	_cm->addAction( embed::getIcon( "flip_y" ),
 						tr( "Flip Vertically (Visible)" ),
 						this, SLOT(flipY()));
-	_cm->addAction( embed::getIconPixmap( "flip_x" ),
+	_cm->addAction( embed::getIcon( "flip_x" ),
 						tr( "Flip Horizontally (Visible)" ),
 						this, SLOT(flipX()));
 
 	using Progression = AutomationClip::ProgressionType;
-	auto progressionMenu = _cm->addMenu(embed::getIconPixmap("progression_linear"), tr("Interpolation"));
+	auto progressionMenu = _cm->addMenu(embed::getIcon("progression_linear"), tr("Interpolation"));
 	auto progressionGroup = new QActionGroup(progressionMenu);
 	for (const auto& [type, icon, text] : {
 		std::tuple{Progression::Discrete, "progression_discrete", tr("Discrete")},
 		std::tuple{Progression::Linear, "progression_linear", tr("Linear")},
 		std::tuple{Progression::CubicHermite, "progression_cubic_hermite", tr("Cubic Hermite")}})
 	{
-		auto action = progressionMenu->addAction(embed::getIconPixmap(icon), text);
+		auto action = progressionMenu->addAction(embed::getIcon(icon), text);
 		action->setCheckable(true);
 		action->setChecked(m_clip->progressionType() == type);
 		progressionGroup->addAction(action);
