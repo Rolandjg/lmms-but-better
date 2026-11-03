@@ -579,7 +579,7 @@ void SampleClip::resample(double factor, bool preservePitch, const std::function
 	}
 	else
 	{
-		const auto oldRate = m_sample.sampleRate();
+		const auto oldRate = static_cast<sample_rate_t>(m_sample.sampleRate());
 		const auto newRate = static_cast<sample_rate_t>(std::max(1l, std::lround(oldRate * factor)));
 		if (newRate == oldRate) { return; }
 

@@ -206,7 +206,7 @@ static void uninstallCrashSaveHandler()
 		signal(signum, SIG_DFL);
 	}
 }
-#endif
+#endif // LMMS_BUILD_WIN32
 
 static std::terminate_handler s_defaultTerminate = nullptr;
 

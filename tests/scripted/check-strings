@@ -102,6 +102,9 @@ def unscope_classname(stylesheet, cname):
 for theme in sorted([d for d in Path('data/themes').iterdir() if d.is_dir()]):
     classes_in_sheet = set()
     stylesheet = theme / 'style.css'
+    # Icon-only themes (such as default-svg) have no stylesheet
+    if not stylesheet.is_file():
+        continue
     rules = tinycss2.parse_stylesheet(Path(stylesheet).read_text(errors='replace'))
     for rule in rules:
         if rule.type == 'qualified-rule':
