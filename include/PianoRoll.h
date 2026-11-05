@@ -272,7 +272,8 @@ private:
 		ResizeNoteEditArea,
 		Knife,
 		Strum,
-		Audition
+		Audition,
+		AuditionStopped //!< Modifiers let go while the mouse is still down: silent, but inert until release
 	};
 
 	enum class NoteEditMode
@@ -324,8 +325,10 @@ private:
 	void pauseTestNotes(bool pause = true );
 	//! Notes on the grid that sound at the given tick, regardless of key
 	NoteVector notesAtTick(int tick) const;
-	//! Notes an Alt-click at this widget position would audition (empty if not over the grid)
+	//! Notes a Shift+Alt-click at this widget position would audition (empty if not over the grid)
 	NoteVector auditionNotesAt(const QPoint& pos) const;
+	//! Silences the auditioned notes and ignores further dragging until the mouse is released
+	void stopAudition();
 	void playChordNotes(int key, int velocity=-1);
 	void pauseChordNotes(int key);
 
