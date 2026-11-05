@@ -436,7 +436,7 @@ PianoRoll::PianoRoll() :
 	setFocusPolicy( Qt::StrongFocus );
 	setFocus();
 	setMouseTracking( true );
-	// Repaint the Alt-audition outline whenever Alt changes, even without keyboard focus
+	// Track the Shift+Alt audition modifiers even without keyboard focus
 	qApp->installEventFilter(this);
 
 	connect( &m_scaleModel, SIGNAL(dataChanged()),
@@ -1851,12 +1851,26 @@ void PianoRoll::keyReleaseEvent(QKeyEvent* ke )
 
 
 
+static bool hasAuditionModifiers(Qt::KeyboardModifiers modifiers)
+{
+	return modifiers.testFlag(Qt::ShiftModifier) && modifiers.testFlag(Qt::AltModifier);
+}
+
+
+
+
 bool PianoRoll::eventFilter(QObject* watched, QEvent* event)
 {
-	if ((event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
-		&& static_cast<QKeyEvent*>(event)->key() == Qt::Key_Alt)
+	if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)
 	{
-		update();
+		const auto* ke = static_cast<QKeyEvent*>(event);
+		// Some keyboard layouts report Alt as Meta while Shift is held
+		if (ke->key() == Qt::Key_Shift || ke->key() == Qt::Key_Alt || ke->key() == Qt::Key_Meta)
+		{
+			// Decide from the key rather than its modifiers: those can still list the key being released
+			if (event->type() == QEvent::KeyRelease && !ke->isAutoRepeat()) { stopAudition(); }
+			update();
+		}
 	}
 	return QWidget::eventFilter(watched, event);
 }
@@ -1956,9 +1970,9 @@ void PianoRoll::mousePressEvent(QMouseEvent * me )
 		return;
 	}
 
-	// Alt-click plays every note that lines up under the cursor. Alt-clicking a note itself
-	// falls through so it can be moved/resized off-grid as usual
-	if (me->button() == Qt::LeftButton && me->modifiers() & Qt::AltModifier && !noteUnderMouse())
+	// Shift+Alt-click plays every note that lines up under the cursor. Clicking a note itself
+	// falls through so it keeps its usual Shift and Alt behavior
+	if (me->button() == Qt::LeftButton && hasAuditionModifiers(me->modifiers()) && !noteUnderMouse())
 	{
 		if (const NoteVector notes = auditionNotesAt(pos); !notes.empty())
 		{
@@ -2544,6 +2558,22 @@ NoteVector PianoRoll::auditionNotesAt(const QPoint& pos) const
 	return notesAtTick((pos.x() - m_whiteKeyWidth) * TimePos::ticksPerBar() / m_ppb + m_currentPosition);
 }
 
+void PianoRoll::stopAudition()
+{
+	if (m_action != Action::Audition) { return; }
+	if (hasValidMidiClip())
+	{
+		for (Note* note : m_midiClip->notes())
+		{
+			if (!note->isPlaying()) { continue; }
+			m_midiClip->instrumentTrack()->pianoModel()->handleKeyRelease(note->key());
+			note->setIsPlaying(false);
+		}
+	}
+	m_action = Action::AuditionStopped;
+	update();
+}
+
 void PianoRoll::playChordNotes(int key, int velocity)
 {
 	// if a chord is set, play the chords notes beside the base note.
@@ -2833,8 +2863,11 @@ void PianoRoll::mouseMoveEvent( QMouseEvent * me )
 		return;
 	}
 
-	// Auditioning holds the notes until release; dragging must not edit anything
-	if (m_action == Action::Audition) { return; }
+	// Catches a modifier release that never reached the event filter (e.g. taken by the window manager)
+	if (m_action == Action::Audition && !hasAuditionModifiers(me->modifiers())) { stopAudition(); }
+
+	// Dragging must not edit anything until the mouse button that started the audition is released
+	if (m_action == Action::Audition || m_action == Action::AuditionStopped) { return; }
 
 	const auto pos = position(me);
 	if (m_editMode == EditMode::Detuning && me->buttons() == Qt::NoButton)
@@ -4518,10 +4551,10 @@ void PianoRoll::paintEvent(QPaintEvent * pe )
 		}
 		// -- End knife tool
 
-		// -- Alt held: outline the notes an Alt-click would play
-		// (not while editing notes or hovering one, where Alt means off-grid instead)
+		// -- Shift+Alt held: outline the notes a Shift+Alt-click would play
+		// (not while editing notes or hovering one, where the modifiers keep their usual meaning)
 		if (m_action == Action::Audition
-			|| (m_action == Action::None && QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier && !noteUnderMouse()))
+			|| (m_action == Action::None && hasAuditionModifiers(QGuiApplication::queryKeyboardModifiers()) && !noteUnderMouse()))
 		{
 			const QPoint cursorPos = mapFromGlobal(QCursor::pos());
 			const NoteVector auditioned = underMouse() ? auditionNotesAt(cursorPos) : NoteVector{};
@@ -4878,7 +4911,7 @@ void PianoRoll::focusOutEvent( QFocusEvent * )
 		}
 		for (Note* note : m_midiClip->notes()) { note->setIsPlaying(false); }
 	}
-	if (m_action == Action::Audition) { m_action = Action::None; }
+	if (m_action == Action::Audition || m_action == Action::AuditionStopped) { m_action = Action::None; }
 	if (m_editMode == EditMode::Knife) {
 		m_editMode = m_knifeMode;
 		m_action = Action::None;

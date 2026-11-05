@@ -50,11 +50,28 @@ class PianoRollRenderingTest : public QObject
 		return roll;
 	}
 
-	static void send(gui::PianoRoll* roll, QEvent::Type type, QPoint pos, Qt::MouseButton button, Qt::MouseButtons buttons)
+	static void send(gui::PianoRoll* roll, QEvent::Type type, QPoint pos, Qt::MouseButton button, Qt::MouseButtons buttons,
+		Qt::KeyboardModifiers modifiers = Qt::NoModifier)
 	{
 		QCursor::setPos(roll->mapToGlobal(pos));
-		QMouseEvent event(type, pos, roll->mapToGlobal(pos), button, buttons, Qt::NoModifier);
+		QMouseEvent event(type, pos, roll->mapToGlobal(pos), button, buttons, modifiers);
 		QApplication::sendEvent(roll, &event);
+	}
+
+	//! A one-note clip opened in Draw mode, plus a grid point on that note's time but not on its row
+	gui::PianoRoll* openForAudition(MidiClip& clip, QPoint& beside)
+	{
+		clip.clearNotes();
+		clip.addNote(Note{TimePos{192 * 16}, TimePos{0}, 60}, false);
+		auto* window = m_gui->pianoRoll();
+		window->setCurrentMidiClip(&clip);
+		window->show();
+		auto* roll = window->findChild<gui::PianoRoll*>();
+		QMetaObject::invokeMethod(roll, "setEditMode", Qt::DirectConnection,
+			Q_ARG(int, static_cast<int>(gui::PianoRoll::EditMode::Draw)));
+		QCoreApplication::processEvents();
+		beside = QPoint(roll->property("whiteKeyWidth").toInt() + 4, 30);
+		return roll;
 	}
 
 	static void click(gui::PianoRoll* roll, QPoint pos, Qt::MouseButton button)
@@ -325,6 +342,89 @@ private slots:
 		const QPoint start = points.front();
 		click(roll, QPoint(start.x() + 1, roll->height() - 20), Qt::LeftButton);
 		QVERIFY(clip.notes().front()->getVolume() < DefaultVolume);
+		gui::getGUI()->pianoRoll()->setCurrentMidiClip(nullptr);
+	}
+
+	void auditionRequiresShiftAndAlt_data()
+	{
+		QTest::addColumn<int>("modifiers");
+		QTest::newRow("alt") << static_cast<int>(Qt::AltModifier);
+		QTest::newRow("shift") << static_cast<int>(Qt::ShiftModifier);
+	}
+
+	void auditionRequiresShiftAndAlt()
+	{
+		QFETCH(int, modifiers);
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		TestContainer container;
+		InstrumentTrack track{&container};
+		MidiClip clip{&track};
+		QPoint beside;
+		auto* roll = openForAudition(clip, beside);
+		send(roll, QEvent::MouseMove, beside, Qt::NoButton, Qt::NoButton);
+		send(roll, QEvent::MouseButtonPress, beside, Qt::LeftButton, Qt::LeftButton, Qt::KeyboardModifiers(modifiers));
+		QVERIFY(!track.pianoModel()->isKeyPressed(60));
+		send(roll, QEvent::MouseButtonRelease, beside, Qt::LeftButton, Qt::NoButton, Qt::KeyboardModifiers(modifiers));
+		gui::getGUI()->pianoRoll()->setCurrentMidiClip(nullptr);
+	}
+
+	void auditionStopsWithModifierRelease_data()
+	{
+		QTest::addColumn<int>("key");
+		QTest::addColumn<int>("remaining");
+		QTest::newRow("alt") << static_cast<int>(Qt::Key_Alt) << static_cast<int>(Qt::ShiftModifier);
+		QTest::newRow("alt reported as meta") << static_cast<int>(Qt::Key_Meta) << static_cast<int>(Qt::ShiftModifier);
+		QTest::newRow("shift") << static_cast<int>(Qt::Key_Shift) << static_cast<int>(Qt::AltModifier);
+	}
+
+	void auditionStopsWithModifierRelease()
+	{
+		QFETCH(int, key);
+		QFETCH(int, remaining);
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		TestContainer container;
+		InstrumentTrack track{&container};
+		MidiClip clip{&track};
+		QPoint beside;
+		auto* roll = openForAudition(clip, beside);
+		const Qt::KeyboardModifiers held = Qt::ShiftModifier | Qt::AltModifier;
+		const Qt::KeyboardModifiers after(remaining);
+		send(roll, QEvent::MouseMove, beside, Qt::NoButton, Qt::NoButton, held);
+		send(roll, QEvent::MouseButtonPress, beside, Qt::LeftButton, Qt::LeftButton, held);
+		QVERIFY(track.pianoModel()->isKeyPressed(60));
+
+		QKeyEvent release(QEvent::KeyRelease, key, after);
+		QApplication::sendEvent(roll, &release);
+		QVERIFY(!track.pianoModel()->isKeyPressed(60));
+
+		// Still inert while the button stays down: dragging over the velocity lane must not edit the note
+		const QPoint inVelocityLane(beside.x(), roll->height() - 20);
+		const volume_t volume = clip.notes().front()->getVolume();
+		send(roll, QEvent::MouseMove, inVelocityLane, Qt::NoButton, Qt::LeftButton, after);
+		QCOMPARE(clip.notes().front()->getVolume(), volume);
+		QVERIFY(!track.pianoModel()->isKeyPressed(60));
+		send(roll, QEvent::MouseButtonRelease, inVelocityLane, Qt::LeftButton, Qt::NoButton, after);
+		QCOMPARE(clip.notes().size(), std::size_t{1});
+		gui::getGUI()->pianoRoll()->setCurrentMidiClip(nullptr);
+	}
+
+	void auditionStopsOnMoveIfReleaseWasMissed()
+	{
+		auto guard = Engine::audioEngine()->requestChangesGuard();
+		TestContainer container;
+		InstrumentTrack track{&container};
+		MidiClip clip{&track};
+		QPoint beside;
+		auto* roll = openForAudition(clip, beside);
+		const Qt::KeyboardModifiers held = Qt::ShiftModifier | Qt::AltModifier;
+		send(roll, QEvent::MouseMove, beside, Qt::NoButton, Qt::NoButton, held);
+		send(roll, QEvent::MouseButtonPress, beside, Qt::LeftButton, Qt::LeftButton, held);
+		QVERIFY(track.pianoModel()->isKeyPressed(60));
+		send(roll, QEvent::MouseMove, beside + QPoint(4, 0), Qt::NoButton, Qt::LeftButton, held);
+		QVERIFY(track.pianoModel()->isKeyPressed(60));
+		send(roll, QEvent::MouseMove, beside + QPoint(8, 0), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+		QVERIFY(!track.pianoModel()->isKeyPressed(60));
+		send(roll, QEvent::MouseButtonRelease, beside + QPoint(8, 0), Qt::LeftButton, Qt::NoButton);
 		gui::getGUI()->pianoRoll()->setCurrentMidiClip(nullptr);
 	}
 
