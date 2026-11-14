@@ -2,6 +2,7 @@
  * Copyright (c) 2026 LMMS developers. Licensed under GPL-2.0-or-later.
  */
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
@@ -54,6 +55,7 @@ bool equal(const char* a, const FUID& b) { return std::memcmp(a, b, 16) == 0; }
 class TestView final : public IPlugView, public Linux::ITimerHandler
 {
 	uint32 refs = 1;
+	bool isAttached = false;
 public:
 	~TestView() { ++stats[5]; }
 	tresult PLUGIN_API queryInterface(const TUID iid, void** obj) override
@@ -71,12 +73,16 @@ public:
 	{
 		if (std::getenv("LMMS_TEST_VST3_ATTACH_THROW")) { throw std::runtime_error("editor attachment threw"); }
 		if (std::getenv("LMMS_TEST_VST3_ATTACH_FAIL")) { return kResultFalse; }
+		isAttached = true;
 		return kResultOk;
 	}
 	tresult PLUGIN_API removed() override
 	{
 		++stats[6];
+		isAttached = false;
 		if (std::getenv("LMMS_TEST_VST3_REMOVE_THROW")) { throw std::runtime_error("editor removal failed"); }
+		// like a bridged plugin whose Wine host hung
+		while (std::getenv("LMMS_TEST_VST3_REMOVE_HANG")) { std::this_thread::sleep_for(std::chrono::seconds{1}); }
 		return kResultOk;
 	}
 	tresult PLUGIN_API onWheel(float) override { return kResultOk; }
@@ -85,6 +91,12 @@ public:
 	tresult PLUGIN_API getSize(ViewRect* r) override
 	{
 		if (std::getenv("LMMS_TEST_VST3_SIZE_THROW")) { throw std::runtime_error("editor size threw"); }
+		// like Kontakt 8, which only knows its size once its editor exists
+		if (std::getenv("LMMS_TEST_VST3_SIZE_UNKNOWN")
+			|| (std::getenv("LMMS_TEST_VST3_SIZE_AFTER_ATTACH") && !isAttached))
+		{
+			*r = {}; return kNotInitialized;
+		}
 		*r = {0, 0, 200, 100}; return kResultOk;
 	}
 	tresult PLUGIN_API onSize(ViewRect*) override

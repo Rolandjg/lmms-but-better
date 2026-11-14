@@ -17,6 +17,8 @@
 #ifdef Q_OS_LINUX
 #include <xcb/xcb.h>
 #include <unistd.h>
+#include <signal.h>
+#include <sys/resource.h>
 #endif
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
@@ -740,7 +742,8 @@ private slots:
 		Model parent{nullptr};
 		Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
 		ScopedEnv editor{"LMMS_TEST_VST3_EDITOR"};
-		for (const char* flag : {"LMMS_TEST_VST3_ATTACH_FAIL", "LMMS_TEST_VST3_ATTACH_THROW", "LMMS_TEST_VST3_SIZE_THROW"})
+		for (const char* flag : {"LMMS_TEST_VST3_ATTACH_FAIL", "LMMS_TEST_VST3_ATTACH_THROW", "LMMS_TEST_VST3_SIZE_THROW",
+			"LMMS_TEST_VST3_SIZE_UNKNOWN"})
 		{
 			resetStats();
 			ScopedEnv failure{flag};
@@ -779,6 +782,118 @@ private slots:
 			QVERIFY(!window.isVisible());
 		}
 		QCOMPARE(stat(5), 1);
+	}
+
+	//! Kontakt 8 reports its editor size only after attached(); before that, getSize() fails
+	void editorSizeKnownOnlyAfterAttach()
+	{
+		if (!Engine::audioEngine()) { Engine::init(true); }
+#if defined(Q_OS_MACOS)
+		if (QGuiApplication::platformName() != "cocoa") { QSKIP("Needs native editor platform"); }
+#elif defined(Q_OS_WIN)
+		if (QGuiApplication::platformName() != "windows") { QSKIP("Needs native editor platform"); }
+#else
+		if (QGuiApplication::platformName() != "xcb") { QSKIP("Needs X11/XWayland"); }
+#endif
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+		ScopedEnv editor{"LMMS_TEST_VST3_EDITOR"};
+		ScopedEnv late{"LMMS_TEST_VST3_SIZE_AFTER_ATTACH"};
+		gui::Vst3EditorWindow window{&plugin};
+		QSignalSpy failed{&window, &gui::Vst3EditorWindow::editorFailed};
+		window.show();
+		QVERIFY(window.attachView());
+		QTRY_VERIFY(window.isViewAttached());
+#ifdef Q_OS_MACOS
+		const qreal scale = 1.;
+#else
+		const qreal scale = window.devicePixelRatioF();
+#endif
+		// the size reported after attaching replaces the provisional one
+		QTRY_COMPARE(window.size(), QSize(qRound(200 / scale), qRound(100 / scale)));
+		QCOMPARE(failed.size(), 0);
+		window.close();
+		QVERIFY(!window.isViewAttached());
+	}
+
+	//! An editor call that never returns, as when a yabridge plugin's Wine host hangs, must not freeze LMMS
+	//! for good: the watchdog kills the plugin's host and ends LMMS through the crash save. That ends the
+	//! process, so the hang runs in a child process (editorHangChild) with a stand-in for the Wine host
+	void editorHangKillsYabridgeHost()
+	{
+#ifndef Q_OS_LINUX
+		QSKIP("The hang watchdog targets yabridge on Linux");
+#else
+		if (qEnvironmentVariableIsSet("LMMS_TEST_VST3_HANG_CHILD")) { QSKIP("Running as the child"); }
+		if (QGuiApplication::platformName() != "xcb") { QSKIP("Needs X11/XWayland"); }
+		// a copy of sh shows up as a process named yabridge-host
+		QTemporaryDir dir;
+		QVERIFY(dir.isValid());
+		const QString fakeHost = dir.filePath("yabridge-host");
+		QVERIFY(QFile::copy("/bin/sh", fakeHost));
+		QVERIFY(QFile::setPermissions(fakeHost, QFile::ReadOwner | QFile::ExeOwner));
+
+		QProcess child;
+		auto env = QProcessEnvironment::systemEnvironment();
+		env.insert("LMMS_TEST_VST3_HANG_CHILD", "1");
+		env.insert("LMMS_TEST_VST3_FAKE_HOST", fakeHost);
+		env.insert("LMMS_TEST_VST3_WORKING_DIR", dir.path() + "/");
+		env.insert("LMMS_VST3_HANG_TIMEOUT", "1");
+		child.setProcessEnvironment(env);
+		child.start(QCoreApplication::applicationFilePath(), {"editorHangChild"});
+		QVERIFY(child.waitForFinished(30000));
+		const QByteArray out = child.readAllStandardOutput();
+		const QByteArray err = child.readAllStandardError();
+		QVERIFY2(child.exitStatus() == QProcess::CrashExit, (out + err).constData());
+		// QtTest prints messages to stdout
+		QVERIFY2((out + err).contains("killing its Wine host"), (out + err).constData());
+
+		const auto marker = out.indexOf("FAKE_HOST ");
+		QVERIFY2(marker >= 0, out.constData());
+		const auto pid = static_cast<pid_t>(out.mid(marker + 10).split('\n').first().toLongLong());
+		QVERIFY(pid > 0);
+		// killed, then reaped once the child is gone
+		QTRY_VERIFY_WITH_TIMEOUT(::kill(pid, 0) != 0, 5000);
+
+		QFile log(dir.filePath("crash.log"));
+		QVERIFY(log.open(QIODevice::ReadOnly));
+		QVERIFY(log.readAll().contains("killing its Wine host"));
+#endif
+	}
+
+	void editorHangChild()
+	{
+#ifdef Q_OS_LINUX
+		if (!qEnvironmentVariableIsSet("LMMS_TEST_VST3_HANG_CHILD")) { QSKIP("Run by editorHangKillsYabridgeHost"); }
+		// this process ends with abort() on purpose
+		const rlimit noCore{0, 0};
+		setrlimit(RLIMIT_CORE, &noCore);
+		ConfigManager::inst()->setWorkingDir(qEnvironmentVariable("LMMS_TEST_VST3_WORKING_DIR"));
+		if (!Engine::audioEngine()) { Engine::init(true); }
+		const auto classes = Vst3Manager::instance()->classesInFile(VST3_TEST_MODULE);
+		QCOMPARE(classes.size(), std::size_t{1});
+		Model parent{nullptr};
+		Vst3Plugin plugin{&parent, classes[0].uid, VST3_TEST_MODULE};
+
+		// the watchdog finds a plugin's host by the bundle name on its command line
+		QProcess host;
+		host.start(qEnvironmentVariable("LMMS_TEST_VST3_FAKE_HOST"), {"-c", "while :; do sleep 1; done",
+			"yabridge-host", QFileInfo{plugin.classInfo().modulePath}.fileName()});
+		QVERIFY(host.waitForStarted());
+		std::printf("FAKE_HOST %lld\n", static_cast<long long>(host.processId()));
+		std::fflush(stdout);
+
+		ScopedEnv editor{"LMMS_TEST_VST3_EDITOR"};
+		gui::Vst3EditorWindow window{&plugin};
+		window.show();
+		QVERIFY(window.attachView());
+		QTRY_VERIFY(window.isViewAttached());
+		ScopedEnv hang{"LMMS_TEST_VST3_REMOVE_HANG"};
+		window.close();
+		QFAIL("Closing the hung editor returned");
+#endif
 	}
 
 	void lmmsInstrumentAndEffect()
