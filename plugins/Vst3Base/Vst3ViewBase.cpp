@@ -54,6 +54,24 @@
 
 #include "Vst3Plugin.h"
 #ifdef Q_OS_LINUX
+#include <QDateTime>
+#include <QFile>
+#include <QFileInfo>
+#include <QTextStream>
+#include <chrono>
+#include <condition_variable>
+#include <signal.h>
+#include <cstdlib>
+#include <fstream>
+#include <iterator>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <unistd.h>
+
+#include "ConfigManager.h"
+#include "Vst3Manager.h"
+#include "Vst3NativeModule.h"
 #include "Vst3X11Helpers.h"
 #endif
 #ifdef Q_OS_WIN
@@ -125,6 +143,156 @@ void reportContentScale(IPlugView* view, const QWidget* w)
 }
 
 #endif // Q_OS_MACOS
+
+
+#ifdef Q_OS_LINUX
+//! A yabridge plugin whose Wine host hangs (e.g. Wine reported a stack overflow) freezes LMMS for good
+//! as soon as LMMS makes an editor call: VST3 views may only be used from the GUI thread, the call
+//! waits for the Wine host, and nothing interrupts it. Ctrl+C doesn't help either, since LMMS handles
+//! SIGINT on the GUI thread. Once an editor call has been running for too long, this kills the
+//! plugin's Wine host. yabridge then aborts LMMS, because the exception it throws on its own thread
+//! can't be caught. That goes through the crash save, so the project is written to the recovery
+//! file, and the hung host doesn't outlive LMMS.
+//! LMMS_VST3_HANG_TIMEOUT sets the timeout in seconds, 0 disables the watchdog. Plugins that LMMS
+//! loads natively are left alone: they may run a modal loop inside a callback.
+class EditorHangWatchdog
+{
+public:
+	//! Arms the watchdog for one editor call; nested calls run under the outermost one's deadline
+	class Scope
+	{
+	public:
+		Scope(const char* operation, const vst3::Vst3Plugin* plugin)
+		{
+			auto& watchdog = instance();
+			m_armed = watchdog.m_timeout.count() > 0;
+			if (m_armed) { watchdog.arm(operation, plugin); }
+		}
+		~Scope()
+		{
+			if (m_armed) { instance().disarm(); }
+		}
+		Scope(const Scope&) = delete;
+		Scope& operator=(const Scope&) = delete;
+
+	private:
+		bool m_armed = false;
+	};
+
+private:
+	EditorHangWatchdog()
+	{
+		const QByteArray env = qgetenv("LMMS_VST3_HANG_TIMEOUT");
+		bool ok = false;
+		const int seconds = env.toInt(&ok);
+		m_timeout = std::chrono::seconds{ok && seconds >= 0 ? seconds : 30};
+	}
+
+	static EditorHangWatchdog& instance()
+	{
+		// never destroyed: the thread may still be waiting while the process exits
+		static auto* const s_watchdog = new EditorHangWatchdog;
+		return *s_watchdog;
+	}
+
+	void arm(const char* operation, const vst3::Vst3Plugin* plugin)
+	{
+		std::lock_guard<std::mutex> lock{m_mutex};
+		if (m_depth++ > 0) { return; }
+		m_deadline = std::chrono::steady_clock::now() + m_timeout;
+		m_operation = operation;
+		m_pluginName = plugin ? plugin->name().toStdString() : std::string{};
+		// yabridge names the host's socket directory after the bundle, and passes the bundle's
+		// Windows counterpart, which has the same name, on the host's command line
+		m_hostHint = plugin ? QFileInfo{plugin->classInfo().modulePath}.completeBaseName().toStdString()
+			: std::string{};
+		if (!m_thread.joinable()) { m_thread = std::thread{[this] { run(); }}; }
+		m_wake.notify_one();
+	}
+
+	void disarm()
+	{
+		std::lock_guard<std::mutex> lock{m_mutex};
+		--m_depth;
+		m_wake.notify_one();
+	}
+
+	void run()
+	{
+		std::unique_lock<std::mutex> lock{m_mutex};
+		for (;;)
+		{
+			m_wake.wait(lock, [this] { return m_depth > 0; });
+			const auto deadline = m_deadline;
+			const bool done = m_wake.wait_until(lock, deadline,
+				[this, deadline] { return m_depth == 0 || m_deadline != deadline; });
+			if (!done) { handleHang(lock); }
+		}
+	}
+
+	void handleHang(std::unique_lock<std::mutex>& lock)
+	{
+		const std::string operation = m_operation;
+		const std::string plugin = m_pluginName;
+		const std::string hint = m_hostHint;
+		const auto seconds = static_cast<long long>(m_timeout.count());
+		lock.unlock();
+
+		std::vector<pid_t> hosts;
+		if (!hint.empty())
+		{
+			for (const pid_t pid : vst3::Vst3StuckHostReaper::yabridgeHosts(getpid(), false))
+			{
+				if (commandLine(pid).find(hint) != std::string::npos) { hosts.push_back(pid); }
+			}
+		}
+
+		if (hosts.empty())
+		{
+			// not bridged, or a group host shared with other plugins: keep waiting, the
+			// plugin might still return. Warn once per hung call
+			qWarning().nospace() << "VST3: " << plugin.c_str() << " has been in its " << operation.c_str()
+				<< " for " << seconds << " s without returning, LMMS is stuck until it does";
+			lock.lock();
+			const auto deadline = m_deadline;
+			m_wake.wait(lock, [this, deadline] { return m_depth == 0 || m_deadline != deadline; });
+			return;
+		}
+
+		const QString message = QStringLiteral("VST3: %1 hung in its %2 for %3 s, killing its Wine host. "
+			"LMMS will exit and save the project to the recovery file")
+			.arg(QString::fromStdString(plugin), QString::fromLatin1(operation.c_str())).arg(seconds);
+		qCritical().noquote() << message;
+		QFile log(ConfigManager::inst()->workingDir() + "crash.log");
+		if (log.open(QIODevice::Append | QIODevice::Text))
+		{
+			QTextStream(&log) << QDateTime::currentDateTime().toString(Qt::ISODate) << " " << message << "\n";
+		}
+		for (const pid_t pid : hosts) { ::kill(pid, SIGKILL); }
+
+		// yabridge aborts as soon as it reads EOF from the host's socket. Should it not, end LMMS
+		// ourselves; if the crash save is already running, it ignores this
+		std::this_thread::sleep_for(std::chrono::seconds{5});
+		std::abort();
+	}
+
+	static std::string commandLine(pid_t pid)
+	{
+		std::ifstream file{"/proc/" + std::to_string(pid) + "/cmdline", std::ios::binary};
+		return std::string{std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}};
+	}
+
+	std::chrono::seconds m_timeout;
+	std::mutex m_mutex;
+	std::condition_variable m_wake;
+	int m_depth = 0;
+	std::chrono::steady_clock::time_point m_deadline;
+	std::string m_operation;
+	std::string m_pluginName;
+	std::string m_hostHint;
+	std::thread m_thread;
+};
+#endif // Q_OS_LINUX
 
 } // namespace
 
@@ -232,6 +400,9 @@ QSize Vst3EditorWindow::logicalToPhysical(const QSize& size) const
 bool Vst3EditorWindow::tryPluginCall(const char* operation, const std::function<void()>& callback)
 {
 	QString reason;
+#ifdef Q_OS_LINUX
+	const EditorHangWatchdog::Scope watchdog{operation, m_plugin};
+#endif
 	try { callback(); return true; }
 	catch (const std::exception& e) { reason = QString::fromUtf8(e.what()); }
 	catch (...) { reason = QStringLiteral("unknown exception"); }
@@ -254,6 +425,16 @@ bool Vst3EditorWindow::tryPluginCall(const char* operation, const std::function<
 }
 
 
+QSize Vst3EditorWindow::queryViewSize() const
+{
+	ViewRect rect{};
+	if (m_view->getSize(&rect) != kResultOk || rect.getWidth() <= 0 || rect.getHeight() <= 0) { return {}; }
+	return {rect.getWidth(), rect.getHeight()};
+}
+
+
+
+
 bool Vst3EditorWindow::attachView()
 {
 	if (QGuiApplication::platformName() != EditorQpa) { return false; }
@@ -271,12 +452,13 @@ bool Vst3EditorWindow::attachView()
 #ifndef Q_OS_MACOS
 		reportContentScale(m_view.get(), this);
 #endif
-		ViewRect size{};
-		if (m_view->getSize(&size) != kResultOk || size.getWidth() <= 0 || size.getHeight() <= 0)
-		{ throw std::runtime_error("plugin reported an invalid editor size"); }
+		// Some editors only know their size once attached() has created them: Kontakt 8 answers
+		// kNotInitialized with an empty rect until then. Open at a provisional size and ask again
+		// after attaching (or take the plugin's resizeView() during attached())
+		const QSize size = queryViewSize();
 		m_resizingFromPlugin = true;
-		m_viewSize = QSize(size.getWidth(), size.getHeight());
-		resize(physicalToLogical(m_viewSize));
+		m_viewSize = size;
+		resize(physicalToLogical(size.isValid() ? size : ProvisionalEditorSize));
 		m_resizingFromPlugin = false;
 	});
 	if (!success || !supported) { detachView(); return false; }
@@ -330,6 +512,16 @@ void Vst3EditorWindow::completeAttach()
 		if (m_view->attached(reinterpret_cast<void*>(winId()), EditorPlatform) != kResultOk)
 		{ throw std::runtime_error("plugin rejected editor attachment"); }
 		m_attached = true;
+		if (!m_viewSize.isValid())
+		{
+			// the size was unknown before attaching, and the plugin didn't call resizeView()
+			const QSize size = queryViewSize();
+			if (!size.isValid()) { throw std::runtime_error("plugin reported an invalid editor size"); }
+			m_resizingFromPlugin = true;
+			m_viewSize = size;
+			resize(physicalToLogical(size));
+			m_resizingFromPlugin = false;
+		}
 		if (m_view->canResize() != kResultTrue)
 		{ setFixedSize(physicalToLogical(m_viewSize)); }
 	});

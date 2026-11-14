@@ -114,6 +114,11 @@ private:
 	//! is logical (high-DPI scaled) pixels. On macOS both use logical points.
 	QSize physicalToLogical(const QSize& size) const;
 	QSize logicalToPhysical(const QSize& size) const;
+	//! The view's current size in native view units, invalid if it can't tell yet
+	QSize queryViewSize() const;
+
+	//! Window size, in native view units, for editors that only report a size once attached
+	static constexpr QSize ProvisionalEditorSize{800, 600};
 
 	//! Attach the view to the (now mapped and placed) window
 	bool tryPluginCall(const char* operation, const std::function<void()>& callback);
@@ -132,7 +137,7 @@ private:
 	bool m_attachPending = false;
 	bool m_resizingFromPlugin = false;
 	QTimer* m_positionRefreshTimer = nullptr;
-	QSize m_viewSize; //!< last size communicated with the view, in native view units
+	QSize m_viewSize; //!< last size communicated with the view, in native view units; invalid until known
 
 #ifdef LMMS_BUILD_LINUX
 	struct EventHandlerEntry

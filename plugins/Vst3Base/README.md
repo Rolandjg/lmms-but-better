@@ -113,8 +113,10 @@ build/tests/Vst3HostTest installedPlugin
 The installed-plugin test checks nonzero, finite audio, parameter restoration
 with and without state chunks, instance recreation, and processing restart.
 Local validation covered Vital, all four Dragonfly reverbs, TAL Reverb 2/4,
-Graillon 3, and Windows Krush, Scream and 64-bit TDR Nova. Vital and Krush also
-passed editor attachment/teardown. Complete LMMS projects rendered Vital
+Graillon 3, and Windows Krush, Scream and 64-bit TDR Nova. Vital, Krush and
+Windows Kontakt 8 (8.14.1, yabridge 5.1.2, Wine 11.17) also passed editor
+attachment/teardown; Kontakt reports its editor size only after `attached()`,
+so the editor opens at a provisional size and is resized once it is known. Complete LMMS projects rendered Vital
 alone, with Dragonfly Plate Reverb, and with Windows Scream to distinct,
 non-silent WAV files.
 
